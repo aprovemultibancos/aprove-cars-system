@@ -4,9 +4,10 @@ import { Vehicle } from "@shared/schema";
 import { useRoute, useLocation } from "wouter";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, ArrowLeft } from "lucide-react";
 import { VehicleTable } from "@/components/vehicles/vehicle-table";
 import { VehicleForm } from "@/components/vehicles/vehicle-form";
+import { VehicleDetails } from "@/components/vehicles/vehicle-details";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -23,16 +24,20 @@ export default function VehiclesPage() {
   });
   
   // Get vehicle ID from the URL if available
-  const vehicleId = matchVehicleId ? matchVehicleId.params.id : matchVehicleAction ? matchVehicleAction.params.id : null;
-  const action = matchVehicleAction ? matchVehicleAction.params.action : null;
+  const vehicleId = matchVehicleId?.params?.id || matchVehicleAction?.params?.id || null;
+  const action = matchVehicleAction?.params?.action || null;
   
   // If we have a vehicle ID in the URL, get that vehicle's data
-  const editVehicle = vehicleId && vehicles ? vehicles.find(v => v.id.toString() === vehicleId) : undefined;
+  const vehicle = vehicleId && vehicles ? vehicles.find(v => v.id.toString() === vehicleId) : undefined;
   
-  const isEditing = action === "edit" && Boolean(editVehicle);
+  // Check if we're viewing vehicle details
+  const isViewing = action === "view" && Boolean(vehicle);
   
-  // Show form if adding or editing
-  const showForm = isAddingVehicle || isEditing;
+  // Show form if adding a new vehicle
+  const showForm = isAddingVehicle;
+  
+  // Show vehicle details if viewing a vehicle
+  const showDetails = isViewing;
   
   // Count vehicles by status
   const availableCount = vehicles?.filter(v => v.status === "available").length || 0;
@@ -41,8 +46,8 @@ export default function VehiclesPage() {
   
   return (
     <div>
-      <PageHeader title={showForm ? (isEditing ? "Editar Veículo" : "Adicionar Veículo") : "Inventário de Veículos"}>
-        {!showForm && (
+      <PageHeader title={showForm ? "Adicionar Veículo" : isViewing ? "Detalhes do Veículo" : "Inventário de Veículos"}>
+        {!showForm && !showDetails && (
           <PageHeader.Action>
             <Button onClick={() => setIsAddingVehicle(true)}>
               <Plus className="h-4 w-4 mr-2" />
@@ -52,7 +57,7 @@ export default function VehiclesPage() {
         )}
       </PageHeader>
       
-      {!showForm && (
+      {!showForm && !showDetails && (
         <>
           {/* Status Cards */}
           <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-3">
@@ -147,13 +152,31 @@ export default function VehiclesPage() {
                   navigate("/vehicles");
                 }}
               >
+                <ArrowLeft className="h-4 w-4 mr-2" />
                 Voltar
               </Button>
             </div>
             <VehicleForm 
-              editVehicle={isEditing ? editVehicle : undefined} 
               onSaveSuccess={() => setIsAddingVehicle(false)} 
             />
+          </CardContent>
+        </Card>
+      )}
+      
+      {/* Detalhes do veículo */}
+      {showDetails && vehicle && (
+        <Card className="mt-6">
+          <CardContent className="pt-6">
+            <div className="mb-4 flex justify-end">
+              <Button 
+                variant="outline" 
+                onClick={() => navigate("/vehicles")}
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Voltar para Inventário
+              </Button>
+            </div>
+            <VehicleDetails vehicle={vehicle} />
           </CardContent>
         </Card>
       )}

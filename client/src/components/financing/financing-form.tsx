@@ -1,3 +1,4 @@
+import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -313,6 +314,56 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
                 <FormMessage />
               </FormItem>
             )}
+          />
+          
+          <FormField
+            control={form.control}
+            name="releasedAmount"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Valor Liberado (R$)</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="number" 
+                    step="0.01" 
+                    {...field}
+                    onChange={(e) => {
+                      field.onChange(e);
+                      form.trigger();
+                    }} 
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={form.control}
+            name="expectedReturn"
+            render={({ field }) => {
+              // Use effect para atualizar o valor quando necessário
+              React.useEffect(() => {
+                const returnAmount = calculateReturnAmount();
+                field.onChange(returnAmount);
+              }, [form.watch("assetValue"), form.watch("returnType")]);
+              
+              return (
+                <FormItem>
+                  <FormLabel>Retorno Esperado (R$)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      step="0.01" 
+                      {...field}
+                      readOnly
+                    />
+                  </FormControl>
+                  <div className="text-xs text-muted-foreground mt-1">Este valor é calculado automaticamente</div>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
           />
 
           <FormField
