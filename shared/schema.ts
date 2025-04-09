@@ -132,21 +132,22 @@ export const financings = pgTable("financings", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const insertFinancingSchema = createInsertSchema(financings).pick({
-  customerId: true,
-  customerName: true,
-  bank: true,
-  assetValue: true,
-  returnType: true,
-  accessoriesPercentage: true,
-  feeAmount: true,
-  releasedAmount: true,
-  expectedReturn: true,
-  agentCommission: true,
-  sellerCommission: true,
-  status: true,
-  agentId: true,
-  notes: true,
+// Criando um schema personalizado para inserção de financiamentos que faz coerção de tipos
+export const insertFinancingSchema = z.object({
+  customerId: z.number().nullable().optional(),
+  customerName: z.string(),
+  bank: z.string(),
+  assetValue: z.coerce.number(),
+  returnType: z.enum(["R0", "R1", "R2", "R3", "R4", "R6", "RF"]),
+  accessoriesPercentage: z.coerce.number().default(0),
+  feeAmount: z.coerce.number().default(0),
+  releasedAmount: z.coerce.number().default(0),
+  expectedReturn: z.coerce.number().default(0),
+  agentCommission: z.coerce.number(),
+  sellerCommission: z.coerce.number(),
+  status: z.enum(["analysis", "approved", "paid", "rejected"]).default("analysis"),
+  agentId: z.coerce.number(),
+  notes: z.string().optional(),
 });
 
 // Expenses schema

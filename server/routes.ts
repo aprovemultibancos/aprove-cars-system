@@ -197,23 +197,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("Recebido no backend:", req.body);
       
-      // Converter campos numéricos para números (caso venham como strings)
-      const body = {
-        ...req.body,
-        customerId: req.body.customerId || null,
-        assetValue: Number(req.body.assetValue),
-        accessoriesPercentage: Number(req.body.accessoriesPercentage || 0),
-        feeAmount: Number(req.body.feeAmount || 0),
-        releasedAmount: Number(req.body.releasedAmount || 0),
-        expectedReturn: Number(req.body.expectedReturn || 0),
-        agentCommission: Number(req.body.agentCommission || 0),
-        sellerCommission: Number(req.body.sellerCommission || 0),
-        agentId: Number(req.body.agentId)
-      };
-      
-      console.log("Dados após conversão para número:", body);
-      
-      const financingData = insertFinancingSchema.parse(body);
+      // Usar o schema diretamente para validar e converter os tipos
+      // O schema modificado em shared/schema.ts já faz a coerção de tipos
+      const financingData = insertFinancingSchema.parse(req.body);
       console.log("Dados após parse do schema:", financingData);
       
       const financing = await storage.createFinancing(financingData);
@@ -229,23 +215,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/financings/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      console.log("Recebido para atualização:", req.body);
       
-      // Converter campos numéricos para números (caso venham como strings)
-      const body = {
-        ...req.body
-      };
+      // Validar dados parciais usando o schema, permitindo atualização parcial
+      // Só faremos a coerção dos campos numéricos presentes no corpo da requisição
+      const partialSchema = z.object({
+        customerId: z.number().nullable().optional(),
+        customerName: z.string().optional(),
+        bank: z.string().optional(),
+        assetValue: z.coerce.number().optional(),
+        returnType: z.enum(["R0", "R1", "R2", "R3", "R4", "R6", "RF"]).optional(),
+        accessoriesPercentage: z.coerce.number().optional(),
+        feeAmount: z.coerce.number().optional(),
+        releasedAmount: z.coerce.number().optional(),
+        expectedReturn: z.coerce.number().optional(),
+        agentCommission: z.coerce.number().optional(),
+        sellerCommission: z.coerce.number().optional(),
+        status: z.enum(["analysis", "approved", "paid", "rejected"]).optional(),
+        agentId: z.coerce.number().optional(),
+        notes: z.string().optional(),
+      });
       
-      // Converter campos específicos para números se estiverem presentes
-      if (body.assetValue !== undefined) body.assetValue = Number(body.assetValue);
-      if (body.accessoriesPercentage !== undefined) body.accessoriesPercentage = Number(body.accessoriesPercentage);
-      if (body.feeAmount !== undefined) body.feeAmount = Number(body.feeAmount);
-      if (body.releasedAmount !== undefined) body.releasedAmount = Number(body.releasedAmount);
-      if (body.expectedReturn !== undefined) body.expectedReturn = Number(body.expectedReturn);
-      if (body.agentCommission !== undefined) body.agentCommission = Number(body.agentCommission);
-      if (body.sellerCommission !== undefined) body.sellerCommission = Number(body.sellerCommission);
-      if (body.agentId !== undefined) body.agentId = Number(body.agentId);
-      
-      console.log("Atualizando financiamento com dados:", body);
+      const body = partialSchema.parse(req.body);
+      console.log("Dados após validação:", body);
       
       const updatedFinancing = await storage.updateFinancing(id, body);
       if (!updatedFinancing) {
