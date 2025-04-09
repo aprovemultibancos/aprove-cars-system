@@ -2,7 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
-import { insertVehicleSchema, insertCustomerSchema, insertSaleSchema, insertFinancingSchema, insertExpenseSchema, insertPersonnelSchema } from "@shared/schema";
+import { insertVehicleSchema, insertCustomerSchema, insertSaleSchema, insertFinancingSchema, insertExpenseSchema, insertPersonnelSchema, users as usersTable } from "@shared/schema";
+import { db } from "./db";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up auth routes
@@ -294,11 +295,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.status(204).end();
   });
 
-  // Users/sales
+  // Users/sales - endpoint para usuários com função de vendas
   app.get("/api/users/sales", async (req, res) => {
-    const users = await storage.getUsers();
-    const salesUsers = users.filter(user => user.role === "sales" || user.role === "admin");
-    res.json(salesUsers);
+    try {
+      // Consulta direta da tabela users usando db
+      const usersData = await db.select().from(usersTable);
+      const salesUsers = usersData.filter(user => user.role === "sales" || user.role === "admin");
+      res.json(salesUsers);
+    } catch (error) {
+      console.error("Erro ao buscar usuários de vendas:", error);
+      res.status(500).json({ message: "Erro ao buscar usuários" });
+    }
   });
 
   const httpServer = createServer(app);

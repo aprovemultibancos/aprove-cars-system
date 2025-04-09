@@ -1,8 +1,12 @@
 import { users, type User, type InsertUser, vehicles, Vehicle, InsertVehicle, customers, Customer, InsertCustomer, sales, Sale, InsertSale, financings, Financing, InsertFinancing, expenses, Expense, InsertExpense, personnel, Personnel, InsertPersonnel } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
+import connectPg from "connect-pg-simple";
+import { db } from "./db";
+import { eq, and } from "drizzle-orm";
 
 const MemoryStore = createMemoryStore(session);
+const PostgresSessionStore = connectPg(session);
 
 // modify the interface with any CRUD methods
 // you might need
@@ -52,13 +56,13 @@ export interface IStorage {
   // Personnel methods
   getPersonnel(): Promise<Personnel[]>;
   getPersonnelByType(type: string): Promise<Personnel[]>;
-  getPersonnel(id: number): Promise<Personnel | undefined>;
+  getPersonnelById(id: number): Promise<Personnel | undefined>;
   createPersonnel(personnel: InsertPersonnel): Promise<Personnel>;
   updatePersonnel(id: number, personnel: Partial<Personnel>): Promise<Personnel | undefined>;
   deletePersonnel(id: number): Promise<boolean>;
   
   // Session store
-  sessionStore: session.SessionStore;
+  sessionStore: session.Store;
 }
 
 export class MemStorage implements IStorage {
@@ -70,7 +74,7 @@ export class MemStorage implements IStorage {
   private expenses: Map<number, Expense>;
   private personnel: Map<number, Personnel>;
   
-  sessionStore: session.SessionStore;
+  sessionStore: session.Store;
   currentId: number;
 
   constructor() {
@@ -364,4 +368,249 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export class DatabaseStorage implements IStorage {
+  sessionStore: session.Store;
+  
+  constructor() {
+    this.sessionStore = new PostgresSessionStore({
+      conObject: { connectionString: process.env.DATABASE_URL },
+      createTableIfMissing: true
+    });
+  }
+
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db.insert(users).values({
+      ...insertUser,
+      isActive: true,
+      createdAt: new Date()
+    }).returning();
+    return user;
+  }
+  
+  // Vehicle methods
+  async getVehicles(): Promise<Vehicle[]> {
+    return await db.select().from(vehicles);
+  }
+  
+  async getVehicle(id: number): Promise<Vehicle | undefined> {
+    const [vehicle] = await db.select().from(vehicles).where(eq(vehicles.id, id));
+    return vehicle;
+  }
+  
+  async createVehicle(vehicle: InsertVehicle): Promise<Vehicle> {
+    const [newVehicle] = await db.insert(vehicles).values({
+      ...vehicle,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }).returning();
+    return newVehicle;
+  }
+  
+  async updateVehicle(id: number, vehicle: Partial<Vehicle>): Promise<Vehicle | undefined> {
+    const [updatedVehicle] = await db.update(vehicles)
+      .set({
+        ...vehicle,
+        updatedAt: new Date()
+      })
+      .where(eq(vehicles.id, id))
+      .returning();
+    return updatedVehicle;
+  }
+  
+  async deleteVehicle(id: number): Promise<boolean> {
+    const result = await db.delete(vehicles).where(eq(vehicles.id, id));
+    return result.rowCount > 0;
+  }
+  
+  async getAvailableVehicles(): Promise<Vehicle[]> {
+    return await db.select().from(vehicles).where(eq(vehicles.status, "available"));
+  }
+  
+  // Customer methods
+  async getCustomers(): Promise<Customer[]> {
+    return await db.select().from(customers);
+  }
+  
+  async getCustomer(id: number): Promise<Customer | undefined> {
+    const [customer] = await db.select().from(customers).where(eq(customers.id, id));
+    return customer;
+  }
+  
+  async createCustomer(customer: InsertCustomer): Promise<Customer> {
+    const [newCustomer] = await db.insert(customers).values({
+      ...customer,
+      createdAt: new Date()
+    }).returning();
+    return newCustomer;
+  }
+  
+  async updateCustomer(id: number, customer: Partial<Customer>): Promise<Customer | undefined> {
+    const [updatedCustomer] = await db.update(customers)
+      .set(customer)
+      .where(eq(customers.id, id))
+      .returning();
+    return updatedCustomer;
+  }
+  
+  async deleteCustomer(id: number): Promise<boolean> {
+    const result = await db.delete(customers).where(eq(customers.id, id));
+    return result.rowCount > 0;
+  }
+  
+  // Sale methods
+  async getSales(): Promise<Sale[]> {
+    return await db.select().from(sales);
+  }
+  
+  async getSale(id: number): Promise<Sale | undefined> {
+    const [sale] = await db.select().from(sales).where(eq(sales.id, id));
+    return sale;
+  }
+  
+  async createSale(sale: InsertSale): Promise<Sale> {
+    const [newSale] = await db.insert(sales).values({
+      ...sale,
+      createdAt: new Date()
+    }).returning();
+    
+    // Update vehicle status to sold
+    await db.update(vehicles)
+      .set({ status: "sold" })
+      .where(eq(vehicles.id, sale.vehicleId));
+    
+    return newSale;
+  }
+  
+  async updateSale(id: number, sale: Partial<Sale>): Promise<Sale | undefined> {
+    const [updatedSale] = await db.update(sales)
+      .set(sale)
+      .where(eq(sales.id, id))
+      .returning();
+    return updatedSale;
+  }
+  
+  async deleteSale(id: number): Promise<boolean> {
+    const [sale] = await db.select().from(sales).where(eq(sales.id, id));
+    
+    if (sale) {
+      // If we delete a sale, set the vehicle status back to available
+      await db.update(vehicles)
+        .set({ status: "available" })
+        .where(eq(vehicles.id, sale.vehicleId));
+    }
+    
+    const result = await db.delete(sales).where(eq(sales.id, id));
+    return result.rowCount > 0;
+  }
+  
+  // Financing methods
+  async getFinancings(): Promise<Financing[]> {
+    return await db.select().from(financings);
+  }
+  
+  async getFinancing(id: number): Promise<Financing | undefined> {
+    const [financing] = await db.select().from(financings).where(eq(financings.id, id));
+    return financing;
+  }
+  
+  async createFinancing(financing: InsertFinancing): Promise<Financing> {
+    const [newFinancing] = await db.insert(financings).values({
+      ...financing,
+      createdAt: new Date()
+    }).returning();
+    return newFinancing;
+  }
+  
+  async updateFinancing(id: number, financing: Partial<Financing>): Promise<Financing | undefined> {
+    const [updatedFinancing] = await db.update(financings)
+      .set(financing)
+      .where(eq(financings.id, id))
+      .returning();
+    return updatedFinancing;
+  }
+  
+  async deleteFinancing(id: number): Promise<boolean> {
+    const result = await db.delete(financings).where(eq(financings.id, id));
+    return result.rowCount > 0;
+  }
+  
+  // Expense methods
+  async getExpenses(): Promise<Expense[]> {
+    return await db.select().from(expenses);
+  }
+  
+  async getExpense(id: number): Promise<Expense | undefined> {
+    const [expense] = await db.select().from(expenses).where(eq(expenses.id, id));
+    return expense;
+  }
+  
+  async createExpense(expense: InsertExpense): Promise<Expense> {
+    const [newExpense] = await db.insert(expenses).values({
+      ...expense,
+      createdAt: new Date()
+    }).returning();
+    return newExpense;
+  }
+  
+  async updateExpense(id: number, expense: Partial<Expense>): Promise<Expense | undefined> {
+    const [updatedExpense] = await db.update(expenses)
+      .set(expense)
+      .where(eq(expenses.id, id))
+      .returning();
+    return updatedExpense;
+  }
+  
+  async deleteExpense(id: number): Promise<boolean> {
+    const result = await db.delete(expenses).where(eq(expenses.id, id));
+    return result.rowCount > 0;
+  }
+  
+  // Personnel methods
+  async getPersonnel(): Promise<Personnel[]> {
+    return await db.select().from(personnel);
+  }
+  
+  async getPersonnelByType(type: string): Promise<Personnel[]> {
+    return await db.select().from(personnel).where(eq(personnel.type, type as any));
+  }
+  
+  async getPersonnelById(id: number): Promise<Personnel | undefined> {
+    const [person] = await db.select().from(personnel).where(eq(personnel.id, id));
+    return person;
+  }
+  
+  async createPersonnel(personnelData: InsertPersonnel): Promise<Personnel> {
+    const [newPersonnel] = await db.insert(personnel).values({
+      ...personnelData,
+      createdAt: new Date()
+    }).returning();
+    return newPersonnel;
+  }
+  
+  async updatePersonnel(id: number, personnelData: Partial<Personnel>): Promise<Personnel | undefined> {
+    const [updatedPersonnel] = await db.update(personnel)
+      .set(personnelData)
+      .where(eq(personnel.id, id))
+      .returning();
+    return updatedPersonnel;
+  }
+  
+  async deletePersonnel(id: number): Promise<boolean> {
+    const result = await db.delete(personnel).where(eq(personnel.id, id));
+    return result.rowCount > 0;
+  }
+}
+
+// Use the database storage
+export const storage = new DatabaseStorage();
