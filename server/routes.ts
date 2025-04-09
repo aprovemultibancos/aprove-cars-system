@@ -197,15 +197,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("Recebido no backend:", req.body);
       
-      // Verificar e garantir valores padrão
+      // Converter campos numéricos para números (caso venham como strings)
       const body = {
         ...req.body,
         customerId: req.body.customerId || null,
-        releasedAmount: req.body.releasedAmount || "0",
-        expectedReturn: req.body.expectedReturn || "0"
+        assetValue: Number(req.body.assetValue),
+        accessoriesPercentage: Number(req.body.accessoriesPercentage || 0),
+        feeAmount: Number(req.body.feeAmount || 0),
+        releasedAmount: Number(req.body.releasedAmount || 0),
+        expectedReturn: Number(req.body.expectedReturn || 0),
+        agentCommission: Number(req.body.agentCommission || 0),
+        sellerCommission: Number(req.body.sellerCommission || 0),
+        agentId: Number(req.body.agentId)
       };
       
-      console.log("Dados após validação inicial:", body);
+      console.log("Dados após conversão para número:", body);
       
       const financingData = insertFinancingSchema.parse(body);
       console.log("Dados após parse do schema:", financingData);
@@ -223,13 +229,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/financings/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const updatedFinancing = await storage.updateFinancing(id, req.body);
+      
+      // Converter campos numéricos para números (caso venham como strings)
+      const body = {
+        ...req.body
+      };
+      
+      // Converter campos específicos para números se estiverem presentes
+      if (body.assetValue !== undefined) body.assetValue = Number(body.assetValue);
+      if (body.accessoriesPercentage !== undefined) body.accessoriesPercentage = Number(body.accessoriesPercentage);
+      if (body.feeAmount !== undefined) body.feeAmount = Number(body.feeAmount);
+      if (body.releasedAmount !== undefined) body.releasedAmount = Number(body.releasedAmount);
+      if (body.expectedReturn !== undefined) body.expectedReturn = Number(body.expectedReturn);
+      if (body.agentCommission !== undefined) body.agentCommission = Number(body.agentCommission);
+      if (body.sellerCommission !== undefined) body.sellerCommission = Number(body.sellerCommission);
+      if (body.agentId !== undefined) body.agentId = Number(body.agentId);
+      
+      console.log("Atualizando financiamento com dados:", body);
+      
+      const updatedFinancing = await storage.updateFinancing(id, body);
       if (!updatedFinancing) {
         return res.status(404).json({ message: "Financiamento não encontrado" });
       }
       res.json(updatedFinancing);
     } catch (error) {
-      res.status(400).json({ message: "Dados inválidos", error });
+      console.error("Erro ao atualizar financiamento:", error);
+      res.status(400).json({ message: "Dados inválidos", error: String(error) });
     }
   });
 
