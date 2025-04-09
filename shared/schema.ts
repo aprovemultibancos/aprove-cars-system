@@ -115,15 +115,15 @@ export const insertCustomerSchema = createInsertSchema(customers).pick({
 // Financing schema
 export const financings = pgTable("financings", {
   id: serial("id").primaryKey(),
-  customerId: integer("customer_id"),
+  customerId: integer("customer_id"), // Pode ser NULL conforme alteração no banco
   customerName: text("customer_name").notNull(),
   bank: text("bank").notNull(),
   assetValue: numeric("asset_value").notNull(),
   returnType: text("return_type", { enum: ["R0", "R1", "R2", "R3", "R4", "R6", "RF"] }).notNull().default("R0"),
   accessoriesPercentage: numeric("accessories_percentage").default("0"),
   feeAmount: numeric("fee_amount").default("0"),
-  releasedAmount: numeric("released_amount").default("0"),
-  expectedReturn: numeric("expected_return").default("0"),
+  releasedAmount: numeric("released_amount").default("0"), // Pode ser NULL conforme alteração no banco
+  expectedReturn: numeric("expected_return").default("0"), // Pode ser NULL conforme alteração no banco
   agentCommission: numeric("agent_commission").notNull(),
   sellerCommission: numeric("seller_commission").notNull(),
   status: text("status", { enum: ["analysis", "approved", "paid", "rejected"] }).notNull().default("analysis"),
