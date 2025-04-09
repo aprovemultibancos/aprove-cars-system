@@ -4,6 +4,16 @@ import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
 import { insertVehicleSchema, insertCustomerSchema, insertSaleSchema, insertFinancingSchema, insertExpenseSchema, insertPersonnelSchema, insertUserSchema, users as usersTable } from "@shared/schema";
 import { db } from "./db";
+import { z } from "zod";
+import { 
+  createOrGetCustomer, 
+  createPayment, 
+  listPayments, 
+  getPaymentById, 
+  cancelPayment, 
+  formatCustomerForAsaas,
+  enrichPaymentWithCustomerInfo
+} from "./asaas-service";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up auth routes
@@ -433,6 +443,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Se não houver usuário autenticado ou ocorrer outro erro
       res.status(500).json({ message: "Erro ao buscar usuários" });
+    }
+  });
+
+  // Schema de validação para pagamentos
+  const paymentSchema = z.object({
+    customerId: z.string(),
+    customerName: z.string().optional(),
+    description: z.string(),
+    value: z.number().min(0.01),
+    dueDate: z.date(),
+    billingType: z.enum(["BOLETO", "PIX", "CREDIT_CARD"]),
+    relatedSaleId: z.string().optional(),
+    notes: z.string().optional(),
+  });
+
+  // Rotas de pagamento (integração com Asaas)
+  // Listar pagamentos
+  app.get("/api/payments", async (req, res) => {
+    try {
+      const payments = await listPayments();
+      res.json(payments);
+    } catch (error) {
+      console.error("Erro ao listar pagamentos:", error);
+      res.status(500).json({ 
+        message: "Erro ao listar pagamentos", 
+        error: error instanceof Error ? error.message : "Erro desconhecido" 
+      });
+    }
+  });
+
+  // Obter pagamento por ID
+  app.get("/api/payments/:id", async (req, res) => {
+    try {
+      const paymentId = req.params.id;
+      const payment = await getPaymentById(paymentId);
+      res.json(payment);
+    } catch (error) {
+      console.error(`Erro ao buscar pagamento ${req.params.id}:`, error);
+      res.status(500).json({ 
+        message: "Erro ao buscar pagamento", 
+        error: error instanceof Error ? error.message : "Erro desconhecido" 
+      });
+    }
+  });
+
+  // Criar novo pagamento
+  app.post("/api/payments", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Usuário não autenticado" });
+    }
+
+    try {
+      // Validar dados do pagamento
+      const paymentData = paymentSchema.parse(req.body);
+      const { customerId, description, value, dueDate, billingType, relatedSaleId, notes } = paymentData;
+
+      // Buscar o cliente no sistema para obter mais informações
+      const customer = await storage.getCustomer(parseInt(customerId));
+      if (!customer) {
+        return res.status(404).json({ message: "Cliente não encontrado" });
+      }
+
+      // Formatar cliente para o Asaas
+      const asaasCustomerData = formatCustomerForAsaas(customer);
+      
+      // Criar ou obter cliente no Asaas
+      const asaasCustomer = await createOrGetCustomer(asaasCustomerData);
+
+      // Formatar data para o formato esperado pelo Asaas (YYYY-MM-DD)
+      const formattedDueDate = dueDate instanceof Date 
+        ? dueDate.toISOString().split('T')[0] 
+        : new Date(dueDate).toISOString().split('T')[0];
+
+      // Preparar dados do pagamento para o Asaas
+      const asaasPaymentData = {
+        customer: asaasCustomer.id,
+        billingType: billingType as "BOLETO" | "CREDIT_CARD" | "PIX" | "UNDEFINED",
+        value: value,
+        dueDate: formattedDueDate,
+        description: description,
+        externalReference: relatedSaleId || undefined
+      };
+
+      // Criar o pagamento no Asaas
+      const payment = await createPayment(asaasPaymentData);
+      
+      // Adicionar informações do cliente ao pagamento
+      const enrichedPayment = enrichPaymentWithCustomerInfo(payment, customer);
+
+      res.status(201).json(enrichedPayment);
+    } catch (error) {
+      console.error("Erro ao criar pagamento:", error);
+      res.status(400).json({ 
+        message: "Dados inválidos", 
+        error: error instanceof Error ? error.message : "Erro desconhecido" 
+      });
+    }
+  });
+
+  // Cancelar pagamento
+  app.delete("/api/payments/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Usuário não autenticado" });
+    }
+
+    try {
+      const paymentId = req.params.id;
+      const result = await cancelPayment(paymentId);
+      res.json(result);
+    } catch (error) {
+      console.error(`Erro ao cancelar pagamento ${req.params.id}:`, error);
+      res.status(500).json({ 
+        message: "Erro ao cancelar pagamento", 
+        error: error instanceof Error ? error.message : "Erro desconhecido" 
+      });
     }
   });
 

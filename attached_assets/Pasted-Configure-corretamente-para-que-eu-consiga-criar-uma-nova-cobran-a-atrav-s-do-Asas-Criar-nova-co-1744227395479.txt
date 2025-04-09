@@ -1,0 +1,871 @@
+Configure corretamente para que eu consiga criar uma nova cobrança através do Asas.
+
+Criar nova cobrança
+post
+https://api-sandbox.asaas.com/v3/payments
+É possível escolher entre as formas de pagamento com boleto, cartão de crédito, Pix ou permitir que o cliente escolha a forma que desejar.
+
+Guia de cobranças
+Confira o guia de cobranças para mais informações.
+
+Criar cobrança parcelada
+Confira o guia para criar cobranças parceladas.
+
+📘
+Não é possível gerar uma cobrança com dois billingTypes diferentes (PIX e CREDIT_CARD, por exemplo).
+
+Caso não queira receber pagamento em Pix ou em Cartão de débito, é possível desabilitar dentro de sua interface em Minha Conta > Configuração > Configurações do Sistema.
+
+Caso queira desabilitar em subcontas white label, entre em contato com o nosso time de integração.
+
+🚧
+Status CONFIRMED em cobranças Pix para pessoas físicas
+
+O status CONFIRMED pode ficar disponível em cobranças Pix de contas de pessoas físicas em caso de cobranças que sofram bloqueio cautelar e que precisam de análise da área de prevenção. O prazo máximo de bloqueio é de 72h e a cobrança mudará para o status RECEIVED se recebida ou REFUNDED caso negada.
+
+❗️
+Importante
+
+Para cobranças avulsas (1x) não deve-se usar os atributos do parcelamento: installmentCount, installmentValue e totalValue. Se for uma cobrança em 1x, usa-se apenas o value.
+
+Somente cobranças com 2 ou mais parcelas usa-se os atributos do parcelamento.
+
+Body Params
+customer
+string
+required
+Identificador único do cliente no Asaas
+
+billingType
+string
+required
+Forma de pagamento
+
+
+UNDEFINED
+value
+number
+required
+Valor da cobrança
+
+dueDate
+date
+required
+Data de vencimento da cobrança
+
+description
+string
+Descrição da cobrança (máx. 500 caracteres)
+
+daysAfterDueDateToRegistrationCancellation
+int32
+Dias após o vencimento para cancelamento do registro (somente para boleto bancário)
+
+externalReference
+string
+Campo livre para busca
+
+installmentCount
+int32
+Número de parcelas (somente no caso de cobrança parcelada)
+
+totalValue
+number
+Informe o valor total de uma cobrança que será parcelada (somente no caso de cobrança parcelada). Caso enviado este campo o installmentValue não é necessário, o cálculo por parcela será automático.
+
+installmentValue
+number
+Valor de cada parcela (somente no caso de cobrança parcelada). Envie este campo em caso de querer definir o valor de cada parcela.
+
+discount
+object
+Informações de desconto
+
+
+discount object
+interest
+object
+Informações de juros para pagamento após o vencimento
+
+
+interest object
+fine
+object
+Informações de multa para pagamento após o vencimento
+
+
+fine object
+postalService
+boolean
+Define se a cobrança será enviada via Correios
+
+
+false
+split
+array of objects
+Configurações do split
+
+
+ADD object
+callback
+object
+Informações de redirecionamento automático após pagamento do link de pagamento
+
+
+callback object
+Responses
+
+200
+OK
+
+
+400
+Bad Request
+
+401
+Unauthorized
+
+=============================================================
+
+Para Listar cobranças seguimos conforme abaixo:
+Listar cobranças
+get
+https://api-sandbox.asaas.com/v3/payments
+Diferente da recuperação de uma cobrança específica, este método retorna uma lista paginada com todas as cobranças para os filtros informados.
+
+Listar cobranças de um cliente específico: GET https://api.asaas.com/v3/payments?customer={customer_id}
+
+Filtrar por forma de pagamento: GET https://api.asaas.com/v3/payments?billingType=CREDIT_CARD
+
+Filtrar por status: GET https://api.asaas.com/v3/payments?status=RECEIVED
+
+Filtrar por status e forma de pagamento: GET https://api.asaas.com/v3/payments?status=RECEIVED&billingType=CREDIT_CARD
+
+Filtrar por data de criação inicial e final: GET https://api.asaas.com/v3/payments?dateCreated%5Bge%5D=2017-01-12&dateCreated%5Ble%5D=2017-11-28
+
+Filtrar por data de vencimento inicial e final: GET https://api.asaas.com/v3/payments?dueDate%5Bge%5D=2017-01-12&dueDate%5Ble%5D=2017-11-28
+
+Filtrar por data de recebimento inicial e final: GET https://api.asaas.com/v3/payments?paymentDate%5Bge%5D=2017-01-12&paymentDate%5Ble%5D=2017-11-28
+
+Filtrar apenas cobranças antecipadas: GET https://api.asaas.com/v3/payments?anticipated=true
+
+Filtrar apenas cobranças antecipáveis: GET https://api.asaas.com/v3/payments?anticipable=true
+
+❗️
+Evite fazer polling
+
+Polling é a prática de realizar sucessivas requisições GET para verificar status de cobranças. É considerado uma má prática devido ao alto consumo de recursos que ocasiona. Recomendamos que você utilize nossos Webhooks para receber mudanças de status de cobranças e manter sua aplicação atualizada.
+
+Realizar muitas requisições pode levar ao bloqueio da sua chave de API por abuso.
+
+Leia mais: Polling vs. Webhooks
+
+Query Params
+installment
+string
+Filtrar pelo Identificador único do parcelamento
+
+offset
+integer
+Elemento inicial da lista
+
+limit
+integer
+≤ 100
+Número de elementos da lista (max: 100)
+
+customer
+string
+Filtrar pelo Identificador único do cliente
+
+customerGroupName
+string
+Filtrar pelo nome do grupo de cliente
+
+billingType
+string
+Filtrar por forma de pagamento
+
+
+UNDEFINED
+status
+string
+Filtrar por status
+
+
+PENDING
+subscription
+string
+Filtrar pelo Identificador único da assinatura
+
+externalReference
+string
+Filtrar pelo Identificador do seu sistema
+
+paymentDate
+string
+Filtrar pela data de pagamento
+
+invoiceStatus
+string
+Filtro para retornar cobranças que possuem ou não nota fiscal
+
+
+SCHEDULED
+estimatedCreditDate
+string
+Filtrar pela data estimada de crédito
+
+pixQrCodeId
+string
+Filtrar recebimentos originados de um QrCode estático utilizando o id gerado na hora da criação do QrCode
+
+anticipated
+boolean
+Filtrar registros antecipados ou não
+
+
+anticipable
+boolean
+Filtrar registros antecipaveis ou não
+
+
+dateCreated[ge]
+string
+Filtrar a partir da data de criação inicial
+
+dateCreated[le]
+string
+Filtrar até a data de criação final
+
+paymentDate[ge]
+string
+Filtrar a partir da data de recebimento inicial
+
+paymentDate[le]
+string
+Filtrar até a data de recebimento final
+
+estimatedCreditDate[ge]
+string
+Filtrar a partir da data estimada de crédito inicial
+
+estimatedCreditDate[le]
+string
+Filtrar até a data estimada de crédito final
+
+dueDate[ge]
+string
+Filtrar a partir da data de vencimento inicial
+
+dueDate[le]
+string
+Filtrar até a data de vencimento final
+
+user
+string
+Filtrar pelo endereço de e-mail do usuário que criou a cobrança
+
+Responses
+
+200
+OK
+
+401
+Unauthorized
+
+403
+Forbidden. Ocorre quando o body da requisição está preenchido, chamadas de método GET precisam ter um body vazio.
+
+
+
+============================================
+
+Criar cobrança com cartão de crédito
+post
+https://api-sandbox.asaas.com/v3/payments/
+Ao criar uma cobrança com a forma de pagamento cartão de crédito, é possível redirecionar o cliente para a URL da fatura (invoiceUrl) para que ele possa inserir os dados do seu cartão através da interface do Asaas, ou os dados do cartão e titular do cartão podem ser enviados na criação solicitação de processamento de pagamento imediato.
+
+Para isso, ao executar a solicitação de criação de cobrança, basta enviar os dados do cartão de crédito juntamente com os dados do titular do cartão através dos objetos creditCard e creditCardHolderInfo. É essencial que os dados do titular do cartão correspondam exatamente aos registados no emissor do cartão; caso contrário, a transação poderá ser negada devido à suspeita de fraude.
+
+Caso a transação seja autorizada, o faturamento será criado e o Asaas retornará HTTP 200. Caso contrário, o faturamento não será persistido e HTTP 400 será retornado.
+
+No Sandbox, as transações são aprovadas automaticamente. Para simular um erro, você precisa usar os números de cartão de crédito 5184019740373151 (Mastercard) ou 4916561358240741 (Visa).
+
+
+Tokenização de cartão de crédito
+Ao realizar a primeira transação para o cliente com cartão de crédito, a resposta do Asaas retornará o atributo creditCardToken.
+Com essas informações, nas transações subsequentes, o atributo creditCardToken poderá substituir os objetos creditCard e creditCardHolderInfo e ser fornecido diretamente na raiz da solicitação, eliminando a necessidade de fornecer novamente os objetos.
+🚧
+Atenção
+
+Independentemente da data de vencimento informada, a captura (cobrança no cartão do cliente) será feita no momento da criação da cobrança.
+Caso opte por capturar os dados do cartão do cliente através da interface do seu sistema, o uso de SSL (HTTPS) é obrigatório; caso contrário, sua conta poderá ser bloqueada para transações com cartão de crédito.
+Para evitar timeouts e consequentes duplicidades na captura, recomendamos configurar um timeout mínimo de 60 segundos para esta requisição.
+
+🚧
+Atenção
+
+É permitido a criação de parcelamentos no cartão de crédito em até 21x para cartões de bandeira Visa e Master.
+Anteriormente, era suportado parcelamentos de até 12 parcelas para todas as bandeiras.
+Para outras bandeiras, exceto Visa e Master, o limite continua sendo de 12 parcelas.
+
+Crie cobrança de cartão de crédito com pré-autorização
+A Pré-Autorização funciona como uma reserva de saldo no cartão do cliente, garantindo que o valor esperado estará disponível.
+
+Ao invés de debitar efetivamente o valor, é feita uma reserva, fazendo com que esse valor seja subtraído do limite do cartão até que a captura, seja feita ou a Pré-Autorização expire.
+
+A diferença entre criar uma cobrança Pré-Autorizada e uma cobrança de captura imediata está apenas no atributo authorizeOnly, que deverá ser enviado com o valor true, indicando que somente a Pré-Autorização será realizada para este faturamento.
+
+📘
+Uma cobrança Pré-Autorizada será revertida automaticamente após 3 dias caso não seja capturada.
+Para cancelar a Pré-Autorização antes dos 3 dias, você deverá utilizar o recurso Estorno de pagamento.
+A cobrança pré-autorizada será criada com o status AUTHORIZED após a criação bem-sucedida.
+No Sandbox, as capturas são aprovadas automaticamente. Para simular um erro, basta utilizar uma cobrança que não foi criada em Pré-Autorização ou com status diferente de Autorizado.
+Body Params
+customer
+string
+required
+Identificador único do cliente no Asaas
+
+billingType
+string
+required
+Forma de pagamento
+
+
+UNDEFINED
+value
+number
+required
+Valor da cobrança
+
+dueDate
+date
+required
+Data de vencimento da cobrança
+
+description
+string
+Descrição da cobrança (máx. 500 caracteres)
+
+daysAfterDueDateToRegistrationCancellation
+int32
+Dias após o vencimento para cancelamento do registro (somente para boleto bancário)
+
+externalReference
+string
+Campo livre para busca
+
+installmentCount
+int32
+Número de parcelas (somente no caso de cobrança parcelada)
+
+totalValue
+number
+Informe o valor total de uma cobrança que será parcelada (somente no caso de cobrança parcelada). Caso enviado este campo o installmentValue não é necessário, o cálculo por parcela será automático.
+
+installmentValue
+number
+Valor de cada parcela (somente no caso de cobrança parcelada). Envie este campo em caso de querer definir o valor de cada parcela.
+
+discount
+object
+Informações de desconto
+
+
+discount object
+interest
+object
+Informações de juros para pagamento após o vencimento
+
+
+interest object
+fine
+object
+Informações de multa para pagamento após o vencimento
+
+
+fine object
+postalService
+boolean
+Define se a cobrança será enviada via Correios
+
+
+false
+split
+array of objects
+Configurações do split
+
+
+ADD object
+callback
+object
+Informações de redirecionamento automático após pagamento do link de pagamento
+
+
+callback object
+creditCard
+object
+Informações do cartão de crédito
+
+
+creditCard object
+creditCardHolderInfo
+object
+Informações do titular do cartão de crédito
+
+
+creditCardHolderInfo object
+creditCardToken
+string
+Token do cartão de crédito para uso da funcionalidade de tokenização de cartão de crédito
+
+authorizeOnly
+boolean
+Realizar apenas a Pré-Autorização da cobrança
+
+
+remoteIp
+string
+required
+IP de onde o cliente está fazendo a compra. Não deve ser informado o IP do seu servidor.
+
+Responses
+
+200
+OK
+
+
+400
+Bad Request
+
+401
+Unauthorized
+=========================================
+
+Excluir cobrança
+delete
+https://api-sandbox.asaas.com/v3/payments/{id}
+Path Params
+id
+string
+required
+Identificador único da cobrança no Asaas
+
+Responses
+
+200
+OK
+
+401
+Unauthorized
+
+404
+Not found
+============================================
+Recuperar status de uma cobrança
+get
+https://api-sandbox.asaas.com/v3/payments/{id}/status
+Path Params
+id
+string
+required
+Identificador único da cobrança no Asaas
+
+Responses
+
+200
+OK
+
+401
+Unauthorized
+
+403
+Forbidden. Ocorre quando o body da requisição está preenchido, chamadas de método GET precisam ter um body vazio.
+
+404
+Not found
+==============================================
+Atualizar cobrança existente
+put
+https://api-sandbox.asaas.com/v3/payments/{id}
+Somente é possível atualizar cobranças aguardando pagamento ou vencidas. Uma vez criada, não é possível alterar o cliente ao qual a cobrança pertence.
+
+Atualizar split após confirmação da cobrança
+Só é permitido alterar splits de cobranças feitas com cartão de crédito ou débito.
+
+A data máxima para realizar a alteração é até 1 dia útil antes da data prevista de pagamento.
+
+É permitido alterar apenas cobranças com status CONFIRMED e que não possui antecipação.
+
+A única exceção às regras anteriores ocorre quando há um bloqueio por divergência de split no momento do recebimento da cobrança. Nesse caso, será permitida a atualização do split para cobranças com os status CONFIRMED, RECEIVED e mesmo no caso da cobrança possuir antecipação. Contudo, não será permitido atualizar nenhum outro campo além do split.
+
+Nos casos de antecipação automática com split configurado por valor fixo na emissão da cobrança, o cálculo do split considerará a taxa mais alta aplicável ao cartão de crédito utilizado.
+
+Path Params
+id
+string
+required
+Identificador único da cobrança no Asaas
+
+Body Params
+billingType
+string
+required
+Forma de pagamento
+
+
+UNDEFINED
+value
+number
+required
+Valor da cobrança
+
+dueDate
+date
+required
+Data de vencimento da cobrança
+
+description
+string
+Descrição da cobrança (máx. 500 caracteres)
+
+daysAfterDueDateToRegistrationCancellation
+int32
+Dias após o vencimento para cancelamento do registro (somente para boleto bancário)
+
+externalReference
+string
+Campo livre para busca
+
+discount
+object
+Informações de desconto
+
+
+discount object
+interest
+object
+Informações de juros para pagamento após o vencimento
+
+
+interest object
+fine
+object
+Informações de multa para pagamento após o vencimento
+
+
+fine object
+postalService
+boolean
+Define se a cobrança será enviada via Correios
+
+
+false
+split
+array of objects
+Configurações do split
+
+
+ADD object
+callback
+object
+Informações de redirecionamento automático após pagamento do link de pagamento
+
+
+callback object
+Responses
+
+200
+OK
+
+401
+Unauthorized
+
+404
+Not found
+===============================
+Obter QR Code para pagamentos via Pix
+get
+https://api-sandbox.asaas.com/v3/payments/{id}/pixQrCode
+O recebimento via Pix é um meio rápido, eficaz e seguro para que sua empresa receba as cobranças de seus clientes. Ao gerar uma cobrança com as formas de pagamento PIX, BOLETO ou UNDEFINED o pagamento via Pix é habilitado. Uma das maiores vantagens dessa forma de pagamento é que ocorre de forma instantânea, ou seja, assim que o pagamento for realizado o saldo é disponibilizado em sua conta Asaas. Você pode ler mais sobre o Pix aqui.
+
+Para gerar um QRCode Pix no Asaas você precisa criar uma chave, que é realizada através do Criar uma chave Pix.
+
+Características:
+
+O QRCode gerado é do tipo dinâmico com vencimento.
+O QRCode expira 12 meses após a data de vencimento.
+Pode ser impresso ou disponibilizado em documentos, pois os valores são consultados na hora da leitura do QRCode. Por exemplo: imprimir em um boleto ou carnês de pagamento.
+Só pode ser pago uma vez.
+🚧
+Atenção
+
+Atualmente é possível gerar QR Code Pix dinâmico de pagamento imediato sem possuir uma chave Pix Cadastrada no Asaas. Esse QR Code será vinculado a uma instituição parceira onde o Asaas tem uma chave cadastrada. Todo QR Code obtido desta maneira pode ser pago até 23:59 do mesmo dia. A cada atualização em sua cobrança, é necessário obter um novo QR Code. Entretanto essa funcionalidade será descontinuada no futuro, será enviando um comunicado com 30 dias de antecedência, portanto já indicamos fazer o cadastro da sua chave Pix em Criar uma chave Pix.
+
+Para gerar/recuperar o QR Code de uma cobrança é necessário informar o ID da cobrança que o Asaas retornou no momento da criação. Como retorno, você obterá o QR Code (retornado em imagem no formato Base 64), um Payload para permitir o Pix Copia e Cola e até quando o QR Code será válido.
+
+Path Params
+id
+string
+required
+Identificador único da cobrança no Asaas
+
+Responses
+
+200
+OK
+
+401
+Unauthorized
+
+403
+Forbidden. Ocorre quando o body da requisição está preenchido, chamadas de método GET precisam ter um body vazio.
+
+404
+Not found
+=========================================
+Simulador de vendas
+post
+https://api-sandbox.asaas.com/v3/payments/simulate
+Body Params
+value
+number
+required
+Valor total do parcelamento ou da cobrança
+
+installmentCount
+int32
+Quantidade de parcelas
+
+billingTypes
+array of strings
+required
+Forma de pagamento
+
+
+ADD string
+Responses
+
+200
+OK
+
+401
+Unauthorized
+==========================================
+Criar uma negativação
+post
+https://api-sandbox.asaas.com/v3/paymentDunnings
+🚧
+Para que seja possível criar uma negativação, antes é necessário entrar em contato com o seu gerente de conta Asaas e solicitar a permissão de criar negativações via API.
+
+Body Params
+payment
+string
+required
+Identificador único da cobrança a ser recuperada no Asaas
+
+type
+string
+required
+Tipo de negativação
+
+
+CREDIT_BUREAU
+description
+string
+Descrição do produto ou serviço prestado
+
+customerName
+string
+required
+Nome do cliente
+
+customerCpfCnpj
+string
+required
+CPF ou CNPJ do cliente
+
+customerPrimaryPhone
+string
+required
+Telefone principal do cliente
+
+customerSecondaryPhone
+string
+Telefone secundário do cliente
+
+customerPostalCode
+string
+required
+CEP do endereço do cliente
+
+customerAddress
+string
+required
+Logradouro do cliente
+
+customerAddressNumber
+string
+required
+Número do endereço do cliente
+
+customerComplement
+string
+Complemento do endereço do cliente
+
+customerProvince
+string
+required
+Bairro do cliente
+
+documents
+file
+Nota fiscal e/ou contrato com firma reconhecida em cartório
+
+Nenhum ficheiro selecionado
+Responses
+
+200
+OK
+
+401
+Unauthorized
+===================================================
+Listar negativações
+get
+https://api-sandbox.asaas.com/v3/paymentDunnings
+Query Params
+offset
+integer
+Elemento inicial da lista
+
+limit
+integer
+≤ 100
+Número de elementos da lista (max: 100)
+
+status
+string
+Filtrar por status da negativação
+
+
+PENDING
+type
+string
+Filtrar por tipo de negativação
+
+
+CREDIT_BUREAU
+payment
+string
+Filtrar por negativações de uma determinada cobrança
+
+requestStartDate
+string
+Filtrar a partir da data de solicitação inicial
+
+requestEndDate
+string
+Filtrar a partir da data de solicitação final
+
+Responses
+
+200
+OK
+
+401
+Unauthorized
+
+403
+Forbidden. Ocorre quando o body da requisição está preenchido, chamadas de método GET precisam ter um body vazio.
+===============================
+Recuperar uma única negativação
+get
+https://api-sandbox.asaas.com/v3/paymentDunnings/{id}
+Path Params
+id
+string
+required
+Identificador único da negativação no Asaas
+
+Responses
+
+200
+OK
+
+401
+Unauthorized
+
+403
+Forbidden. Ocorre quando o body da requisição está preenchido, chamadas de método GET precisam ter um body vazio.
+
+404
+Not found
+============================================
+Cancelar negativação
+post
+https://api-sandbox.asaas.com/v3/paymentDunnings/{id}/cancel
+Permite o cancelamento de uma negativação. Utilize a propriedade canBeCancelled retornado no objeto de negativação para verificar se a negativação pode ser cancelada.
+
+Caso a negativação já tenha sido iniciada, ao solicitar o cancelamento a negativação ficará com o status de AWAITING_CANCELLATION até que seja efetivamente cancelada (CANCELLED).
+
+Permite o cancelamento de uma negativação. Utilize a propriedade canBeCancelled retornado no objeto de negativação para verificar se a negativação pode ser cancelada.
+
+Caso a negativação já tenha sido iniciada, ao solicitar o cancelamento a negativação ficará com o status de AWAITING_CANCELLATION até que seja efetivamente cancelada (CANCELLED).
+
+Path Params
+id
+string
+required
+Identificador único da negativação a ser cancelada.
+
+Responses
+
+200
+OK
+
+401
+Unauthorized
+
+404
+Not found
+===========================================
+Realizar consulta SERASA
+post
+https://api-sandbox.asaas.com/v3/creditBureauReport
+Possibilita você consultar a saúde financeira dos seus atuais e futuros clientes por meio do Serasa Experian.
+
+🚧
+Atenção:
+
+A url de download do PDF da consulta ficará disponível apenas até as 23:59 do mesmo dia.
+A cada consulta um email será enviado para o email cadastrado na conta Asaas contendo o PDF da consulta.
+As consultas junto ao Serasa Experian são realizadas no momento da solicitação, para evitar possíveis percas de conexão, sugerimos um timeout de 30 segundos ou mais.
+
+Ao realizar a consulta será retornado o atributo reportFile contendo o PDF da consulta em Base64, este campo apenas é retornado no momento da criação da consulta, caso precise obte-lo novamente será necessário realizar o download por meio da url presente no campo downloadUrl.
+
+Para realizar a consulta você terá que informar um CPF ou CNPJ e o estado onde deseja realizar a consulta.
+
+Caso queira informar um cliente já cadastrado na sua conta Asaas este deverá possuir um CPF ou CNPJ já cadastrado.
+
+🚧
+Para que seja possível a solicitação de uma consulta, antes é necessário entrar em contato com o seu gerente de contas Asaas e solicitar a permissão de consultar clientes no Serasa Experian via API.
+
+Body Params
+customer
+string
+Identificador único do cliente no Asaas
+
+cpfCnpj
+string
+CPF ou CNPJ do cliente. Informe este campo caso seu cliente não esteja cadastrado no Asaas
+
+Responses
+
+200
+OK
+
+401
+Unauthorized

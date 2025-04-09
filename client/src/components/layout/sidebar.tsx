@@ -11,6 +11,7 @@ import {
   FileText,
   Users,
   CircleDollarSign,
+  Receipt,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -96,6 +97,9 @@ export function Sidebar() {
                   </SidebarLink>
                   <SidebarLink href="/expenses" icon={CircleDollarSign} currentPath={location}>
                     Despesas
+                  </SidebarLink>
+                  <SidebarLink href="/payments" icon={Receipt} currentPath={location}>
+                    Pagamentos
                   </SidebarLink>
                   <SidebarLink href="/personnel" icon={Users} currentPath={location}>
                     Pessoal
