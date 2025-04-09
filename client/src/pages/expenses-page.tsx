@@ -162,7 +162,10 @@ export default function ExpensesPage() {
                 Voltar
               </Button>
             </div>
-            <ExpenseForm editExpense={isEditing ? editExpense : undefined} />
+            <ExpenseForm 
+              editExpense={isEditing ? editExpense : undefined} 
+              onSaveSuccess={() => setIsAddingExpense(false)}
+            />
           </CardContent>
         </Card>
       )}

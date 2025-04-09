@@ -50,9 +50,10 @@ type SaleFormValues = z.infer<typeof extendedSaleSchema>;
 
 interface SaleFormProps {
   editSale?: Sale;
+  onSaveSuccess?: () => void;
 }
 
-export function SaleForm({ editSale }: SaleFormProps) {
+export function SaleForm({ editSale, onSaveSuccess }: SaleFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
@@ -143,6 +144,9 @@ export function SaleForm({ editSale }: SaleFormProps) {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       queryClient.invalidateQueries({ queryKey: ["/api/vehicles"] });
+      if (onSaveSuccess) {
+        onSaveSuccess();
+      }
       navigate("/sales");
     },
     onError: (error) => {

@@ -116,7 +116,10 @@ export default function SalesPage() {
       {showForm && (
         <Card className="mt-6">
           <CardContent className="pt-6">
-            <SaleForm editSale={isEditing ? editSale : undefined} />
+            <SaleForm 
+              editSale={isEditing ? editSale : undefined} 
+              onSaveSuccess={() => setIsAddingSale(false)}
+            />
           </CardContent>
         </Card>
       )}

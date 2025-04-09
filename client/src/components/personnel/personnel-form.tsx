@@ -45,9 +45,10 @@ type PersonnelFormValues = z.infer<typeof extendedPersonnelSchema>;
 
 interface PersonnelFormProps {
   editPersonnel?: Personnel;
+  onSaveSuccess?: () => void;
 }
 
-export function PersonnelForm({ editPersonnel }: PersonnelFormProps) {
+export function PersonnelForm({ editPersonnel, onSaveSuccess }: PersonnelFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
@@ -97,6 +98,9 @@ export function PersonnelForm({ editPersonnel }: PersonnelFormProps) {
           : "A pessoa foi cadastrada com sucesso",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/personnel"] });
+      if (onSaveSuccess) {
+        onSaveSuccess();
+      }
       navigate("/personnel");
     },
     onError: (error) => {

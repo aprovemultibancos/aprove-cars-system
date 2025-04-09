@@ -46,9 +46,10 @@ type ExpenseFormValues = z.infer<typeof extendedExpenseSchema>;
 
 interface ExpenseFormProps {
   editExpense?: Expense;
+  onSaveSuccess?: () => void;
 }
 
-export function ExpenseForm({ editExpense }: ExpenseFormProps) {
+export function ExpenseForm({ editExpense, onSaveSuccess }: ExpenseFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
@@ -101,6 +102,9 @@ export function ExpenseForm({ editExpense }: ExpenseFormProps) {
           : "A despesa foi cadastrada com sucesso",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
+      if (onSaveSuccess) {
+        onSaveSuccess();
+      }
       navigate("/expenses");
     },
     onError: (error) => {

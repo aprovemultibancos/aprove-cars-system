@@ -139,7 +139,10 @@ export default function PersonnelPage() {
       {showForm && (
         <Card className="mt-6">
           <CardContent className="pt-6">
-            <PersonnelForm editPersonnel={isEditing ? editPersonnel : undefined} />
+            <PersonnelForm 
+              editPersonnel={isEditing ? editPersonnel : undefined} 
+              onSaveSuccess={() => setIsAddingPersonnel(false)}
+            />
           </CardContent>
         </Card>
       )}
