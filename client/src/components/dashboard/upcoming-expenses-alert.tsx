@@ -1,68 +1,88 @@
-import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Expense } from "@shared/schema";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Link } from "wouter";
-import { formatCurrency } from "@/lib/utils";
-import { AlertCircle } from "lucide-react";
+import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Link } from 'wouter';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { formatCurrency } from '@/lib/utils';
+import { Expense } from '@shared/schema';
+import { AlertCircle, ArrowRight, CalendarClock } from 'lucide-react';
 
 export function UpcomingExpensesAlert() {
   const [upcomingExpenses, setUpcomingExpenses] = useState<Expense[]>([]);
-
+  
+  // Buscar todas as despesas
   const { data: expenses, isLoading } = useQuery<Expense[]>({
-    queryKey: ["/api/expenses"],
+    queryKey: ['/api/expenses'],
   });
-
+  
+  // Filtrar despesas com vencimento nas próximas 24 horas
   useEffect(() => {
-    if (!expenses) return;
-
-    // Filtrar despesas que vencem dentro de 1 dia
-    const today = new Date();
-    // Definir horário para 00:00:00 para comparar apenas datas
-    today.setHours(0, 0, 0, 0);
-    
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    
-    const filtered = expenses.filter(expense => {
-      const expenseDate = new Date(expense.date);
-      expenseDate.setHours(0, 0, 0, 0);
+    if (expenses && expenses.length > 0) {
+      const now = new Date();
+      const tomorrow = new Date(now);
+      tomorrow.setDate(now.getDate() + 1);
       
-      // Verifica se a data da despesa é hoje ou amanhã
-      return expenseDate.getTime() >= today.getTime() && 
-             expenseDate.getTime() <= tomorrow.getTime();
-    });
-    
-    setUpcomingExpenses(filtered);
+      const upcoming = expenses.filter(expense => {
+        const expenseDate = new Date(expense.date);
+        return expenseDate >= now && expenseDate <= tomorrow;
+      });
+      
+      setUpcomingExpenses(upcoming);
+    }
   }, [expenses]);
-
-  if (isLoading || upcomingExpenses.length === 0) return null;
-
+  
+  // Se não tiver despesas próximas ou estiver carregando, não mostrar nada
+  if (isLoading || !upcomingExpenses.length) {
+    return null;
+  }
+  
   return (
-    <Alert className="mb-6 border-amber-500 bg-amber-50">
-      <AlertCircle className="h-5 w-5 text-amber-500" />
-      <AlertTitle className="text-amber-700">Despesas próximas do vencimento</AlertTitle>
-      <AlertDescription className="mt-2">
-        <div className="space-y-2">
+    <Card className="mb-6 border-amber-200 bg-amber-50">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-amber-800 flex items-center gap-2">
+          <AlertCircle className="h-5 w-5" />
+          Despesas com vencimento próximo
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
           {upcomingExpenses.map(expense => (
-            <div key={expense.id} className="flex items-center justify-between p-2 rounded bg-white">
-              <div className="flex items-center">
-                <span className="font-medium mr-2">{expense.description}</span>
-                <Badge variant="outline" className="bg-amber-100 text-amber-800">
-                  {new Date(expense.date).toLocaleDateString('pt-BR')}
-                </Badge>
+            <Alert key={expense.id} variant="outline" className="border-amber-200 bg-amber-50/50">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                  <AlertTitle className="flex items-center gap-2">
+                    {expense.description}
+                    <Badge variant="outline" className="ml-2 bg-amber-100 text-amber-800 hover:bg-amber-200">
+                      <CalendarClock className="mr-1 h-3 w-3" />
+                      {new Date(expense.date).toLocaleDateString('pt-BR')}
+                    </Badge>
+                  </AlertTitle>
+                  <AlertDescription>
+                    {formatCurrency(Number(expense.amount))} - {expense.category}
+                  </AlertDescription>
+                </div>
+                <Button variant="outline" size="sm" asChild className="mt-2 sm:mt-0 border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-200">
+                  <Link href={`/expenses/${expense.id}`}>
+                    Ver Detalhes
+                    <ArrowRight className="ml-1 h-4 w-4" />
+                  </Link>
+                </Button>
               </div>
-              <div className="flex items-center space-x-2">
-                <span className="font-bold">{formatCurrency(Number(expense.amount))}</span>
-                <Link href={`/expenses/${expense.id}/view`} className="text-blue-600 hover:underline text-sm">
-                  Ver detalhes
-                </Link>
-              </div>
-            </div>
+            </Alert>
           ))}
+          
+          <div className="text-right">
+            <Button variant="ghost" asChild className="text-amber-800 hover:text-amber-900 hover:bg-amber-100">
+              <Link href="/expenses">
+                Ver todas as despesas
+                <ArrowRight className="ml-1 h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
         </div>
-      </AlertDescription>
-    </Alert>
+      </CardContent>
+    </Card>
   );
 }

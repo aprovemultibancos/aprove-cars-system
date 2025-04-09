@@ -62,7 +62,8 @@ export const insertVehicleSchema = createInsertSchema(vehicles).pick({
 export const sales = pgTable("sales", {
   id: serial("id").primaryKey(),
   vehicleId: integer("vehicle_id").notNull(),
-  customerId: integer("customer_id").notNull(),
+  customerId: integer("customer_id"),
+  customerName: text("customer_name"),
   sellerId: integer("seller_id").notNull(),
   saleDate: date("sale_date").notNull(),
   salePrice: numeric("sale_price").notNull(),
@@ -76,6 +77,7 @@ export const sales = pgTable("sales", {
 export const insertSaleSchema = createInsertSchema(sales).pick({
   vehicleId: true,
   customerId: true,
+  customerName: true,
   sellerId: true,
   saleDate: true,
   salePrice: true,

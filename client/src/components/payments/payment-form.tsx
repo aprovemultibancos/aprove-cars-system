@@ -286,7 +286,7 @@ export function PaymentForm({ customers, sales }: PaymentFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="">Nenhuma venda</SelectItem>
+                    <SelectItem value="0">Nenhuma venda</SelectItem>
                     {sales.map((sale) => (
                       <SelectItem key={sale.id} value={sale.id.toString()}>
                         Venda #{sale.id} - {formatCurrency(Number(sale.salePrice))}

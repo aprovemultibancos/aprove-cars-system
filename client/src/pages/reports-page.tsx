@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +22,9 @@ import {
   Legend,
 } from "recharts";
 import { formatCurrency } from "@/lib/utils";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 
 // Sample data for charts
 const salesData = [
@@ -63,6 +66,252 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'
 
 export default function ReportsPage() {
   const [dateRange, setDateRange] = useState("year");
+  const [activeTab, setActiveTab] = useState("sales");
+  
+  // Função para formatar valor monetário em formato BR
+  const formatBRL = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', { 
+      style: 'currency', 
+      currency: 'BRL',
+      minimumFractionDigits: 2
+    }).format(value);
+  };
+  
+  // Função para exportar relatório em PDF
+  const exportToPDF = () => {
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    });
+    
+    // Adicionar título e cabeçalhos
+    doc.setFontSize(16);
+    doc.setTextColor(16, 185, 129); // Cor verde
+    doc.text("Aprove Cars - Relatório", 105, 15, { align: "center" });
+    
+    doc.setFontSize(12);
+    doc.setTextColor(0);
+    
+    const periodoTexto = dateRange === "month" ? "Este Mês" : 
+                         dateRange === "quarter" ? "Este Trimestre" : "Este Ano";
+    doc.text(`Período: ${periodoTexto}`, 105, 25, { align: "center" });
+    doc.text(`Data de geração: ${new Date().toLocaleDateString('pt-BR')}`, 105, 30, { align: "center" });
+    
+    // Relatório baseado na tab ativa
+    doc.setFontSize(14);
+    doc.text(`Relatório de ${activeTab === "sales" ? "Vendas" : 
+                           activeTab === "financing" ? "Financiamentos" : 
+                           activeTab === "expenses" ? "Despesas" : "Comparativo"}`, 20, 40);
+    
+    // Dados para a tabela
+    let tableData = [];
+    let columns = [];
+    
+    if (activeTab === "sales") {
+      columns = [
+        { header: "Mês", dataKey: "month" },
+        { header: "Carros Vendidos", dataKey: "cars" },
+        { header: "Valor Total", dataKey: "formattedValue" }
+      ];
+      
+      tableData = salesData.map(item => ({
+        ...item,
+        formattedValue: formatBRL(item.value)
+      }));
+      
+      // Adicionar totais
+      const totalCars = salesData.reduce((acc, item) => acc + item.cars, 0);
+      const totalValue = salesData.reduce((acc, item) => acc + item.value, 0);
+      
+      tableData.push({
+        month: "TOTAL",
+        cars: totalCars,
+        formattedValue: formatBRL(totalValue)
+      });
+    } 
+    else if (activeTab === "financing") {
+      columns = [
+        { header: "Mês", dataKey: "month" },
+        { header: "Quantidade", dataKey: "count" },
+        { header: "Valor Total", dataKey: "formattedValue" }
+      ];
+      
+      tableData = financingData.map(item => ({
+        ...item,
+        formattedValue: formatBRL(item.value)
+      }));
+      
+      // Adicionar totais
+      const totalCount = financingData.reduce((acc, item) => acc + item.count, 0);
+      const totalValue = financingData.reduce((acc, item) => acc + item.value, 0);
+      
+      tableData.push({
+        month: "TOTAL",
+        count: totalCount,
+        formattedValue: formatBRL(totalValue)
+      });
+    }
+    else if (activeTab === "expenses") {
+      columns = [
+        { header: "Categoria", dataKey: "category" },
+        { header: "Valor", dataKey: "formattedValue" }
+      ];
+      
+      tableData = expenseData.map(item => ({
+        ...item,
+        formattedValue: formatBRL(item.value)
+      }));
+      
+      // Adicionar total
+      const totalValue = expenseData.reduce((acc, item) => acc + item.value, 0);
+      
+      tableData.push({
+        category: "TOTAL",
+        formattedValue: formatBRL(totalValue)
+      });
+    }
+    else if (activeTab === "comparison") {
+      const comparisonData = [
+        { month: "Jan", receitas: 400000, despesas: 165000, lucro: 235000 },
+        { month: "Fev", receitas: 450000, despesas: 172000, lucro: 278000 },
+        { month: "Mar", receitas: 600000, despesas: 173000, lucro: 427000 },
+        { month: "Abr", receitas: 700000, despesas: 180000, lucro: 520000 },
+        { month: "Mai", receitas: 650000, despesas: 180000, lucro: 470000 },
+        { month: "Jun", receitas: 800000, despesas: 190000, lucro: 610000 },
+      ];
+      
+      columns = [
+        { header: "Mês", dataKey: "month" },
+        { header: "Receitas", dataKey: "formattedReceitas" },
+        { header: "Despesas", dataKey: "formattedDespesas" },
+        { header: "Lucro", dataKey: "formattedLucro" }
+      ];
+      
+      tableData = comparisonData.map(item => ({
+        month: item.month,
+        formattedReceitas: formatBRL(item.receitas),
+        formattedDespesas: formatBRL(item.despesas),
+        formattedLucro: formatBRL(item.lucro)
+      }));
+      
+      // Adicionar totais
+      const totalReceitas = comparisonData.reduce((acc, item) => acc + item.receitas, 0);
+      const totalDespesas = comparisonData.reduce((acc, item) => acc + item.despesas, 0);
+      const totalLucro = comparisonData.reduce((acc, item) => acc + item.lucro, 0);
+      
+      tableData.push({
+        month: "TOTAL",
+        formattedReceitas: formatBRL(totalReceitas),
+        formattedDespesas: formatBRL(totalDespesas),
+        formattedLucro: formatBRL(totalLucro)
+      });
+    }
+    
+    // Adicionar tabela ao PDF
+    autoTable(doc, {
+      head: [columns.map(col => col.header)],
+      body: tableData.map(row => columns.map(col => row[col.dataKey])),
+      startY: 50,
+      styles: {
+        fontSize: 10,
+        cellPadding: 3,
+      },
+      headStyles: {
+        fillColor: [16, 185, 129],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+      },
+      alternateRowStyles: {
+        fillColor: [240, 255, 246],
+      },
+      foot: tableData.length > 0 ? [[]] : undefined,
+      footStyles: {
+        fillColor: [16, 185, 129],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+      },
+    });
+    
+    // Adicionar rodapé
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(128);
+      doc.text(
+        `Aprove Cars & Aprove Financiamentos - Página ${i} de ${pageCount}`,
+        105,
+        doc.internal.pageSize.height - 10,
+        { align: "center" }
+      );
+    }
+    
+    // Salvar o PDF
+    doc.save(`Relatorio_${activeTab}_${dateRange}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
+  };
+  
+  // Função para exportar relatório em Excel
+  const exportToExcel = () => {
+    let data = [];
+    let fileName = "";
+    
+    if (activeTab === "sales") {
+      data = salesData.map(item => ({
+        Mês: item.month,
+        "Carros Vendidos": item.cars,
+        "Valor Total": formatBRL(item.value)
+      }));
+      fileName = "Relatorio_Vendas";
+    } 
+    else if (activeTab === "financing") {
+      data = financingData.map(item => ({
+        Mês: item.month,
+        "Quantidade": item.count,
+        "Valor Total": formatBRL(item.value)
+      }));
+      fileName = "Relatorio_Financiamentos";
+    }
+    else if (activeTab === "expenses") {
+      data = expenseData.map(item => ({
+        "Categoria": item.category,
+        "Valor": formatBRL(item.value)
+      }));
+      fileName = "Relatorio_Despesas";
+    }
+    else if (activeTab === "comparison") {
+      data = [
+        { Mês: "Jan", Receitas: formatBRL(400000), Despesas: formatBRL(165000), Lucro: formatBRL(235000) },
+        { Mês: "Fev", Receitas: formatBRL(450000), Despesas: formatBRL(172000), Lucro: formatBRL(278000) },
+        { Mês: "Mar", Receitas: formatBRL(600000), Despesas: formatBRL(173000), Lucro: formatBRL(427000) },
+        { Mês: "Abr", Receitas: formatBRL(700000), Despesas: formatBRL(180000), Lucro: formatBRL(520000) },
+        { Mês: "Mai", Receitas: formatBRL(650000), Despesas: formatBRL(180000), Lucro: formatBRL(470000) },
+        { Mês: "Jun", Receitas: formatBRL(800000), Despesas: formatBRL(190000), Lucro: formatBRL(610000) },
+      ];
+      fileName = "Relatorio_Comparativo";
+    }
+    
+    // Criar um workbook
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Relatório");
+    
+    // Estilizar cabeçalhos
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    for (let i = range.s.c; i <= range.e.c; i++) {
+      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: i });
+      if (!ws[cellAddress]) continue;
+      
+      ws[cellAddress].s = {
+        font: { bold: true },
+        fill: { fgColor: { rgb: "10B981" } },
+        alignment: { horizontal: "center" }
+      };
+    }
+    
+    // Salvar o arquivo
+    XLSX.writeFile(wb, `${fileName}_${dateRange}_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.xlsx`);
+  };
   
   return (
     <div>
@@ -80,12 +329,12 @@ export default function ReportsPage() {
               </SelectContent>
             </Select>
             
-            <Button variant="outline">
+            <Button variant="outline" onClick={exportToPDF}>
               <FileText className="h-4 w-4 mr-2" />
               Exportar PDF
             </Button>
             
-            <Button variant="outline">
+            <Button variant="outline" onClick={exportToExcel}>
               <Download className="h-4 w-4 mr-2" />
               Exportar Excel
             </Button>
@@ -93,7 +342,7 @@ export default function ReportsPage() {
         </PageHeader.Action>
       </PageHeader>
       
-      <Tabs defaultValue="sales" className="mt-6">
+      <Tabs defaultValue="sales" className="mt-6" onValueChange={setActiveTab}>
         <TabsList className="mb-4">
           <TabsTrigger value="sales">Vendas</TabsTrigger>
           <TabsTrigger value="financing">Financiamentos</TabsTrigger>

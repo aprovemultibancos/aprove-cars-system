@@ -337,7 +337,13 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
           />
 
           {/* Campo de agente removido conforme solicitado */}
-          <input type="hidden" name="agentId" value="1" />{/* Valor padrão para o agentId */}
+          <FormField
+            control={form.control}
+            name="agentId"
+            render={({ field }) => (
+              <input type="hidden" {...field} value="1" />
+            )}
+          />
 
           <FormField
             control={form.control}
