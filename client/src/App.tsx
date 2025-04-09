@@ -14,6 +14,7 @@ import FinancesPage from "@/pages/finances-page";
 import ExpensesPage from "@/pages/expenses-page";
 import PersonnelPage from "@/pages/personnel-page";
 import ReportsPage from "@/pages/reports-page";
+import UserManagementPage from "@/pages/user-management-page";
 
 function Router() {
   return (
@@ -35,6 +36,7 @@ function Router() {
       <ProtectedRoute path="/personnel/:id" component={() => <Layout><PersonnelPage /></Layout>} />
       <ProtectedRoute path="/personnel/:id/:action" component={() => <Layout><PersonnelPage /></Layout>} />
       <ProtectedRoute path="/reports" component={() => <Layout><ReportsPage /></Layout>} />
+      <ProtectedRoute path="/users" component={() => <Layout><UserManagementPage /></Layout>} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>

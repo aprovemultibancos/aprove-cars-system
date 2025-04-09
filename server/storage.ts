@@ -16,6 +16,8 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, userData: Partial<User>): Promise<User | undefined>;
+  deleteUser(id: number): Promise<boolean>;
   
   // Vehicle methods
   getVehicles(): Promise<Vehicle[]>;
@@ -113,6 +115,31 @@ export class MemStorage implements IStorage {
     };
     this.users.set(id, user);
     return user;
+  }
+  
+  async updateUser(id: number, userData: Partial<User>): Promise<User | undefined> {
+    const user = await this.getUser(id);
+    if (!user) return undefined;
+
+    Object.assign(user, userData);
+    this.users.set(id, user);
+    return user;
+  }
+  
+  async deleteUser(id: number): Promise<boolean> {
+    const user = await this.getUser(id);
+    if (!user) return false;
+    
+    // Não permitir exclusão de administradores ativos
+    if (user.role === "admin" && user.isActive) {
+      const adminCount = [...this.users.values()].filter(u => u.role === "admin" && u.isActive).length;
+      // Não permitir exclusão se for o último administrador ativo
+      if (adminCount <= 1) {
+        return false;
+      }
+    }
+    
+    return this.users.delete(id);
   }
   
   // Vehicle methods
@@ -396,6 +423,36 @@ export class DatabaseStorage implements IStorage {
       createdAt: new Date()
     }).returning();
     return user;
+  }
+  
+  async updateUser(id: number, userData: Partial<User>): Promise<User | undefined> {
+    const [updatedUser] = await db.update(users)
+      .set(userData)
+      .where(eq(users.id, id))
+      .returning();
+    return updatedUser;
+  }
+  
+  async deleteUser(id: number): Promise<boolean> {
+    // Verificar se é o último admin ativo antes de excluir
+    if (id) {
+      const [user] = await db.select().from(users).where(eq(users.id, id));
+      if (user && user.role === "admin" && user.isActive) {
+        const adminUsers = await db.select().from(users)
+          .where(and(
+            eq(users.role, "admin"),
+            eq(users.isActive, true)
+          ));
+        
+        // Se for o último admin ativo, não permitir exclusão
+        if (adminUsers.length <= 1) {
+          return false;
+        }
+      }
+    }
+    
+    const result = await db.delete(users).where(eq(users.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
   }
   
   // Vehicle methods

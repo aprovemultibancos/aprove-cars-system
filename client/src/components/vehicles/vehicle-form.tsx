@@ -87,42 +87,34 @@ export function VehicleForm({ editVehicle }: VehicleFormProps) {
 
   const mutation = useMutation({
     mutationFn: async (data: VehicleFormValues) => {
-      const formData = new FormData();
-      Object.keys(data).forEach((key) => {
-        formData.append(key, String(data[key as keyof VehicleFormValues]));
-      });
+      // Garantir que todos os campos obrigatórios estejam presentes
+      const vehicleData = {
+        make: data.make,
+        model: data.model,
+        year: data.year,
+        km: data.km.toString(),
+        purchaseCost: data.purchaseCost.toString(),
+        sellingPrice: data.sellingPrice.toString(),
+        expenses: data.expenses?.toString() || "0",
+        description: data.description || "",
+        status: data.status,
+        notes: data.notes || "",
+        // Os caminhos dos arquivos serão preenchidos no servidor
+        crlvDocPath: null,
+        powerOfAttorneyPath: null,
+        images: null
+      };
 
-      // Append files
-      crlvFile.forEach((file) => {
-        formData.append("crlvDoc", file);
-      });
-
-      powerOfAttorneyFile.forEach((file) => {
-        formData.append("powerOfAttorney", file);
-      });
-
-      vehicleImages.forEach((file) => {
-        formData.append("vehicleImages", file);
-      });
-
+      // Se estiver editando, usar o endpoint de atualização, senão usar o de criação
       const endpoint = editVehicle 
         ? `/api/vehicles/${editVehicle.id}` 
         : "/api/vehicles";
       
       const method = editVehicle ? "PATCH" : "POST";
       
-      const res = await fetch(endpoint, {
-        method,
-        body: formData,
-        credentials: "include",
-      });
-      
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText || "Erro ao salvar veículo");
-      }
-      
-      return await res.json();
+      // Usar apiRequest para garantir tratamento de erros consistente
+      const res = await apiRequest(method, endpoint, vehicleData);
+      return res;
     },
     onSuccess: () => {
       toast({

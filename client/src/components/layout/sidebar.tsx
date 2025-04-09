@@ -113,6 +113,19 @@ export function Sidebar() {
                   </SidebarLink>
                 </div>
               </div>
+              
+              {user?.role === "admin" && (
+                <div className="mt-6">
+                  <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Administração
+                  </h3>
+                  <div className="mt-2 space-y-1">
+                    <SidebarLink href="/users" icon={Users} currentPath={location}>
+                      Usuários
+                    </SidebarLink>
+                  </div>
+                </div>
+              )}
             </nav>
           </div>
           

@@ -1,8 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth } from "./auth";
-import { insertVehicleSchema, insertCustomerSchema, insertSaleSchema, insertFinancingSchema, insertExpenseSchema, insertPersonnelSchema, users as usersTable } from "@shared/schema";
+import { setupAuth, hashPassword } from "./auth";
+import { insertVehicleSchema, insertCustomerSchema, insertSaleSchema, insertFinancingSchema, insertExpenseSchema, insertPersonnelSchema, insertUserSchema, users as usersTable } from "@shared/schema";
 import { db } from "./db";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -293,6 +293,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(404).json({ message: "Pessoa não encontrada" });
     }
     res.status(204).end();
+  });
+
+  // Rotas de gerenciamento de usuários (somente para administradores)
+  app.get("/api/users", async (req, res) => {
+    if (!req.isAuthenticated() || req.user.role !== "admin") {
+      return res.status(403).json({ message: "Acesso negado" });
+    }
+    
+    try {
+      const users = await db.select().from(usersTable);
+      res.json(users);
+    } catch (error) {
+      console.error("Erro ao buscar usuários:", error);
+      res.status(500).json({ message: "Erro ao buscar usuários" });
+    }
+  });
+  
+  app.post("/api/users", async (req, res) => {
+    if (!req.isAuthenticated() || req.user.role !== "admin") {
+      return res.status(403).json({ message: "Acesso negado" });
+    }
+    
+    try {
+      // Verificar se o nome de usuário já existe
+      const existingUser = await storage.getUserByUsername(req.body.username);
+      if (existingUser) {
+        return res.status(400).json({ message: "Nome de usuário já existe" });
+      }
+      
+      const userData = insertUserSchema.parse(req.body);
+      const hashedPassword = await hashPassword(userData.password);
+      
+      const newUser = await storage.createUser({
+        ...userData,
+        password: hashedPassword
+      });
+      
+      res.status(201).json(newUser);
+    } catch (error) {
+      console.error("Erro ao criar usuário:", error);
+      res.status(400).json({ message: "Dados inválidos", error });
+    }
+  });
+  
+  app.patch("/api/users/:id/status", async (req, res) => {
+    if (!req.isAuthenticated() || req.user.role !== "admin") {
+      return res.status(403).json({ message: "Acesso negado" });
+    }
+    
+    const userId = parseInt(req.params.id);
+    const { isActive } = req.body;
+    
+    try {
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      // Impedir desativação da própria conta do administrador
+      if (userId === req.user.id && !isActive) {
+        return res.status(400).json({ message: "Não é possível desativar sua própria conta" });
+      }
+      
+      const updatedUser = await storage.updateUser(userId, { isActive });
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Erro ao atualizar status do usuário:", error);
+      res.status(500).json({ message: "Erro ao atualizar status do usuário" });
+    }
+  });
+  
+  app.delete("/api/users/:id", async (req, res) => {
+    if (!req.isAuthenticated() || req.user.role !== "admin") {
+      return res.status(403).json({ message: "Acesso negado" });
+    }
+    
+    const userId = parseInt(req.params.id);
+    
+    try {
+      // Impedir exclusão da própria conta do administrador
+      if (userId === req.user.id) {
+        return res.status(400).json({ message: "Não é possível excluir sua própria conta" });
+      }
+      
+      const success = await storage.deleteUser(userId);
+      if (!success) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error("Erro ao excluir usuário:", error);
+      res.status(500).json({ message: "Erro ao excluir usuário" });
+    }
   });
 
   // Users/sales - endpoint para usuários com função de vendas
