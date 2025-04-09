@@ -27,10 +27,10 @@ export default function VehiclesPage() {
   const action = matchVehicleAction ? matchVehicleAction.params.action : null;
   
   // If we have a vehicle ID in the URL, get that vehicle's data
-  const editVehicle = vehicleId ? vehicles?.find(v => v.id.toString() === vehicleId) : undefined;
+  const editVehicle = vehicleId && vehicles ? vehicles.find(v => v.id.toString() === vehicleId) : undefined;
   
-  const isEditing = action === "edit" && editVehicle;
-  const isViewing = action === "view" && editVehicle;
+  const isEditing = action === "edit" && Boolean(editVehicle);
+  const isViewing = action === "view" && Boolean(editVehicle);
   
   // Show form if adding, editing, or viewing a vehicle
   const showForm = isAddingVehicle || isEditing || isViewing;
