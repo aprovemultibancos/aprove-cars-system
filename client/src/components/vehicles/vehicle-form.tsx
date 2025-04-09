@@ -97,13 +97,15 @@ export function VehicleForm({ editVehicle }: VehicleFormProps) {
         sellingPrice: data.sellingPrice.toString(),
         expenses: data.expenses?.toString() || "0",
         description: data.description || "",
-        status: data.status,
+        status: data.status || "available", // Garantir que status tenha um valor padrão
         notes: data.notes || "",
         // Os caminhos dos arquivos serão preenchidos no servidor
         crlvDocPath: null,
         powerOfAttorneyPath: null,
         images: null
       };
+
+      console.log("Enviando dados do veículo:", vehicleData);
 
       // Se estiver editando, usar o endpoint de atualização, senão usar o de criação
       const endpoint = editVehicle 
@@ -112,9 +114,15 @@ export function VehicleForm({ editVehicle }: VehicleFormProps) {
       
       const method = editVehicle ? "PATCH" : "POST";
       
-      // Usar apiRequest para garantir tratamento de erros consistente
-      const res = await apiRequest(method, endpoint, vehicleData);
-      return res;
+      try {
+        // Usar apiRequest para garantir tratamento de erros consistente
+        const res = await apiRequest(method, endpoint, vehicleData);
+        console.log("Resposta do servidor:", res);
+        return res;
+      } catch (error) {
+        console.error("Erro ao salvar veículo:", error);
+        throw error;
+      }
     },
     onSuccess: () => {
       toast({

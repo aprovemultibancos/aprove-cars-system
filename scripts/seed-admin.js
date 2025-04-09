@@ -54,13 +54,13 @@ async function createAdmin() {
       console.log('Tabela users criada com sucesso.');
     }
 
-    // Verificar se já existe administrador
+    // Verificar se já existe o usuário 'administrador'
     const adminExists = await pool.query(`
-      SELECT * FROM users WHERE role = 'admin' LIMIT 1
+      SELECT * FROM users WHERE username = 'administrador'
     `);
 
     if (adminExists.rows.length > 0) {
-      console.log('Já existe um usuário administrador no sistema.');
+      console.log('Usuário "administrador" já existe no sistema.');
       const admin = adminExists.rows[0];
       console.log(`Nome de usuário: ${admin.username}`);
       console.log(`Nome: ${admin.name}`);
@@ -70,13 +70,13 @@ async function createAdmin() {
     }
 
     // Criar administrador padrão
-    const hashedPassword = await hashPassword('admin123');
+    const hashedPassword = await hashPassword('Administrador123');
     
     await pool.query(`
       INSERT INTO users (username, password, name, email, role, is_active)
       VALUES ($1, $2, $3, $4, $5, $6)
     `, [
-      'admin', 
+      'administrador', 
       hashedPassword, 
       'Administrador', 
       'admin@aprove.com', 
@@ -85,8 +85,8 @@ async function createAdmin() {
     ]);
 
     console.log('Usuário administrador criado com sucesso:');
-    console.log('Nome de usuário: admin');
-    console.log('Senha: admin123');
+    console.log('Nome de usuário: administrador');
+    console.log('Senha: Administrador123');
     console.log('Nome: Administrador');
     console.log('Email: admin@aprove.com');
     console.log('Papel: Administrador');

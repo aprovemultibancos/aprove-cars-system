@@ -35,7 +35,8 @@ import { useEffect } from "react";
 // Extended schema with validation
 const extendedSaleSchema = insertSaleSchema.extend({
   vehicleId: z.coerce.number().positive("Veículo é obrigatório"),
-  customerId: z.coerce.number().positive("Cliente é obrigatório"),
+  customerId: z.coerce.number().positive().optional(),
+  customerName: z.string().optional(),
   sellerId: z.coerce.number().positive("Vendedor é obrigatório"),
   saleDate: z.date(),
   salePrice: z.coerce.number().positive("Preço de venda é obrigatório"),
@@ -134,7 +135,25 @@ export function SaleForm({ editSale }: SaleFormProps) {
   });
 
   function onSubmit(data: SaleFormValues) {
-    mutation.mutate(data);
+    // Validar que pelo menos um dos campos de cliente foi preenchido
+    if (!data.customerId && !data.customerName) {
+      toast({
+        title: "Erro no formulário",
+        description: "É necessário fornecer um cliente (selecionar um registrado ou digitar o nome)",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Preparar dados para envio ao servidor
+    let saleData = { ...data };
+    
+    // Se não tiver customerId mas tiver customerName, usar um ID temporário (será tratado no backend)
+    if (!data.customerId && data.customerName) {
+      console.log("Usando nome de cliente manual:", data.customerName);
+    }
+    
+    mutation.mutate(saleData);
   }
 
   // When a vehicle is selected, set its price as the sale price
@@ -184,33 +203,72 @@ export function SaleForm({ editSale }: SaleFormProps) {
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="customerId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Cliente</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value?.toString()}
-                >
+          {/* Cliente registrado ou não registrado */}
+          <div className="space-y-4">
+            <FormField
+              control={form.control}
+              name="customerId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cliente Registrado (opcional)</FormLabel>
+                  <Select
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      // Quando um cliente é selecionado, limpar o campo de entrada manual
+                      if (value) {
+                        form.setValue("customerName", "");
+                      }
+                    }}
+                    defaultValue={field.value?.toString()}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um cliente registrado" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {customers && customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id.toString()}>
+                          {customer.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Selecione um cliente já registrado ou utilize o campo abaixo para entrada manual
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="customerName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome do Cliente (entrada manual)</FormLabel>
                   <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o cliente" />
-                    </SelectTrigger>
+                    <Input 
+                      placeholder="Digite o nome do cliente" 
+                      {...field} 
+                      onChange={(e) => {
+                        field.onChange(e);
+                        // Se o usuário começar a digitar, limpar a seleção de cliente
+                        if (e.target.value && form.getValues().customerId) {
+                          form.setValue("customerId", undefined);
+                        }
+                      }}
+                    />
                   </FormControl>
-                  <SelectContent>
-                    {customers && customers.map((customer) => (
-                      <SelectItem key={customer.id} value={customer.id.toString()}>
-                        {customer.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                  <FormDescription>
+                    Use este campo caso o cliente não esteja registrado no sistema
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
 
           <FormField
             control={form.control}
