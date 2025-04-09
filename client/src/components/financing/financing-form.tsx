@@ -84,7 +84,7 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
         agentCommission: Number(editFinancing.agentCommission),
         sellerCommission: Number(editFinancing.sellerCommission),
         status: editFinancing.status as "analysis" | "approved" | "paid" | "rejected",
-        agentId: editFinancing.agentId,
+        agentId: 1, // Valor padrão para o agentId
         notes: editFinancing.notes || "",
       }
     : {
@@ -97,6 +97,7 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
         agentCommission: 0,
         sellerCommission: 0,
         status: "analysis",
+        agentId: 1, // Valor padrão para o agentId
         notes: "",
       };
 
@@ -202,21 +203,12 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Banco</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o banco" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="banco_do_brasil">Banco do Brasil</SelectItem>
-                    <SelectItem value="caixa">Caixa Econômica Federal</SelectItem>
-                    <SelectItem value="santander">Santander</SelectItem>
-                    <SelectItem value="itau">Itaú</SelectItem>
-                    <SelectItem value="bradesco">Bradesco</SelectItem>
-                    <SelectItem value="outros">Outros</SelectItem>
-                  </SelectContent>
-                </Select>
+                <FormControl>
+                  <Input 
+                    placeholder="Digite o nome do banco" 
+                    {...field} 
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -344,33 +336,8 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="agentId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Agente</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value?.toString()}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o agente" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {agents?.map((agent) => (
-                      <SelectItem key={agent.id} value={agent.id.toString()}>
-                        {agent.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {/* Campo de agente removido conforme solicitado */}
+          <input type="hidden" name="agentId" value="1" />{/* Valor padrão para o agentId */}
 
           <FormField
             control={form.control}

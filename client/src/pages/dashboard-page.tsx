@@ -5,6 +5,7 @@ import { SalesChart } from "@/components/dashboard/chart-section";
 import { FinancingChart } from "@/components/dashboard/chart-section";
 import { RecentVehicles } from "@/components/dashboard/recent-vehicles";
 import { RecentFinancing } from "@/components/dashboard/recent-financing";
+import { UpcomingExpensesAlert } from "@/components/dashboard/upcoming-expenses-alert";
 import { Vehicle, Financing, Customer, Personnel } from "@shared/schema";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -184,6 +185,9 @@ export default function DashboardPage() {
           </div>
         </PageHeader.Action>
       </PageHeader>
+      
+      {/* Alerta de despesas próximas do vencimento */}
+      <UpcomingExpensesAlert />
       
       {/* Stats Cards */}
       <StatsOverview 
