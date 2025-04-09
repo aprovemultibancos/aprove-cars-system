@@ -121,12 +121,6 @@ export function VehicleTable() {
         
         return (
           <div className="flex items-center justify-end space-x-2">
-            <Link href={`/vehicles/${vehicle.id}/view`}>
-              <Button variant="ghost" size="icon">
-                <Eye className="h-4 w-4" />
-                <span className="sr-only">Ver</span>
-              </Button>
-            </Link>
             <Link href={`/vehicles/${vehicle.id}/edit`}>
               <Button variant="ghost" size="icon">
                 <Pencil className="h-4 w-4" />

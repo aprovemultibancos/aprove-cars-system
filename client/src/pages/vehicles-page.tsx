@@ -30,10 +30,9 @@ export default function VehiclesPage() {
   const editVehicle = vehicleId && vehicles ? vehicles.find(v => v.id.toString() === vehicleId) : undefined;
   
   const isEditing = action === "edit" && Boolean(editVehicle);
-  const isViewing = action === "view" && Boolean(editVehicle);
   
-  // Show form if adding, editing, or viewing a vehicle
-  const showForm = isAddingVehicle || isEditing || isViewing;
+  // Show form if adding or editing
+  const showForm = isAddingVehicle || isEditing;
   
   // Count vehicles by status
   const availableCount = vehicles?.filter(v => v.status === "available").length || 0;
@@ -42,7 +41,7 @@ export default function VehiclesPage() {
   
   return (
     <div>
-      <PageHeader title={showForm ? (isEditing ? "Editar Veículo" : isViewing ? "Detalhes do Veículo" : "Adicionar Veículo") : "Inventário de Veículos"}>
+      <PageHeader title={showForm ? (isEditing ? "Editar Veículo" : "Adicionar Veículo") : "Inventário de Veículos"}>
         {!showForm && (
           <PageHeader.Action>
             <Button onClick={() => setIsAddingVehicle(true)}>

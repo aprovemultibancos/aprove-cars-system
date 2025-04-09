@@ -73,18 +73,19 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
     return isNaN(date.getTime()) ? null : date;
   };
 
+  // Garantir que todos os campos obrigatórios tenham valores padrão
   const defaultValues: Partial<FinancingFormValues> = editFinancing
     ? {
         customerName: editFinancing.customerName || "",
-        bank: editFinancing.bank,
-        assetValue: Number(editFinancing.assetValue),
-        returnType: editFinancing.returnType as "R0" | "R1" | "R2" | "R3" | "R4" | "R6" | "RF" || "R0",
+        bank: editFinancing.bank || "",
+        assetValue: Number(editFinancing.assetValue) || 0,
+        returnType: (editFinancing.returnType as "R0" | "R1" | "R2" | "R3" | "R4" | "R6" | "RF") || "R0",
         accessoriesPercentage: Number(editFinancing.accessoriesPercentage) || 0,
         feeAmount: Number(editFinancing.feeAmount) || 0,
-        agentCommission: Number(editFinancing.agentCommission),
-        sellerCommission: Number(editFinancing.sellerCommission),
-        status: editFinancing.status as "analysis" | "approved" | "paid" | "rejected",
-        agentId: 1, // Valor padrão para o agentId
+        agentCommission: Number(editFinancing.agentCommission) || 0,
+        sellerCommission: Number(editFinancing.sellerCommission) || 0,
+        status: (editFinancing.status as "analysis" | "approved" | "paid" | "rejected") || "analysis",
+        agentId: Number(editFinancing.agentId) || 1, // Valor padrão para o agentId
         notes: editFinancing.notes || "",
       }
     : {
