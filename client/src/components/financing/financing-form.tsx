@@ -316,28 +316,16 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
             )}
           />
           
+          {/* Campo oculto para releasedAmount */}
           <FormField
             control={form.control}
             name="releasedAmount"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Valor Liberado (R$)</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number" 
-                    step="0.01" 
-                    {...field}
-                    onChange={(e) => {
-                      field.onChange(e);
-                      form.trigger();
-                    }} 
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
+              <input type="hidden" {...field} />
             )}
           />
           
+          {/* Campo oculto para expectedReturn, mas mantendo a atualização do valor */}
           <FormField
             control={form.control}
             name="expectedReturn"
@@ -349,19 +337,7 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
               }, [form.watch("assetValue"), form.watch("returnType")]);
               
               return (
-                <FormItem>
-                  <FormLabel>Retorno Esperado (R$)</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="number" 
-                      step="0.01" 
-                      {...field}
-                      readOnly
-                    />
-                  </FormControl>
-                  <div className="text-xs text-muted-foreground mt-1">Este valor é calculado automaticamente</div>
-                  <FormMessage />
-                </FormItem>
+                <input type="hidden" {...field} />
               );
             }}
           />
