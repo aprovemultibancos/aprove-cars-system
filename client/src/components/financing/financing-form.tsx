@@ -88,6 +88,8 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
         status: (editFinancing.status as "analysis" | "approved" | "paid" | "rejected") || "analysis",
         agentId: Number(editFinancing.agentId) || 1, // Valor padrão para o agentId
         notes: editFinancing.notes || "",
+        releasedAmount: editFinancing.releasedAmount?.toString() || "0",
+        expectedReturn: editFinancing.expectedReturn?.toString() || "0",
       }
     : {
         customerName: "",
@@ -101,6 +103,8 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
         status: "analysis",
         agentId: 1, // Valor padrão para o agentId
         notes: "",
+        releasedAmount: "0",
+        expectedReturn: "0",
       };
 
   const form = useForm<FinancingFormValues>({
@@ -321,7 +325,7 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
             control={form.control}
             name="releasedAmount"
             render={({ field }) => (
-              <input type="hidden" {...field} />
+              <input type="hidden" {...field} value={field.value || 0} />
             )}
           />
           
@@ -337,7 +341,7 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
               }, [form.watch("assetValue"), form.watch("returnType")]);
               
               return (
-                <input type="hidden" {...field} />
+                <input type="hidden" {...field} value={field.value || 0} />
               );
             }}
           />
