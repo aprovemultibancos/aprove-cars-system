@@ -207,6 +207,7 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
                   <Input 
                     placeholder="Digite o nome do banco" 
                     {...field} 
+                    value={field.value || ""}
                   />
                 </FormControl>
                 <FormMessage />
@@ -349,21 +350,7 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
             control={form.control}
             name="agentCommission"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Comissão do Agente (R$)</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number" 
-                    step="0.01" 
-                    {...field}
-                    onChange={(e) => {
-                      field.onChange(e);
-                      form.trigger();
-                    }}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
+              <input type="hidden" {...field} value="0" />
             )}
           />
 

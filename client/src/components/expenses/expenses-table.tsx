@@ -124,7 +124,7 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
     {
       accessorKey: "payeeId",
       header: "Beneficiário",
-      cell: ({ row }) => getPayeeName(row.original.payeeId),
+      cell: ({ row }) => getPayeeName(row.original.payeeId ? row.original.payeeId : undefined),
     },
     {
       id: "actions",

@@ -23,9 +23,8 @@ export default function VehiclesPage() {
   });
   
   // Get vehicle ID from the URL if available
-  const vehicleId = matchVehicleId && matchVehicleId.params ? matchVehicleId.params.id : 
-                   (matchVehicleAction && matchVehicleAction.params ? matchVehicleAction.params.id : null);
-  const action = matchVehicleAction && matchVehicleAction.params ? matchVehicleAction.params.action : null;
+  const vehicleId = matchVehicleAction?.params?.id || matchVehicleId?.params?.id || null;
+  const action = matchVehicleAction?.params?.action || null;
   
   // If we have a vehicle ID in the URL, get that vehicle's data
   const editVehicle = vehicleId ? vehicles?.find(v => v.id.toString() === vehicleId) : undefined;

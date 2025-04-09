@@ -77,7 +77,7 @@ export function SaleForm({ editSale }: SaleFormProps) {
   const defaultValues: Partial<SaleFormValues> = editSale
     ? {
         vehicleId: editSale.vehicleId,
-        customerId: editSale.customerId,
+        customerId: editSale.customerId || undefined,
         sellerId: editSale.sellerId,
         saleDate: new Date(editSale.saleDate),
         salePrice: Number(editSale.salePrice),
@@ -90,7 +90,7 @@ export function SaleForm({ editSale }: SaleFormProps) {
         saleDate: new Date(),
         salePrice: 0,
         commission: 0,
-        paymentMethod: "",
+        paymentMethod: "dinheiro",
         notes: "",
         sellerId: defaultSellerId ? Number(defaultSellerId) : undefined,
       };

@@ -70,14 +70,14 @@ export function ExpenseForm({ editExpense }: ExpenseFormProps) {
         date: parseDate(editExpense.date?.toString()),
         category: editExpense.category,
         type: editExpense.type as "fixed" | "variable",
-        payeeId: editExpense.payeeId,
+        payeeId: editExpense.payeeId || undefined,
         notes: editExpense.notes || "",
       }
     : {
         description: "",
         amount: 0,
         date: new Date(),
-        category: "Outros",
+        category: "Aluguel", // Categoria padrão alterada de "Outros" para "Aluguel"
         type: "variable",
         notes: "",
       };
