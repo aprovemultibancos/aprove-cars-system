@@ -195,12 +195,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/financings", async (req, res) => {
     try {
-      console.log("Recebido no backend:", req.body);
+      console.log("Recebido no backend:", JSON.stringify(req.body, null, 2));
       
-      // Usar o schema diretamente para validar e converter os tipos
-      // O schema modificado em shared/schema.ts já faz a coerção de tipos
-      const financingData = insertFinancingSchema.parse(req.body);
-      console.log("Dados após parse do schema:", financingData);
+      // Validação manual para debug
+      console.log("Tipos dos campos recebidos:");
+      Object.entries(req.body).forEach(([key, value]) => {
+        console.log(`${key}: ${typeof value} => ${value}`);
+      });
+      
+      // Tentar converter manualmente
+      const preprocessedData = {
+        ...req.body,
+        customerId: req.body.customerId ? Number(req.body.customerId) : null,
+        assetValue: Number(req.body.assetValue),
+        accessoriesPercentage: Number(req.body.accessoriesPercentage || 0),
+        feeAmount: Number(req.body.feeAmount || 0),
+        releasedAmount: Number(req.body.releasedAmount || 0),
+        expectedReturn: Number(req.body.expectedReturn || 0),
+        agentCommission: Number(req.body.agentCommission || 0),
+        sellerCommission: Number(req.body.sellerCommission || 0),
+        agentId: Number(req.body.agentId)
+      };
+      
+      console.log("Dados pré-processados:", JSON.stringify(preprocessedData, null, 2));
+      
+      // Usar o schema para validar os dados pré-processados
+      const financingData = insertFinancingSchema.parse(preprocessedData);
+      console.log("Dados após parse do schema:", JSON.stringify(financingData, null, 2));
       
       const financing = await storage.createFinancing(financingData);
       console.log("Financiamento criado com sucesso:", financing);
@@ -208,6 +229,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(financing);
     } catch (error) {
       console.error("Erro ao criar financiamento:", error);
+      if (error instanceof Error) {
+        console.error("Detalhes do erro:", error.message);
+        if (error.cause) console.error("Causa:", error.cause);
+        if (error.stack) console.error("Stack:", error.stack);
+      }
       res.status(400).json({ message: "Dados inválidos", error: String(error) });
     }
   });
