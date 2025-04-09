@@ -10,12 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 type DateRange = '7days' | '30days' | '90days' | 'year';
 type FinancingWithCustomer = Financing & { customer?: Customer; agentName?: string };
 
 export default function DashboardPage() {
   const [dateRange, setDateRange] = useState<DateRange>('30days');
+  const { toast } = useToast();
   
   const { data: vehicles, isLoading: vehiclesLoading } = useQuery<Vehicle[]>({
     queryKey: ["/api/vehicles"],
@@ -93,6 +95,68 @@ export default function DashboardPage() {
     });
   };
   
+  // Função para exportar dados do dashboard
+  const exportDashboardData = () => {
+    try {
+      // Preparar dados para exportação
+      const stats = calculateStats();
+      const rangeLabel = dateRange === '7days' ? 'Últimos 7 dias' : 
+                        dateRange === '30days' ? 'Últimos 30 dias' : 
+                        dateRange === '90days' ? 'Últimos 90 dias' : 'Este ano';
+      
+      // Criar string CSV
+      let csvContent = "Aprove - Relatório do Dashboard\n";
+      csvContent += `Período: ${rangeLabel}\n`;
+      csvContent += `Data de geração: ${new Date().toLocaleDateString('pt-BR')}\n\n`;
+      
+      // Adicionar estatísticas
+      csvContent += "Estatísticas\n";
+      csvContent += `Valor do Inventário,${stats.inventoryValue.replace('R$ ', '')}\n`;
+      csvContent += `Vendas do Mês,${stats.monthlySales.replace('R$ ', '')}\n`;
+      csvContent += `Financiamentos,${stats.financingTotal.replace('R$ ', '')}\n`;
+      csvContent += `Lucro Total,${stats.totalProfit.replace('R$ ', '')}\n\n`;
+      
+      // Adicionar dados de vendas
+      csvContent += "Vendas por Mês\n";
+      csvContent += "Mês,Valor\n";
+      salesChartData.forEach(item => {
+        csvContent += `${item.month},${item.sales}\n`;
+      });
+      csvContent += "\n";
+      
+      // Adicionar dados de financiamento
+      csvContent += "Financiamentos por Banco\n";
+      csvContent += "Banco,Valor\n";
+      financingChartData.forEach(item => {
+        csvContent += `${item.bank},${item.value}\n`;
+      });
+      
+      // Criar um blob e fazer o download
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `dashboard-aprove-${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: "Exportação concluída",
+        description: "Os dados foram exportados com sucesso.",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error("Erro ao exportar dados:", error);
+      toast({
+        title: "Erro na exportação",
+        description: "Não foi possível exportar os dados. Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+  
   return (
     <div>
       <PageHeader title="Dashboard">
@@ -110,7 +174,10 @@ export default function DashboardPage() {
               </SelectContent>
             </Select>
             
-            <Button variant="outline">
+            <Button 
+              variant="outline" 
+              onClick={exportDashboardData}
+            >
               <Download className="h-4 w-4 mr-2" />
               Exportar
             </Button>
