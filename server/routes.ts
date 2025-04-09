@@ -371,11 +371,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/personnel", async (req, res) => {
     try {
+      console.log("Recebido no backend (pessoal):", JSON.stringify(req.body, null, 2));
+      
+      // Validação manual para debug
+      console.log("Tipos dos campos recebidos:");
+      Object.entries(req.body).forEach(([key, value]) => {
+        console.log(`${key}: ${typeof value} => ${value}`);
+      });
+      
+      // Usar o schema para validar e converter os tipos
       const personnelData = insertPersonnelSchema.parse(req.body);
+      console.log("Dados após parse do schema:", JSON.stringify(personnelData, null, 2));
+      
       const person = await storage.createPersonnel(personnelData);
+      console.log("Pessoa criada com sucesso:", person);
+      
       res.status(201).json(person);
     } catch (error) {
-      res.status(400).json({ message: "Dados inválidos", error });
+      console.error("Erro ao criar pessoa:", error);
+      if (error instanceof Error) {
+        console.error("Detalhes do erro:", error.message);
+        if (error.cause) console.error("Causa:", error.cause);
+        if (error.stack) console.error("Stack:", error.stack);
+      }
+      res.status(400).json({ message: "Dados inválidos", error: String(error) });
     }
   });
 

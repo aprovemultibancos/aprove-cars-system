@@ -190,17 +190,18 @@ export const personnel = pgTable("personnel", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const insertPersonnelSchema = createInsertSchema(personnel).pick({
-  name: true,
-  type: true,
-  document: true,
-  email: true,
-  phone: true,
-  role: true,
-  isActive: true,
-  commissionRate: true,
-  bankInfo: true,
-  notes: true,
+// Schema de inserção de pessoal com coerção de tipos
+export const insertPersonnelSchema = z.object({
+  name: z.string(),
+  type: z.enum(["employee", "agent", "dealer"]),
+  document: z.string(),
+  email: z.string().optional().nullable(),
+  phone: z.string().optional().nullable(),
+  role: z.string(),
+  isActive: z.coerce.boolean().default(true),
+  commissionRate: z.coerce.number().optional().nullable(),
+  bankInfo: z.string().optional().nullable(),
+  notes: z.string().optional().nullable()
 });
 
 // Type exports
