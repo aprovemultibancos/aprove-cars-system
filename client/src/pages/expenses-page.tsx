@@ -24,8 +24,8 @@ export default function ExpensesPage() {
   });
   
   // Get expense ID from the URL if available
-  const expenseId = matchExpenseId ? matchExpenseId.params.id : matchExpenseAction ? matchExpenseAction.params.id : null;
-  const action = matchExpenseAction ? matchExpenseAction.params.action : null;
+  const expenseId = matchExpenseId?.params?.id || matchExpenseAction?.params?.id || null;
+  const action = matchExpenseAction?.params?.action || null;
   
   // If we have an expense ID in the URL, get that expense's data
   const editExpense = expenseId ? expenses?.find(e => e.id.toString() === expenseId) : undefined;

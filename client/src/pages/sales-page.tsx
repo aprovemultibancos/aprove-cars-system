@@ -26,8 +26,8 @@ export default function SalesPage() {
   });
   
   // Get sale ID from the URL if available
-  const saleId = matchSaleId ? matchSaleId.params.id : matchSaleAction ? matchSaleAction.params.id : null;
-  const action = matchSaleAction ? matchSaleAction.params.action : null;
+  const saleId = matchSaleId?.params?.id || matchSaleAction?.params?.id || null;
+  const action = matchSaleAction?.params?.action || null;
   
   // If we have a sale ID in the URL, get that sale's data
   const editSale = saleId ? sales?.find(s => s.id.toString() === saleId) : undefined;

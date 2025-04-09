@@ -28,7 +28,7 @@ export default function VehiclesPage() {
   const action = matchVehicleAction?.params?.action || null;
   
   // If we have a vehicle ID in the URL, get that vehicle's data
-  const vehicle = vehicleId && vehicles ? vehicles.find(v => v.id.toString() === vehicleId) : undefined;
+  const vehicle = vehicleId && vehicles ? vehicles.find(v => v.id.toString() === vehicleId.toString()) : undefined;
   
   // Check if we're viewing vehicle details
   const isViewing = action === "view" && Boolean(vehicle);

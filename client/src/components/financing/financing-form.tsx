@@ -390,7 +390,7 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
             )}
           />
 
-          {/* Campo de agente removido conforme solicitado */}
+          {/* Campo de agente como hidden */}
           <FormField
             control={form.control}
             name="agentId"
@@ -403,7 +403,21 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
             control={form.control}
             name="agentCommission"
             render={({ field }) => (
-              <input type="hidden" {...field} value="0" />
+              <FormItem>
+                <FormLabel>Comissão do Agente (R$)</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="number" 
+                    step="0.01" 
+                    {...field}
+                    onChange={(e) => {
+                      field.onChange(e);
+                      form.trigger();
+                    }}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
             )}
           />
 
