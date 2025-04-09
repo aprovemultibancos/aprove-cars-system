@@ -1,0 +1,197 @@
+sistema unificado deve fazer, tanto para a concessionária (Aprove Cars) quanto para o setor financeiro (Aprove Financiamentos). A ideia é que tudo fique bem estruturado num único projeto, com painéis e permissões separados conforme a necessidade.
+
+✅ Visão Geral do Sistema Unificado: Aprove Cars + Financiamentos
+O sistema será uma plataforma web com autenticação por usuários, que unifica duas frentes principais:
+
+Gestão de veículos e vendas (Aprove Cars)
+
+Gestão financeira e de financiamento (Aprove Financiamentos)
+
+Cada módulo terá seus próprios dashboards, cadastros e painéis de controle, mas operam sob o mesmo sistema e login.
+
+1. Estrutura de Permissões e Autenticação
+Níveis de acesso:
+
+Admin: acesso total
+
+Financeiro: acesso a despesas, comissões, cobranças, financiamentos
+
+Vendedor: acesso apenas a inventário e vendas próprias
+
+Autenticação:
+
+Login por e-mail/senha
+
+Sessão segura com criptografia
+
+Controle de rotas por tipo de usuário
+
+2. Módulo: Aprove Cars (Gestão da Concessionária)
+2.1. Inventário de Veículos
+Cadastro completo com campos:
+
+Marca, modelo, ano, km, custo de compra, despesas, preço de venda
+
+Campo de descrição, CRLV (upload), procuração (upload), observações
+
+Upload de múltiplas fotos
+
+Status do veículo:
+
+Disponível, Reservado, Vendido
+
+2.2. Gestão Financeira do Veículo
+Exibição de:
+
+Custo de aquisição
+
+Despesas (manutenção, documentação etc.)
+
+Lucro bruto e líquido calculado automaticamente
+
+Vincular valores com painel financeiro
+
+2.3. Vendas
+Registro completo de venda
+
+Dados do comprador
+
+Data, veículo, vendedor
+
+Método de pagamento
+
+Cálculo de comissão automático
+
+Integração com Asaas:
+
+Cobrança por boleto, cartão, pix
+
+3. Módulo: Aprove Financiamentos
+3.1. Gestão de Financiamentos
+Cadastro de proposta com:
+
+Cliente, banco, valor do bem, valor liberado, retorno esperado
+
+Comissão de agente, comissão de vendedor
+
+Datas de status (análise, aprovado, pago)
+
+Cálculo automático de:
+
+Lucro líquido
+
+Percentual de retorno por faixa de banco
+
+Tabela com filtros por:
+
+Status, banco, período, agente, comissão, retorno
+
+3.2. Controle de Despesas
+Cadastro de despesas fixas/variáveis
+
+Classificação por tipo (comissão, taxa, salário, vale etc.)
+
+Relatórios por período e categoria
+
+3.3. Gestão de Pessoal
+Cadastro de:
+
+Funcionários internos
+
+Agentes parceiros
+
+Lojistas
+
+Registro de comissão por operação
+
+Vales e performance
+
+4. Dashboards e Relatórios
+4.1. Dashboard Geral
+Combinação dos dois módulos:
+
+Veículos disponíveis, vendidos
+
+Valor de inventário
+
+Retorno de financiamentos
+
+Lucro total da plataforma
+
+4.2. Dashboard Vendas
+Gráficos de:
+
+Carros mais vendidos
+
+Vendas por vendedor
+
+Margem de lucro
+
+4.3. Dashboard Financeiro
+Comparativo mês a mês
+
+Retorno por banco
+
+Custo x Receita
+
+Relatórios exportáveis (PDF, Excel)
+
+5. Tecnologias e Arquitetura Recomendadas
+Frontend
+React + TypeScript
+
+TailwindCSS + Shadcn UI
+
+React Query para cache de dados e chamadas
+
+Backend
+Node.js + Express + TypeScript
+
+Autenticação com Passport.js
+
+API REST estruturada por entidades
+
+Banco de Dados
+PostgreSQL com ORM Drizzle
+
+Supabase pode ser usado como backend-as-a-service (ou somente para auth)
+
+Integrações Externas
+Asaas: cobranças automatizadas
+
+API de Placas: busca de dados veiculares
+
+6. Estrutura de Código Reutilizável
+Contexto global (AppContext.tsx)
+
+Estado compartilhado (usuário logado, carregamento, notificações)
+
+Helpers (supabaseHelpers.ts)
+
+Requisições organizadas por entidade (veículo, venda, financiamento, despesa)
+
+Conversão de dados do banco para o frontend
+
+Tipagem (types/index.ts)
+
+Tipos para cada módulo: veículos, vendas, agentes, despesas, etc.
+
+Componentes
+
+DashboardSummary, ChartsSection, VehiclesTable, FinanceTable, etc.
+
+Componentes de toast, loading, modais de confirmação
+
+7. Fluxo de Uso (Usuário)
+Login
+
+Painel principal direcionado conforme cargo
+
+Acesso a cadastros, dashboards, cobranças
+
+Operações CRUD com feedback imediato
+
+Atualizações em tempo real (ex: dashboard financeiro)
+
+Relatórios disponíveis para impressão e download
+
