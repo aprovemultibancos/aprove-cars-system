@@ -138,7 +138,15 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
   });
 
   function onSubmit(data: FinancingFormValues) {
-    mutation.mutate(data);
+    // Garantir que todos os campos obrigatórios estejam presentes
+    const submittingData = {
+      ...data,
+      releasedAmount: data.releasedAmount || "0",
+      expectedReturn: data.expectedReturn || String(calculateReturnAmount())
+    };
+    
+    console.log("Enviando dados:", submittingData);
+    mutation.mutate(submittingData);
   }
 
   // Calcula o valor do retorno baseado no tipo selecionado (R0, R1, R2, etc.)
