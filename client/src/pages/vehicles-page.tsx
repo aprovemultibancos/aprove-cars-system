@@ -151,7 +151,10 @@ export default function VehiclesPage() {
                 Voltar
               </Button>
             </div>
-            <VehicleForm editVehicle={isEditing ? editVehicle : undefined} />
+            <VehicleForm 
+              editVehicle={isEditing ? editVehicle : undefined} 
+              onSaveSuccess={() => setIsAddingVehicle(false)} 
+            />
           </CardContent>
         </Card>
       )}

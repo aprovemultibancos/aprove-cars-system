@@ -109,9 +109,29 @@ export function SaleForm({ editSale }: SaleFormProps) {
 
   const mutation = useMutation({
     mutationFn: async (data: SaleFormValues) => {
+      // Formatar os dados para o envio
+      const saleData = {
+        ...data,
+        vehicleId: data.vehicleId ? parseInt(data.vehicleId.toString()) : undefined,
+        customerId: data.customerId ? parseInt(data.customerId.toString()) : undefined,
+        sellerId: data.sellerId ? parseInt(data.sellerId.toString()) : undefined,
+        saleDate: data.saleDate ? format(data.saleDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+        salePrice: data.salePrice.toString(),
+        commission: data.commission ? data.commission.toString() : "0",
+      };
+
+      console.log("Enviando dados da venda:", saleData);
+      
       const endpoint = editSale ? `/api/sales/${editSale.id}` : "/api/sales";
       const method = editSale ? "PATCH" : "POST";
-      return await apiRequest(method, endpoint, data);
+      
+      try {
+        const response = await apiRequest(method, endpoint, saleData);
+        return await response.json();
+      } catch (error) {
+        console.error("Erro ao salvar venda:", error);
+        throw error;
+      }
     },
     onSuccess: () => {
       toast({
@@ -145,15 +165,8 @@ export function SaleForm({ editSale }: SaleFormProps) {
       return;
     }
     
-    // Preparar dados para envio ao servidor
-    let saleData = { ...data };
-    
-    // Se não tiver customerId mas tiver customerName, usar um ID temporário (será tratado no backend)
-    if (!data.customerId && data.customerName) {
-      console.log("Usando nome de cliente manual:", data.customerName);
-    }
-    
-    mutation.mutate(saleData);
+    // Enviar os dados para o backend
+    mutation.mutate(data);
   }
 
   // When a vehicle is selected, set its price as the sale price
@@ -205,7 +218,42 @@ export function SaleForm({ editSale }: SaleFormProps) {
 
           {/* Cliente registrado ou não registrado */}
           <div className="space-y-4">
-
+            <FormField
+              control={form.control}
+              name="customerId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cliente Registrado</FormLabel>
+                  <Select
+                    onValueChange={(value) => {
+                      field.onChange(value ? parseInt(value) : undefined);
+                      // Se um cliente for selecionado, limpar o campo de nome manual
+                      if (value) {
+                        form.setValue("customerName", "");
+                      }
+                    }}
+                    defaultValue={field.value?.toString()}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um cliente registrado" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {customers?.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id.toString()}>
+                          {customer.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Selecione um cliente já registrado no sistema
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}
@@ -329,12 +377,12 @@ export function SaleForm({ editSale }: SaleFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="cash">Dinheiro</SelectItem>
-                    <SelectItem value="credit_card">Cartão de Crédito</SelectItem>
-                    <SelectItem value="debit_card">Cartão de Débito</SelectItem>
-                    <SelectItem value="bank_transfer">Transferência Bancária</SelectItem>
+                    <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                    <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
+                    <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
+                    <SelectItem value="transferencia">Transferência Bancária</SelectItem>
                     <SelectItem value="pix">PIX</SelectItem>
-                    <SelectItem value="financing">Financiamento</SelectItem>
+                    <SelectItem value="financiamento">Financiamento</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />

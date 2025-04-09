@@ -46,9 +46,10 @@ type VehicleFormValues = z.infer<typeof extendedVehicleSchema>;
 
 interface VehicleFormProps {
   editVehicle?: Vehicle;
+  onSaveSuccess?: () => void;
 }
 
-export function VehicleForm({ editVehicle }: VehicleFormProps) {
+export function VehicleForm({ editVehicle, onSaveSuccess }: VehicleFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
@@ -132,6 +133,9 @@ export function VehicleForm({ editVehicle }: VehicleFormProps) {
           : "O veículo foi cadastrado com sucesso",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/vehicles"] });
+      if (onSaveSuccess) {
+        onSaveSuccess(); // Chama a função para fechar o formulário
+      }
       navigate("/vehicles");
     },
     onError: (error) => {
