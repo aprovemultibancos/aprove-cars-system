@@ -49,7 +49,7 @@ export function UpcomingExpensesAlert() {
       <CardContent>
         <div className="space-y-4">
           {upcomingExpenses.map(expense => (
-            <Alert key={expense.id} variant="outline" className="border-amber-200 bg-amber-50/50">
+            <Alert key={expense.id} className="border-amber-200 bg-amber-50/50">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div>
                   <AlertTitle className="flex items-center gap-2">
@@ -63,23 +63,27 @@ export function UpcomingExpensesAlert() {
                     {formatCurrency(Number(expense.amount))} - {expense.category}
                   </AlertDescription>
                 </div>
-                <Button variant="outline" size="sm" asChild className="mt-2 sm:mt-0 border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-200">
-                  <Link href={`/expenses/${expense.id}`}>
+                <Link href={`/expenses/${expense.id}`}>
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    className="mt-2 sm:mt-0 border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-200"
+                  >
                     Ver Detalhes
                     <ArrowRight className="ml-1 h-4 w-4" />
-                  </Link>
-                </Button>
+                  </Button>
+                </Link>
               </div>
             </Alert>
           ))}
           
           <div className="text-right">
-            <Button variant="ghost" asChild className="text-amber-800 hover:text-amber-900 hover:bg-amber-100">
-              <Link href="/expenses">
+            <Link href="/expenses">
+              <Button variant="ghost" className="text-amber-800 hover:text-amber-900 hover:bg-amber-100">
                 Ver todas as despesas
                 <ArrowRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
+              </Button>
+            </Link>
           </div>
         </div>
       </CardContent>

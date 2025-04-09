@@ -36,8 +36,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 // Definir o schema do formulário de pagamento
 const paymentFormSchema = z.object({
-  customerId: z.string().min(1, "Cliente é obrigatório"),
-  customerName: z.string().optional(),
+  customerId: z.string().optional(),
+  customerName: z.string().min(1, "Nome do cliente é obrigatório"),
   description: z.string().min(1, "Descrição é obrigatória"),
   value: z.coerce.number().min(0.01, "Valor deve ser maior que zero"),
   dueDate: z.date({
@@ -162,29 +162,15 @@ export function PaymentForm({ customers, sales }: PaymentFormProps) {
           <div className="md:col-span-2">
             <FormField
               control={form.control}
-              name="customerId"
+              name="customerName"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Cliente</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione um cliente" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {customers.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id.toString()}>
-                          {customer.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <Input placeholder="Digite o nome do cliente" {...field} />
+                  </FormControl>
                   <FormDescription>
-                    Selecione o cliente que receberá a cobrança
+                    Digite o nome do cliente que receberá a cobrança
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

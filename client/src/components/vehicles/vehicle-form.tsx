@@ -145,6 +145,11 @@ export function VehicleForm({ editVehicle }: VehicleFormProps) {
 
   function onSubmit(data: VehicleFormValues) {
     mutation.mutate(data);
+    
+    // Se não estiver editando, limpar o formulário após envio
+    if (!editVehicle) {
+      form.reset();
+    }
   }
 
   return (

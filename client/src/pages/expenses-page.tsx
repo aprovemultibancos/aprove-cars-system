@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Expense } from "@shared/schema";
-import { useRoute } from "wouter";
+import { useRoute, useLocation } from "wouter";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -16,6 +16,7 @@ export default function ExpensesPage() {
   const [isAddingExpense, setIsAddingExpense] = useState(false);
   const [matchExpenseId] = useRoute("/expenses/:id");
   const [matchExpenseAction] = useRoute("/expenses/:id/:action");
+  const [, navigate] = useLocation();
   const { toast } = useToast();
   
   const { data: expenses, isLoading } = useQuery<Expense[]>({
@@ -23,8 +24,9 @@ export default function ExpensesPage() {
   });
   
   // Get expense ID from the URL if available
-  const expenseId = matchExpenseId?.params?.id || matchExpenseAction?.params?.id;
-  const action = matchExpenseAction?.params?.action;
+  const expenseId = matchExpenseId && matchExpenseId.params ? matchExpenseId.params.id : 
+                    (matchExpenseAction && matchExpenseAction.params ? matchExpenseAction.params.id : null);
+  const action = matchExpenseAction && matchExpenseAction.params ? matchExpenseAction.params.action : null;
   
   // If we have an expense ID in the URL, get that expense's data
   const editExpense = expenseId ? expenses?.find(e => e.id.toString() === expenseId) : undefined;
@@ -150,6 +152,17 @@ export default function ExpensesPage() {
       {showForm && (
         <Card className="mt-6">
           <CardContent className="pt-6">
+            <div className="mb-4 flex justify-end">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setIsAddingExpense(false);
+                  navigate("/expenses");
+                }}
+              >
+                Voltar
+              </Button>
+            </div>
             <ExpenseForm editExpense={isEditing ? editExpense : undefined} />
           </CardContent>
         </Card>

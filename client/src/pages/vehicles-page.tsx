@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Vehicle } from "@shared/schema";
-import { useRoute } from "wouter";
+import { useRoute, useLocation } from "wouter";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -15,6 +15,7 @@ export default function VehiclesPage() {
   const [isAddingVehicle, setIsAddingVehicle] = useState(false);
   const [matchVehicleId] = useRoute("/vehicles/:id");
   const [matchVehicleAction] = useRoute("/vehicles/:id/:action");
+  const [, navigate] = useLocation();
   const { toast } = useToast();
   
   const { data: vehicles, isLoading } = useQuery<Vehicle[]>({
@@ -22,8 +23,9 @@ export default function VehiclesPage() {
   });
   
   // Get vehicle ID from the URL if available
-  const vehicleId = matchVehicleId?.params?.id || matchVehicleAction?.params?.id;
-  const action = matchVehicleAction?.params?.action;
+  const vehicleId = matchVehicleId && matchVehicleId.params ? matchVehicleId.params.id : 
+                   (matchVehicleAction && matchVehicleAction.params ? matchVehicleAction.params.id : null);
+  const action = matchVehicleAction && matchVehicleAction.params ? matchVehicleAction.params.action : null;
   
   // If we have a vehicle ID in the URL, get that vehicle's data
   const editVehicle = vehicleId ? vehicles?.find(v => v.id.toString() === vehicleId) : undefined;
@@ -139,6 +141,17 @@ export default function VehiclesPage() {
       {showForm && (
         <Card className="mt-6">
           <CardContent className="pt-6">
+            <div className="mb-4 flex justify-end">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setIsAddingVehicle(false);
+                  navigate("/vehicles");
+                }}
+              >
+                Voltar
+              </Button>
+            </div>
             <VehicleForm editVehicle={isEditing ? editVehicle : undefined} />
           </CardContent>
         </Card>
