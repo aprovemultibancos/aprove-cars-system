@@ -561,13 +561,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Schema de validação para pagamentos
+  // Schema de validação para pagamentos com coerção de tipos
   const paymentSchema = z.object({
     customerId: z.string(),
     customerName: z.string().optional(),
     description: z.string(),
-    value: z.number().min(0.01),
-    dueDate: z.date(),
+    value: z.coerce.number().min(0.01),
+    dueDate: z.coerce.date(),
     billingType: z.enum(["BOLETO", "PIX", "CREDIT_CARD"]),
     relatedSaleId: z.string().optional(),
     notes: z.string().optional(),
@@ -610,8 +610,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
+      console.log("Recebido no backend (pagamento):", JSON.stringify(req.body, null, 2));
+      
+      // Validação manual para debug
+      console.log("Tipos dos campos recebidos:");
+      Object.entries(req.body).forEach(([key, value]) => {
+        console.log(`${key}: ${typeof value} => ${value}`);
+      });
+      
       // Validar dados do pagamento
       const paymentData = paymentSchema.parse(req.body);
+      console.log("Dados após parse do schema:", JSON.stringify(paymentData, null, 2));
+      
       const { customerId, description, value, dueDate, billingType, relatedSaleId, notes } = paymentData;
 
       // Buscar o cliente no sistema para obter mais informações
@@ -640,9 +650,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: description,
         externalReference: relatedSaleId || undefined
       };
+      
+      console.log("Dados para o Asaas:", JSON.stringify(asaasPaymentData, null, 2));
 
       // Criar o pagamento no Asaas
       const payment = await createPayment(asaasPaymentData);
+      console.log("Pagamento criado com sucesso:", payment);
       
       // Adicionar informações do cliente ao pagamento
       const enrichedPayment = enrichPaymentWithCustomerInfo(payment, customer);
@@ -650,9 +663,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(enrichedPayment);
     } catch (error) {
       console.error("Erro ao criar pagamento:", error);
+      if (error instanceof Error) {
+        console.error("Detalhes do erro:", error.message);
+        if (error.cause) console.error("Causa:", error.cause);
+        if (error.stack) console.error("Stack:", error.stack);
+      }
       res.status(400).json({ 
         message: "Dados inválidos", 
-        error: error instanceof Error ? error.message : "Erro desconhecido" 
+        error: error instanceof Error ? error.message : String(error) 
       });
     }
   });
