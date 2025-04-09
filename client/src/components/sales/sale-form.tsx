@@ -30,6 +30,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
+import { useEffect } from "react";
 
 // Extended schema with validation
 const extendedSaleSchema = insertSaleSchema.extend({
@@ -67,6 +68,11 @@ export function SaleForm({ editSale }: SaleFormProps) {
     queryKey: ["/api/users/sales"],
   });
 
+  // Se tiver apenas um vendedor, pré-selecionar ele
+  const defaultSellerId = sellers && sellers.length === 1 
+    ? sellers[0].id.toString() 
+    : undefined;
+
   const defaultValues: Partial<SaleFormValues> = editSale
     ? {
         vehicleId: editSale.vehicleId,
@@ -85,12 +91,20 @@ export function SaleForm({ editSale }: SaleFormProps) {
         commission: 0,
         paymentMethod: "",
         notes: "",
+        sellerId: defaultSellerId ? Number(defaultSellerId) : undefined,
       };
 
   const form = useForm<SaleFormValues>({
     resolver: zodResolver(extendedSaleSchema),
     defaultValues,
   });
+
+  // Atualizar o valor do sellerId quando sellers estiver disponível
+  useEffect(() => {
+    if (sellers && sellers.length === 1 && !editSale && !form.getValues().sellerId) {
+      form.setValue("sellerId", sellers[0].id);
+    }
+  }, [sellers, form, editSale]);
 
   const mutation = useMutation({
     mutationFn: async (data: SaleFormValues) => {
@@ -104,6 +118,7 @@ export function SaleForm({ editSale }: SaleFormProps) {
         description: editSale
           ? "A venda foi atualizada com sucesso"
           : "A venda foi cadastrada com sucesso",
+        variant: "default",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
       queryClient.invalidateQueries({ queryKey: ["/api/vehicles"] });
@@ -157,7 +172,7 @@ export function SaleForm({ editSale }: SaleFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {vehicles?.map((vehicle) => (
+                    {vehicles && vehicles.map((vehicle) => (
                       <SelectItem key={vehicle.id} value={vehicle.id.toString()}>
                         {`${vehicle.make} ${vehicle.model} (${vehicle.year})`}
                       </SelectItem>
@@ -185,7 +200,7 @@ export function SaleForm({ editSale }: SaleFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {customers?.map((customer) => (
+                    {customers && customers.map((customer) => (
                       <SelectItem key={customer.id} value={customer.id.toString()}>
                         {customer.name}
                       </SelectItem>
@@ -213,7 +228,7 @@ export function SaleForm({ editSale }: SaleFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {sellers?.map((seller) => (
+                    {sellers && sellers.map((seller) => (
                       <SelectItem key={seller.id} value={seller.id.toString()}>
                         {seller.name}
                       </SelectItem>
