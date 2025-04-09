@@ -163,14 +163,15 @@ export const expenses = pgTable("expenses", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const insertExpenseSchema = createInsertSchema(expenses).pick({
-  description: true,
-  amount: true,
-  date: true,
-  category: true,
-  type: true,
-  payeeId: true,
-  notes: true,
+// Schema de inserção de despesas com coerção de tipos
+export const insertExpenseSchema = z.object({
+  description: z.string(),
+  amount: z.coerce.number(),
+  date: z.coerce.date(),
+  category: z.string(),
+  type: z.enum(["fixed", "variable"]),
+  payeeId: z.coerce.number().nullable().optional(),
+  notes: z.string().optional()
 });
 
 // Personnel schema

@@ -301,11 +301,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/expenses", async (req, res) => {
     try {
+      console.log("Recebido no backend (despesa):", JSON.stringify(req.body, null, 2));
+      
+      // Validação manual para debug
+      console.log("Tipos dos campos recebidos:");
+      Object.entries(req.body).forEach(([key, value]) => {
+        console.log(`${key}: ${typeof value} => ${value}`);
+      });
+      
+      // Usar o schema para validar e converter os tipos dos dados
       const expenseData = insertExpenseSchema.parse(req.body);
+      console.log("Dados após parse do schema:", JSON.stringify(expenseData, null, 2));
+      
       const expense = await storage.createExpense(expenseData);
+      console.log("Despesa criada com sucesso:", expense);
+      
       res.status(201).json(expense);
     } catch (error) {
-      res.status(400).json({ message: "Dados inválidos", error });
+      console.error("Erro ao criar despesa:", error);
+      if (error instanceof Error) {
+        console.error("Detalhes do erro:", error.message);
+        if (error.cause) console.error("Causa:", error.cause);
+        if (error.stack) console.error("Stack:", error.stack);
+      }
+      res.status(400).json({ message: "Dados inválidos", error: String(error) });
     }
   });
 
