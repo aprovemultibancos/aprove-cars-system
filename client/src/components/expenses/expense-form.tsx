@@ -77,7 +77,7 @@ export function ExpenseForm({ editExpense }: ExpenseFormProps) {
         description: "",
         amount: 0,
         date: new Date(),
-        category: "",
+        category: "Outros",
         type: "variable",
         notes: "",
       };
@@ -261,7 +261,7 @@ export function ExpenseForm({ editExpense }: ExpenseFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="">Nenhum</SelectItem>
+                    <SelectItem value="0">Nenhum</SelectItem>
                     {personnel?.map((person) => (
                       <SelectItem key={person.id} value={person.id.toString()}>
                         {person.name}

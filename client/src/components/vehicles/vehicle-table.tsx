@@ -121,18 +121,18 @@ export function VehicleTable() {
         
         return (
           <div className="flex items-center justify-end space-x-2">
-            <Button variant="ghost" size="icon" asChild>
-              <Link href={`/vehicles/${vehicle.id}/view`}>
+            <Link href={`/vehicles/${vehicle.id}/view`}>
+              <Button variant="ghost" size="icon">
                 <Eye className="h-4 w-4" />
                 <span className="sr-only">Ver</span>
-              </Link>
-            </Button>
-            <Button variant="ghost" size="icon" asChild>
-              <Link href={`/vehicles/${vehicle.id}/edit`}>
+              </Button>
+            </Link>
+            <Link href={`/vehicles/${vehicle.id}/edit`}>
+              <Button variant="ghost" size="icon">
                 <Pencil className="h-4 w-4" />
                 <span className="sr-only">Editar</span>
-              </Link>
-            </Button>
+              </Button>
+            </Link>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button 
@@ -181,7 +181,7 @@ export function VehicleTable() {
     <DataTable 
       columns={columns} 
       data={vehicles || []} 
-      searchKey="make"
+      searchKey="vehicle"
       searchPlaceholder="Buscar veículos..."
     />
   );
