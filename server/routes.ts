@@ -624,14 +624,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { customerId, description, value, dueDate, billingType, relatedSaleId, notes } = paymentData;
 
-      // Buscar o cliente no sistema para obter mais informações
-      const customer = await storage.getCustomer(parseInt(customerId));
-      if (!customer) {
-        return res.status(404).json({ message: "Cliente não encontrado" });
+      // Preparar dados do cliente para o Asaas
+      let asaasCustomerData: any;
+      
+      if (customerId === "manual") {
+        // Cliente manual - usar nome fornecido no formulário
+        const { customerName } = paymentData;
+        if (!customerName) {
+          return res.status(400).json({ message: "Nome do cliente é obrigatório para cliente manual" });
+        }
+        
+        // Criar cliente temporário para o Asaas com dados mínimos
+        asaasCustomerData = {
+          name: customerName,
+          cpfCnpj: "00000000000", // CPF genérico
+        };
+      } else {
+        // Cliente do sistema - buscar dados completos
+        const customer = await storage.getCustomer(parseInt(customerId));
+        if (!customer) {
+          return res.status(404).json({ message: "Cliente não encontrado" });
+        }
+        
+        // Formatar cliente para o Asaas
+        asaasCustomerData = formatCustomerForAsaas(customer);
       }
-
-      // Formatar cliente para o Asaas
-      const asaasCustomerData = formatCustomerForAsaas(customer);
       
       // Criar ou obter cliente no Asaas
       const asaasCustomer = await createOrGetCustomer(asaasCustomerData);
@@ -658,7 +675,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Pagamento criado com sucesso:", payment);
       
       // Adicionar informações do cliente ao pagamento
-      const enrichedPayment = enrichPaymentWithCustomerInfo(payment, customer);
+      let enrichedPayment;
+      
+      if (customerId === "manual") {
+        // Para cliente manual, apenas adicionar o nome fornecido
+        enrichedPayment = {
+          ...payment,
+          customerName: paymentData.customerName,
+          customerDocumentNumber: "00000000000"
+        };
+      } else {
+        // Para cliente do sistema, enriquecer com todos os dados
+        const customer = await storage.getCustomer(parseInt(customerId));
+        enrichedPayment = enrichPaymentWithCustomerInfo(payment, customer);
+      }
 
       res.status(201).json(enrichedPayment);
     } catch (error) {
