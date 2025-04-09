@@ -195,11 +195,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/financings", async (req, res) => {
     try {
-      const financingData = insertFinancingSchema.parse(req.body);
+      console.log("Recebido no backend:", req.body);
+      
+      // Verificar e garantir valores padrão
+      const body = {
+        ...req.body,
+        customerId: req.body.customerId || null,
+        releasedAmount: req.body.releasedAmount || "0",
+        expectedReturn: req.body.expectedReturn || "0"
+      };
+      
+      console.log("Dados após validação inicial:", body);
+      
+      const financingData = insertFinancingSchema.parse(body);
+      console.log("Dados após parse do schema:", financingData);
+      
       const financing = await storage.createFinancing(financingData);
+      console.log("Financiamento criado com sucesso:", financing);
+      
       res.status(201).json(financing);
     } catch (error) {
-      res.status(400).json({ message: "Dados inválidos", error });
+      console.error("Erro ao criar financiamento:", error);
+      res.status(400).json({ message: "Dados inválidos", error: String(error) });
     }
   });
 

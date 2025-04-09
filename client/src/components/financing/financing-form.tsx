@@ -46,6 +46,9 @@ const extendedFinancingSchema = insertFinancingSchema.extend({
   status: z.enum(["analysis", "approved", "paid", "rejected"]),
   agentId: z.coerce.number().positive("Agente é obrigatório"),
   notes: z.string().optional(),
+  // Adicionando campos que estavam faltando no esquema estendido
+  releasedAmount: z.any().optional(),
+  expectedReturn: z.any().optional(),
 });
 
 type FinancingFormValues = z.infer<typeof extendedFinancingSchema>;
@@ -138,14 +141,21 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
   });
 
   function onSubmit(data: FinancingFormValues) {
-    // Garantir que todos os campos obrigatórios estejam presentes
+    // Garantir que todos os campos obrigatórios estejam presentes e no formato correto
     const submittingData = {
       ...data,
+      customerId: null, // Adicionar customerId como null (opcional no schema)
       releasedAmount: data.releasedAmount || "0",
-      expectedReturn: data.expectedReturn || String(calculateReturnAmount())
+      expectedReturn: data.expectedReturn || String(calculateReturnAmount()),
+      // Certificar que campos numéricos são enviados como números
+      assetValue: Number(data.assetValue),
+      accessoriesPercentage: Number(data.accessoriesPercentage || 0),
+      feeAmount: Number(data.feeAmount || 0),
+      agentCommission: Number(data.agentCommission),
+      sellerCommission: Number(data.sellerCommission)
     };
     
-    console.log("Enviando dados:", submittingData);
+    console.log("Enviando dados do formulário:", submittingData);
     mutation.mutate(submittingData);
   }
 
