@@ -1,0 +1,367 @@
+import { users, type User, type InsertUser, vehicles, Vehicle, InsertVehicle, customers, Customer, InsertCustomer, sales, Sale, InsertSale, financings, Financing, InsertFinancing, expenses, Expense, InsertExpense, personnel, Personnel, InsertPersonnel } from "@shared/schema";
+import session from "express-session";
+import createMemoryStore from "memorystore";
+
+const MemoryStore = createMemoryStore(session);
+
+// modify the interface with any CRUD methods
+// you might need
+
+export interface IStorage {
+  // User methods
+  getUser(id: number): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+  
+  // Vehicle methods
+  getVehicles(): Promise<Vehicle[]>;
+  getVehicle(id: number): Promise<Vehicle | undefined>;
+  createVehicle(vehicle: InsertVehicle): Promise<Vehicle>;
+  updateVehicle(id: number, vehicle: Partial<Vehicle>): Promise<Vehicle | undefined>;
+  deleteVehicle(id: number): Promise<boolean>;
+  getAvailableVehicles(): Promise<Vehicle[]>;
+  
+  // Customer methods
+  getCustomers(): Promise<Customer[]>;
+  getCustomer(id: number): Promise<Customer | undefined>;
+  createCustomer(customer: InsertCustomer): Promise<Customer>;
+  updateCustomer(id: number, customer: Partial<Customer>): Promise<Customer | undefined>;
+  deleteCustomer(id: number): Promise<boolean>;
+  
+  // Sale methods
+  getSales(): Promise<Sale[]>;
+  getSale(id: number): Promise<Sale | undefined>;
+  createSale(sale: InsertSale): Promise<Sale>;
+  updateSale(id: number, sale: Partial<Sale>): Promise<Sale | undefined>;
+  deleteSale(id: number): Promise<boolean>;
+  
+  // Financing methods
+  getFinancings(): Promise<Financing[]>;
+  getFinancing(id: number): Promise<Financing | undefined>;
+  createFinancing(financing: InsertFinancing): Promise<Financing>;
+  updateFinancing(id: number, financing: Partial<Financing>): Promise<Financing | undefined>;
+  deleteFinancing(id: number): Promise<boolean>;
+  
+  // Expense methods
+  getExpenses(): Promise<Expense[]>;
+  getExpense(id: number): Promise<Expense | undefined>;
+  createExpense(expense: InsertExpense): Promise<Expense>;
+  updateExpense(id: number, expense: Partial<Expense>): Promise<Expense | undefined>;
+  deleteExpense(id: number): Promise<boolean>;
+  
+  // Personnel methods
+  getPersonnel(): Promise<Personnel[]>;
+  getPersonnelByType(type: string): Promise<Personnel[]>;
+  getPersonnel(id: number): Promise<Personnel | undefined>;
+  createPersonnel(personnel: InsertPersonnel): Promise<Personnel>;
+  updatePersonnel(id: number, personnel: Partial<Personnel>): Promise<Personnel | undefined>;
+  deletePersonnel(id: number): Promise<boolean>;
+  
+  // Session store
+  sessionStore: session.SessionStore;
+}
+
+export class MemStorage implements IStorage {
+  private users: Map<number, User>;
+  private vehicles: Map<number, Vehicle>;
+  private customers: Map<number, Customer>;
+  private sales: Map<number, Sale>;
+  private financings: Map<number, Financing>;
+  private expenses: Map<number, Expense>;
+  private personnel: Map<number, Personnel>;
+  
+  sessionStore: session.SessionStore;
+  currentId: number;
+
+  constructor() {
+    this.users = new Map();
+    this.vehicles = new Map();
+    this.customers = new Map();
+    this.sales = new Map();
+    this.financings = new Map();
+    this.expenses = new Map();
+    this.personnel = new Map();
+    this.currentId = 1;
+    
+    this.sessionStore = new MemoryStore({
+      checkPeriod: 86400000,
+    });
+  }
+
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    return this.users.get(id);
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(
+      (user) => user.username === username,
+    );
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const id = this.currentId++;
+    const user: User = { 
+      ...insertUser, 
+      id, 
+      isActive: true, 
+      createdAt: new Date() 
+    };
+    this.users.set(id, user);
+    return user;
+  }
+  
+  // Vehicle methods
+  async getVehicles(): Promise<Vehicle[]> {
+    return Array.from(this.vehicles.values());
+  }
+  
+  async getVehicle(id: number): Promise<Vehicle | undefined> {
+    return this.vehicles.get(id);
+  }
+  
+  async createVehicle(vehicle: InsertVehicle): Promise<Vehicle> {
+    const id = this.currentId++;
+    const newVehicle: Vehicle = {
+      ...vehicle,
+      id,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.vehicles.set(id, newVehicle);
+    return newVehicle;
+  }
+  
+  async updateVehicle(id: number, vehicle: Partial<Vehicle>): Promise<Vehicle | undefined> {
+    const existingVehicle = this.vehicles.get(id);
+    if (!existingVehicle) return undefined;
+    
+    const updatedVehicle = {
+      ...existingVehicle,
+      ...vehicle,
+      updatedAt: new Date()
+    };
+    
+    this.vehicles.set(id, updatedVehicle);
+    return updatedVehicle;
+  }
+  
+  async deleteVehicle(id: number): Promise<boolean> {
+    return this.vehicles.delete(id);
+  }
+  
+  async getAvailableVehicles(): Promise<Vehicle[]> {
+    return Array.from(this.vehicles.values()).filter(
+      (vehicle) => vehicle.status === "available"
+    );
+  }
+  
+  // Customer methods
+  async getCustomers(): Promise<Customer[]> {
+    return Array.from(this.customers.values());
+  }
+  
+  async getCustomer(id: number): Promise<Customer | undefined> {
+    return this.customers.get(id);
+  }
+  
+  async createCustomer(customer: InsertCustomer): Promise<Customer> {
+    const id = this.currentId++;
+    const newCustomer: Customer = {
+      ...customer,
+      id,
+      createdAt: new Date()
+    };
+    this.customers.set(id, newCustomer);
+    return newCustomer;
+  }
+  
+  async updateCustomer(id: number, customer: Partial<Customer>): Promise<Customer | undefined> {
+    const existingCustomer = this.customers.get(id);
+    if (!existingCustomer) return undefined;
+    
+    const updatedCustomer = {
+      ...existingCustomer,
+      ...customer
+    };
+    
+    this.customers.set(id, updatedCustomer);
+    return updatedCustomer;
+  }
+  
+  async deleteCustomer(id: number): Promise<boolean> {
+    return this.customers.delete(id);
+  }
+  
+  // Sale methods
+  async getSales(): Promise<Sale[]> {
+    return Array.from(this.sales.values());
+  }
+  
+  async getSale(id: number): Promise<Sale | undefined> {
+    return this.sales.get(id);
+  }
+  
+  async createSale(sale: InsertSale): Promise<Sale> {
+    const id = this.currentId++;
+    const newSale: Sale = {
+      ...sale,
+      id,
+      createdAt: new Date()
+    };
+    this.sales.set(id, newSale);
+    
+    // Update vehicle status to sold
+    const vehicle = this.vehicles.get(sale.vehicleId);
+    if (vehicle) {
+      this.updateVehicle(vehicle.id, { status: "sold" });
+    }
+    
+    return newSale;
+  }
+  
+  async updateSale(id: number, sale: Partial<Sale>): Promise<Sale | undefined> {
+    const existingSale = this.sales.get(id);
+    if (!existingSale) return undefined;
+    
+    const updatedSale = {
+      ...existingSale,
+      ...sale
+    };
+    
+    this.sales.set(id, updatedSale);
+    return updatedSale;
+  }
+  
+  async deleteSale(id: number): Promise<boolean> {
+    const sale = this.sales.get(id);
+    if (sale) {
+      // If we delete a sale, we need to set the vehicle status back to available
+      const vehicle = this.vehicles.get(sale.vehicleId);
+      if (vehicle) {
+        this.updateVehicle(vehicle.id, { status: "available" });
+      }
+    }
+    
+    return this.sales.delete(id);
+  }
+  
+  // Financing methods
+  async getFinancings(): Promise<Financing[]> {
+    return Array.from(this.financings.values());
+  }
+  
+  async getFinancing(id: number): Promise<Financing | undefined> {
+    return this.financings.get(id);
+  }
+  
+  async createFinancing(financing: InsertFinancing): Promise<Financing> {
+    const id = this.currentId++;
+    const newFinancing: Financing = {
+      ...financing,
+      id,
+      createdAt: new Date()
+    };
+    this.financings.set(id, newFinancing);
+    return newFinancing;
+  }
+  
+  async updateFinancing(id: number, financing: Partial<Financing>): Promise<Financing | undefined> {
+    const existingFinancing = this.financings.get(id);
+    if (!existingFinancing) return undefined;
+    
+    const updatedFinancing = {
+      ...existingFinancing,
+      ...financing
+    };
+    
+    this.financings.set(id, updatedFinancing);
+    return updatedFinancing;
+  }
+  
+  async deleteFinancing(id: number): Promise<boolean> {
+    return this.financings.delete(id);
+  }
+  
+  // Expense methods
+  async getExpenses(): Promise<Expense[]> {
+    return Array.from(this.expenses.values());
+  }
+  
+  async getExpense(id: number): Promise<Expense | undefined> {
+    return this.expenses.get(id);
+  }
+  
+  async createExpense(expense: InsertExpense): Promise<Expense> {
+    const id = this.currentId++;
+    const newExpense: Expense = {
+      ...expense,
+      id,
+      createdAt: new Date()
+    };
+    this.expenses.set(id, newExpense);
+    return newExpense;
+  }
+  
+  async updateExpense(id: number, expense: Partial<Expense>): Promise<Expense | undefined> {
+    const existingExpense = this.expenses.get(id);
+    if (!existingExpense) return undefined;
+    
+    const updatedExpense = {
+      ...existingExpense,
+      ...expense
+    };
+    
+    this.expenses.set(id, updatedExpense);
+    return updatedExpense;
+  }
+  
+  async deleteExpense(id: number): Promise<boolean> {
+    return this.expenses.delete(id);
+  }
+  
+  // Personnel methods
+  async getPersonnel(): Promise<Personnel[]> {
+    return Array.from(this.personnel.values());
+  }
+  
+  async getPersonnelByType(type: string): Promise<Personnel[]> {
+    return Array.from(this.personnel.values()).filter(
+      (person) => person.type === type
+    );
+  }
+  
+  async getPersonnelById(id: number): Promise<Personnel | undefined> {
+    return this.personnel.get(id);
+  }
+  
+  async createPersonnel(personnel: InsertPersonnel): Promise<Personnel> {
+    const id = this.currentId++;
+    const newPersonnel: Personnel = {
+      ...personnel,
+      id,
+      createdAt: new Date()
+    };
+    this.personnel.set(id, newPersonnel);
+    return newPersonnel;
+  }
+  
+  async updatePersonnel(id: number, personnel: Partial<Personnel>): Promise<Personnel | undefined> {
+    const existingPersonnel = this.personnel.get(id);
+    if (!existingPersonnel) return undefined;
+    
+    const updatedPersonnel = {
+      ...existingPersonnel,
+      ...personnel
+    };
+    
+    this.personnel.set(id, updatedPersonnel);
+    return updatedPersonnel;
+  }
+  
+  async deletePersonnel(id: number): Promise<boolean> {
+    return this.personnel.delete(id);
+  }
+}
+
+export const storage = new MemStorage();

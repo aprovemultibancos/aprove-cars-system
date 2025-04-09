@@ -1,0 +1,220 @@
+import { pgTable, text, serial, integer, boolean, numeric, date, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
+
+// User schema for authentication
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  role: text("role", { enum: ["admin", "financial", "sales"] }).notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertUserSchema = createInsertSchema(users).pick({
+  username: true,
+  password: true,
+  name: true,
+  email: true,
+  role: true,
+});
+
+// Vehicle schema
+export const vehicles = pgTable("vehicles", {
+  id: serial("id").primaryKey(),
+  make: text("make").notNull(),
+  model: text("model").notNull(),
+  year: integer("year").notNull(),
+  km: numeric("km").notNull(),
+  purchaseCost: numeric("purchase_cost").notNull(),
+  expenses: numeric("expenses").default("0"),
+  sellingPrice: numeric("selling_price").notNull(),
+  description: text("description"),
+  status: text("status", { enum: ["available", "reserved", "sold"] }).notNull().default("available"),
+  crlvDocPath: text("crlv_doc_path"),
+  powerOfAttorneyPath: text("power_of_attorney_path"),
+  notes: text("notes"),
+  images: jsonb("images"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertVehicleSchema = createInsertSchema(vehicles).pick({
+  make: true,
+  model: true,
+  year: true,
+  km: true,
+  purchaseCost: true,
+  expenses: true,
+  sellingPrice: true,
+  description: true,
+  status: true,
+  crlvDocPath: true,
+  powerOfAttorneyPath: true,
+  notes: true,
+  images: true,
+});
+
+// Sales schema
+export const sales = pgTable("sales", {
+  id: serial("id").primaryKey(),
+  vehicleId: integer("vehicle_id").notNull(),
+  customerId: integer("customer_id").notNull(),
+  sellerId: integer("seller_id").notNull(),
+  saleDate: date("sale_date").notNull(),
+  salePrice: numeric("sale_price").notNull(),
+  paymentMethod: text("payment_method").notNull(),
+  commission: numeric("commission").notNull(),
+  asaasPaymentId: text("asaas_payment_id"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertSaleSchema = createInsertSchema(sales).pick({
+  vehicleId: true,
+  customerId: true,
+  sellerId: true,
+  saleDate: true,
+  salePrice: true,
+  paymentMethod: true,
+  commission: true,
+  asaasPaymentId: true,
+  notes: true,
+});
+
+// Customers schema
+export const customers = pgTable("customers", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email"),
+  phone: text("phone").notNull(),
+  document: text("document").notNull(),
+  address: text("address"),
+  city: text("city"),
+  state: text("state"),
+  zipCode: text("zip_code"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertCustomerSchema = createInsertSchema(customers).pick({
+  name: true,
+  email: true,
+  phone: true,
+  document: true,
+  address: true,
+  city: true,
+  state: true,
+  zipCode: true,
+});
+
+// Financing schema
+export const financings = pgTable("financings", {
+  id: serial("id").primaryKey(),
+  customerId: integer("customer_id").notNull(),
+  bank: text("bank").notNull(),
+  assetValue: numeric("asset_value").notNull(),
+  releasedAmount: numeric("released_amount").notNull(),
+  expectedReturn: numeric("expected_return").notNull(),
+  agentCommission: numeric("agent_commission").notNull(),
+  sellerCommission: numeric("seller_commission").notNull(),
+  status: text("status", { enum: ["analysis", "approved", "paid", "rejected"] }).notNull().default("analysis"),
+  analysisDate: timestamp("analysis_date"),
+  approvalDate: timestamp("approval_date"),
+  paymentDate: timestamp("payment_date"),
+  agentId: integer("agent_id").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertFinancingSchema = createInsertSchema(financings).pick({
+  customerId: true,
+  bank: true,
+  assetValue: true,
+  releasedAmount: true,
+  expectedReturn: true,
+  agentCommission: true,
+  sellerCommission: true,
+  status: true,
+  analysisDate: true,
+  approvalDate: true,
+  paymentDate: true,
+  agentId: true,
+  notes: true,
+});
+
+// Expenses schema
+export const expenses = pgTable("expenses", {
+  id: serial("id").primaryKey(),
+  description: text("description").notNull(),
+  amount: numeric("amount").notNull(),
+  date: date("date").notNull(),
+  category: text("category").notNull(),
+  type: text("type", { enum: ["fixed", "variable"] }).notNull(),
+  payeeId: integer("payee_id"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertExpenseSchema = createInsertSchema(expenses).pick({
+  description: true,
+  amount: true,
+  date: true,
+  category: true,
+  type: true,
+  payeeId: true,
+  notes: true,
+});
+
+// Personnel schema
+export const personnel = pgTable("personnel", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  type: text("type", { enum: ["employee", "agent", "dealer"] }).notNull(),
+  document: text("document").notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  role: text("role").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  commissionRate: numeric("commission_rate"),
+  bankInfo: text("bank_info"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertPersonnelSchema = createInsertSchema(personnel).pick({
+  name: true,
+  type: true,
+  document: true,
+  email: true,
+  phone: true,
+  role: true,
+  isActive: true,
+  commissionRate: true,
+  bankInfo: true,
+  notes: true,
+});
+
+// Type exports
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type User = typeof users.$inferSelect;
+
+export type InsertVehicle = z.infer<typeof insertVehicleSchema>;
+export type Vehicle = typeof vehicles.$inferSelect;
+
+export type InsertSale = z.infer<typeof insertSaleSchema>;
+export type Sale = typeof sales.$inferSelect;
+
+export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
+export type Customer = typeof customers.$inferSelect;
+
+export type InsertFinancing = z.infer<typeof insertFinancingSchema>;
+export type Financing = typeof financings.$inferSelect;
+
+export type InsertExpense = z.infer<typeof insertExpenseSchema>;
+export type Expense = typeof expenses.$inferSelect;
+
+export type InsertPersonnel = z.infer<typeof insertPersonnelSchema>;
+export type Personnel = typeof personnel.$inferSelect;
