@@ -36,8 +36,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 // Definir o schema do formulário de pagamento
 const paymentFormSchema = z.object({
-  customerId: z.string().optional(),
-  customerName: z.string().min(1, "Nome do cliente é obrigatório"),
+  customerId: z.string({
+    required_error: "ID do cliente é obrigatório",
+  }),
+  customerName: z.string().optional(),
   description: z.string().min(1, "Descrição é obrigatória"),
   value: z.coerce.number().min(0.01, "Valor deve ser maior que zero"),
   dueDate: z.date({
@@ -64,9 +66,12 @@ export function PaymentForm({ customers, sales }: PaymentFormProps) {
   const [originalValue, setOriginalValue] = useState<number>(0);
   const [finalValue, setFinalValue] = useState<number>(0);
   
+  // Definir valores padrão para o formulário
   const form = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentFormSchema),
     defaultValues: {
+      customerId: customers.length > 0 ? String(customers[0].id) : "",
+      customerName: customers.length > 0 ? customers[0].name : "",
       description: "",
       value: 0,
       dueDate: new Date(),
@@ -162,15 +167,38 @@ export function PaymentForm({ customers, sales }: PaymentFormProps) {
           <div className="md:col-span-2">
             <FormField
               control={form.control}
-              name="customerName"
+              name="customerId"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Cliente</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Digite o nome do cliente" {...field} />
-                  </FormControl>
+                  <Select
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      // Encontrar o cliente selecionado para atualizar também o customerName
+                      const selectedCustomer = customers.find(
+                        (customer) => customer.id.toString() === value
+                      );
+                      if (selectedCustomer) {
+                        form.setValue("customerName", selectedCustomer.name);
+                      }
+                    }}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um cliente" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id.toString()}>
+                          {customer.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormDescription>
-                    Digite o nome do cliente que receberá a cobrança
+                    Selecione o cliente que receberá a cobrança
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
