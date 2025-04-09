@@ -13,8 +13,8 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function VehiclesPage() {
   const [isAddingVehicle, setIsAddingVehicle] = useState(false);
-  const [matchVehicleId] = useRoute("/vehicles/:id");
-  const [matchVehicleAction] = useRoute("/vehicles/:id/:action");
+  const [matchVehicleId] = useRoute<{ id: string }>("/vehicles/:id");
+  const [matchVehicleAction] = useRoute<{ id: string, action: string }>("/vehicles/:id/:action");
   const [, navigate] = useLocation();
   const { toast } = useToast();
   
@@ -23,8 +23,8 @@ export default function VehiclesPage() {
   });
   
   // Get vehicle ID from the URL if available
-  const vehicleId = matchVehicleAction?.params?.id || matchVehicleId?.params?.id || null;
-  const action = matchVehicleAction?.params?.action || null;
+  const vehicleId = matchVehicleId ? matchVehicleId.params.id : matchVehicleAction ? matchVehicleAction.params.id : null;
+  const action = matchVehicleAction ? matchVehicleAction.params.action : null;
   
   // If we have a vehicle ID in the URL, get that vehicle's data
   const editVehicle = vehicleId ? vehicles?.find(v => v.id.toString() === vehicleId) : undefined;

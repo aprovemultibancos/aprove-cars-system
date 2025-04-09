@@ -210,7 +210,7 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
                     value={field.value || ""}
                   />
                 </FormControl>
-                <FormDescription>Digite manualmente o nome do banco</FormDescription>
+                <div className="text-xs text-muted-foreground mt-1">Digite manualmente o nome do banco</div>
                 <FormMessage />
               </FormItem>
             )}

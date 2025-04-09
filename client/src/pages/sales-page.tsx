@@ -13,8 +13,8 @@ import { formatCurrency } from "@/lib/utils";
 
 export default function SalesPage() {
   const [isAddingSale, setIsAddingSale] = useState(false);
-  const [matchSaleId] = useRoute("/sales/:id");
-  const [matchSaleAction] = useRoute("/sales/:id/:action");
+  const [matchSaleId] = useRoute<{ id: string }>("/sales/:id");
+  const [matchSaleAction] = useRoute<{ id: string, action: string }>("/sales/:id/:action");
   const { toast } = useToast();
   
   const { data: sales, isLoading } = useQuery<Sale[]>({
@@ -22,8 +22,8 @@ export default function SalesPage() {
   });
   
   // Get sale ID from the URL if available
-  const saleId = matchSaleId?.params?.id || matchSaleAction?.params?.id;
-  const action = matchSaleAction?.params?.action;
+  const saleId = matchSaleId ? matchSaleId.params.id : matchSaleAction ? matchSaleAction.params.id : null;
+  const action = matchSaleAction ? matchSaleAction.params.action : null;
   
   // If we have a sale ID in the URL, get that sale's data
   const editSale = saleId ? sales?.find(s => s.id.toString() === saleId) : undefined;

@@ -155,10 +155,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/sales/:id", async (req, res) => {
     const id = parseInt(req.params.id);
-    const success = await storage.deleteSale(id);
-    if (!success) {
+    
+    // Obter a venda antes de excluí-la para recuperar o ID do veículo
+    const sale = await storage.getSale(id);
+    if (!sale) {
       return res.status(404).json({ message: "Venda não encontrada" });
     }
+    
+    // Excluir a venda
+    const success = await storage.deleteSale(id);
+    if (!success) {
+      return res.status(404).json({ message: "Erro ao excluir venda" });
+    }
+    
+    // Atualizar o status do veículo para disponível novamente
+    if (sale.vehicleId) {
+      const vehicle = await storage.getVehicle(sale.vehicleId);
+      if (vehicle) {
+        await storage.updateVehicle(sale.vehicleId, { status: "available" });
+      }
+    }
+    
     res.status(204).end();
   });
 

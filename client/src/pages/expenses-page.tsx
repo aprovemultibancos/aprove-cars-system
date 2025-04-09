@@ -14,8 +14,8 @@ import { formatCurrency } from "@/lib/utils";
 
 export default function ExpensesPage() {
   const [isAddingExpense, setIsAddingExpense] = useState(false);
-  const [matchExpenseId] = useRoute("/expenses/:id");
-  const [matchExpenseAction] = useRoute("/expenses/:id/:action");
+  const [matchExpenseId] = useRoute<{ id: string }>("/expenses/:id");
+  const [matchExpenseAction] = useRoute<{ id: string, action: string }>("/expenses/:id/:action");
   const [, navigate] = useLocation();
   const { toast } = useToast();
   
@@ -24,8 +24,8 @@ export default function ExpensesPage() {
   });
   
   // Get expense ID from the URL if available
-  const expenseId = matchExpenseAction?.params?.id || matchExpenseId?.params?.id || null;
-  const action = matchExpenseAction?.params?.action || null;
+  const expenseId = matchExpenseId ? matchExpenseId.params.id : matchExpenseAction ? matchExpenseAction.params.id : null;
+  const action = matchExpenseAction ? matchExpenseAction.params.action : null;
   
   // If we have an expense ID in the URL, get that expense's data
   const editExpense = expenseId ? expenses?.find(e => e.id.toString() === expenseId) : undefined;

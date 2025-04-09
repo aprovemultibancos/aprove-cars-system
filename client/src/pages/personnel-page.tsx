@@ -13,8 +13,8 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function PersonnelPage() {
   const [isAddingPersonnel, setIsAddingPersonnel] = useState(false);
-  const [matchPersonnelId] = useRoute("/personnel/:id");
-  const [matchPersonnelAction] = useRoute("/personnel/:id/:action");
+  const [matchPersonnelId] = useRoute<{ id: string }>("/personnel/:id");
+  const [matchPersonnelAction] = useRoute<{ id: string, action: string }>("/personnel/:id/:action");
   const { toast } = useToast();
   
   const { data: personnel, isLoading } = useQuery<Personnel[]>({
@@ -22,8 +22,8 @@ export default function PersonnelPage() {
   });
   
   // Get personnel ID from the URL if available
-  const personnelId = matchPersonnelId?.params?.id || matchPersonnelAction?.params?.id;
-  const action = matchPersonnelAction?.params?.action;
+  const personnelId = matchPersonnelId ? matchPersonnelId.params.id : matchPersonnelAction ? matchPersonnelAction.params.id : null;
+  const action = matchPersonnelAction ? matchPersonnelAction.params.action : null;
   
   // If we have a personnel ID in the URL, get that person's data
   const editPersonnel = personnelId ? personnel?.find(p => p.id.toString() === personnelId) : undefined;
