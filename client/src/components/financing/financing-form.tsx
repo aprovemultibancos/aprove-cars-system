@@ -32,17 +32,17 @@ import { cn } from "@/lib/utils";
 
 // Extended schema with validation
 const extendedFinancingSchema = insertFinancingSchema.extend({
-  customerId: z.coerce.number().positive("Cliente é obrigatório"),
+  customerName: z.string().min(1, "Nome do cliente é obrigatório"),
   bank: z.string().min(1, "Banco é obrigatório"),
   assetValue: z.coerce.number().positive("Valor do bem é obrigatório"),
-  releasedAmount: z.coerce.number().positive("Valor liberado é obrigatório"),
-  expectedReturn: z.coerce.number().positive("Retorno esperado é obrigatório"),
+  returnType: z.enum(["R0", "R1", "R2", "R3", "R4", "R6", "RF"], {
+    required_error: "Selecione o tipo de retorno",
+  }),
+  accessoriesPercentage: z.coerce.number().min(0, "Percentual inválido"),
+  feeAmount: z.coerce.number().min(0, "Valor da taxa inválido"),
   agentCommission: z.coerce.number().min(0, "Comissão inválida"),
   sellerCommission: z.coerce.number().min(0, "Comissão inválida"),
   status: z.enum(["analysis", "approved", "paid", "rejected"]),
-  analysisDate: z.date().optional().nullable(),
-  approvalDate: z.date().optional().nullable(),
-  paymentDate: z.date().optional().nullable(),
   agentId: z.coerce.number().positive("Agente é obrigatório"),
   notes: z.string().optional(),
 });
@@ -75,25 +75,25 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
 
   const defaultValues: Partial<FinancingFormValues> = editFinancing
     ? {
-        customerId: editFinancing.customerId,
+        customerName: editFinancing.customerName || "",
         bank: editFinancing.bank,
         assetValue: Number(editFinancing.assetValue),
-        releasedAmount: Number(editFinancing.releasedAmount),
-        expectedReturn: Number(editFinancing.expectedReturn),
+        returnType: editFinancing.returnType as "R0" | "R1" | "R2" | "R3" | "R4" | "R6" | "RF" || "R0",
+        accessoriesPercentage: Number(editFinancing.accessoriesPercentage) || 0,
+        feeAmount: Number(editFinancing.feeAmount) || 0,
         agentCommission: Number(editFinancing.agentCommission),
         sellerCommission: Number(editFinancing.sellerCommission),
         status: editFinancing.status as "analysis" | "approved" | "paid" | "rejected",
-        analysisDate: parseDate(editFinancing.analysisDate?.toString()),
-        approvalDate: parseDate(editFinancing.approvalDate?.toString()),
-        paymentDate: parseDate(editFinancing.paymentDate?.toString()),
         agentId: editFinancing.agentId,
         notes: editFinancing.notes || "",
       }
     : {
+        customerName: "",
         bank: "",
         assetValue: 0,
-        releasedAmount: 0,
-        expectedReturn: 0,
+        returnType: "R0",
+        accessoriesPercentage: 0,
+        feeAmount: 0,
         agentCommission: 0,
         sellerCommission: 0,
         status: "analysis",
@@ -134,13 +134,46 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
     mutation.mutate(data);
   }
 
+  // Calcula o valor do retorno baseado no tipo selecionado (R0, R1, R2, etc.)
+  const calculateReturnAmount = () => {
+    const assetValue = form.watch("assetValue") || 0;
+    const returnType = form.watch("returnType") || "R0";
+    
+    // Percentuais de retorno baseados no tipo
+    const returnPercentages: {[key: string]: number} = {
+      "R0": 0,
+      "R1": 0.012, // 1.2%
+      "R2": 0.024, // 2.4%
+      "R3": 0.036, // 3.6%
+      "R4": 0.048, // 4.8%
+      "R6": 0.060, // 6.0%
+      "RF": 0.015  // 1.5%
+    };
+    
+    return assetValue * (returnPercentages[returnType] || 0);
+  };
+
+  // Calcula o valor do tributo (7% do valor de retorno)
+  const calculateTaxAmount = () => {
+    const returnAmount = calculateReturnAmount();
+    return returnAmount * 0.07; // 7% do valor de retorno
+  };
+  
+  // Calcula o lucro estimado com a nova fórmula
   const calculateProfit = () => {
     const assetValue = form.watch("assetValue") || 0;
-    const releasedAmount = form.watch("releasedAmount") || 0;
+    const returnAmount = calculateReturnAmount();
+    const accessoriesPercentage = form.watch("accessoriesPercentage") || 0;
+    const accessoriesValue = assetValue * (accessoriesPercentage / 100);
+    const feeAmount = form.watch("feeAmount") || 0;
     const agentCommission = form.watch("agentCommission") || 0;
     const sellerCommission = form.watch("sellerCommission") || 0;
     
-    return releasedAmount - assetValue - agentCommission - sellerCommission;
+    // ILA: 25.5% do valor de retorno
+    const ilaAmount = returnAmount * 0.255;
+    
+    // Lucro = Retorno - ILA + Acessórios + Taxa - Comissão do agente - Comissão do vendedor
+    return returnAmount - ilaAmount + accessoriesValue + feeAmount - agentCommission - sellerCommission;
   };
 
   const profit = calculateProfit();
@@ -151,27 +184,13 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <FormField
             control={form.control}
-            name="customerId"
+            name="customerName"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Cliente</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value?.toString()}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o cliente" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {customers?.map((customer) => (
-                      <SelectItem key={customer.id} value={customer.id.toString()}>
-                        {customer.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormControl>
+                  <Input placeholder="Digite o nome do cliente" {...field} />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -216,7 +235,7 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
                     {...field} 
                     onChange={(e) => {
                       field.onChange(e);
-                      form.trigger(["assetValue", "releasedAmount"]);
+                      form.trigger(["assetValue"]);
                     }}
                   />
                 </FormControl>
@@ -227,10 +246,42 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
 
           <FormField
             control={form.control}
-            name="releasedAmount"
+            name="returnType"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Valor Liberado (R$)</FormLabel>
+                <FormLabel>Retorno</FormLabel>
+                <Select 
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    form.trigger();  // Atualiza os cálculos
+                  }} 
+                  defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o tipo de retorno" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="R0">R0 = 0%</SelectItem>
+                    <SelectItem value="R1">R1 = 1,2%</SelectItem>
+                    <SelectItem value="R2">R2 = 2,4%</SelectItem>
+                    <SelectItem value="R3">R3 = 3,6%</SelectItem>
+                    <SelectItem value="R4">R4 = 4,8%</SelectItem>
+                    <SelectItem value="R6">R6 = 6,0%</SelectItem>
+                    <SelectItem value="RF">RF = 1,5%</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="accessoriesPercentage"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Percentual de Acessórios (%)</FormLabel>
                 <FormControl>
                   <Input 
                     type="number" 
@@ -238,7 +289,7 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
                     {...field} 
                     onChange={(e) => {
                       field.onChange(e);
-                      form.trigger(["assetValue", "releasedAmount"]);
+                      form.trigger();
                     }}
                   />
                 </FormControl>
@@ -249,12 +300,20 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
 
           <FormField
             control={form.control}
-            name="expectedReturn"
+            name="feeAmount"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Retorno Esperado (R$)</FormLabel>
+                <FormLabel>Valor da Taxa (R$)</FormLabel>
                 <FormControl>
-                  <Input type="number" step="0.01" {...field} />
+                  <Input 
+                    type="number" 
+                    step="0.01" 
+                    {...field}
+                    onChange={(e) => {
+                      field.onChange(e);
+                      form.trigger();
+                    }} 
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -320,7 +379,15 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
               <FormItem>
                 <FormLabel>Comissão do Agente (R$)</FormLabel>
                 <FormControl>
-                  <Input type="number" step="0.01" {...field} />
+                  <Input 
+                    type="number" 
+                    step="0.01" 
+                    {...field}
+                    onChange={(e) => {
+                      field.onChange(e);
+                      form.trigger();
+                    }}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -334,7 +401,15 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
               <FormItem>
                 <FormLabel>Comissão do Vendedor (R$)</FormLabel>
                 <FormControl>
-                  <Input type="number" step="0.01" {...field} />
+                  <Input 
+                    type="number" 
+                    step="0.01" 
+                    {...field}
+                    onChange={(e) => {
+                      field.onChange(e);
+                      form.trigger();
+                    }}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -351,123 +426,24 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <FormField
-            control={form.control}
-            name="analysisDate"
-            render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Data de Análise</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full pl-3 text-left font-normal",
-                          !field.value && "text-muted-foreground"
-                        )}
-                      >
-                        {field.value ? (
-                          format(field.value, "dd/MM/yyyy")
-                        ) : (
-                          <span>Selecione uma data</span>
-                        )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value || undefined}
-                      onSelect={field.onChange}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="approvalDate"
-            render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Data de Aprovação</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full pl-3 text-left font-normal",
-                          !field.value && "text-muted-foreground"
-                        )}
-                      >
-                        {field.value ? (
-                          format(field.value, "dd/MM/yyyy")
-                        ) : (
-                          <span>Selecione uma data</span>
-                        )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value || undefined}
-                      onSelect={field.onChange}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="paymentDate"
-            render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Data de Pagamento</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full pl-3 text-left font-normal",
-                          !field.value && "text-muted-foreground"
-                        )}
-                      >
-                        {field.value ? (
-                          format(field.value, "dd/MM/yyyy")
-                        ) : (
-                          <span>Selecione uma data</span>
-                        )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value || undefined}
-                      onSelect={field.onChange}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="flex items-center p-4 border border-green-100 rounded-md bg-green-50">
+            <div className="text-green-800">
+              <div className="text-sm font-medium">Tributação (7% do Retorno)</div>
+              <div className="text-lg font-bold">
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(calculateTaxAmount())}
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center p-4 border border-blue-100 rounded-md bg-blue-50">
+            <div className="text-blue-800">
+              <div className="text-sm font-medium">Retorno Total</div>
+              <div className="text-lg font-bold">
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(calculateReturnAmount())}
+              </div>
+            </div>
+          </div>
         </div>
 
         <FormField

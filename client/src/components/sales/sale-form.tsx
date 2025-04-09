@@ -205,42 +205,7 @@ export function SaleForm({ editSale }: SaleFormProps) {
 
           {/* Cliente registrado ou não registrado */}
           <div className="space-y-4">
-            <FormField
-              control={form.control}
-              name="customerId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cliente Registrado (opcional)</FormLabel>
-                  <Select
-                    onValueChange={(value) => {
-                      field.onChange(value);
-                      // Quando um cliente é selecionado, limpar o campo de entrada manual
-                      if (value) {
-                        form.setValue("customerName", "");
-                      }
-                    }}
-                    defaultValue={field.value?.toString()}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione um cliente registrado" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {customers && customers.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id.toString()}>
-                          {customer.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>
-                    Selecione um cliente já registrado ou utilize o campo abaixo para entrada manual
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+
 
             <FormField
               control={form.control}
