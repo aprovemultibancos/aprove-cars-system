@@ -131,8 +131,7 @@ export function SalesTable() {
             </Button>
             <Button variant="ghost" size="icon" asChild>
               <Link href={`/sales/${sale.id}/edit`}>
-                <Pencil className="h-4 w-4" />
-                <span className="sr-only">Editar</span>
+                <span>Editar</span>
               </Link>
             </Button>
             <AlertDialog>
