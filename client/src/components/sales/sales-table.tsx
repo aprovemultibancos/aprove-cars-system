@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Sale } from "@shared/schema";
+import { Sale, Vehicle } from "@shared/schema";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Pencil, Eye, Trash2 } from "lucide-react";
+import { Eye, Trash2 } from "lucide-react";
 import { Link } from "wouter";
 import { formatCurrency } from "@/lib/utils";
 import {
@@ -19,9 +19,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { SaleViewModal } from "./sale-view-modal";
 
 interface SaleWithDetails extends Sale {
   vehicleName?: string;
@@ -33,6 +41,7 @@ export function SalesTable() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [saleToDelete, setSaleToDelete] = useState<number | null>(null);
+  const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   
   const { data: sales, isLoading } = useQuery<SaleWithDetails[]>({
     queryKey: ["/api/sales"],
@@ -123,16 +132,13 @@ export function SalesTable() {
         
         return (
           <div className="flex items-center justify-end space-x-2">
-            <Button variant="ghost" size="icon" asChild>
-              <Link href={`/sales/${sale.id}/view`}>
-                <Eye className="h-4 w-4" />
-                <span className="sr-only">Ver</span>
-              </Link>
-            </Button>
-            <Button variant="ghost" size="icon" asChild>
-              <Link href={`/sales/${sale.id}/edit`}>
-                <span>Editar</span>
-              </Link>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSelectedSale(sale)}
+            >
+              <Eye className="h-4 w-4" />
+              <span className="sr-only">Ver</span>
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -179,11 +185,23 @@ export function SalesTable() {
   }
 
   return (
-    <DataTable 
-      columns={columns} 
-      data={sales || []} 
-      searchKey="vehicleName"
-      searchPlaceholder="Buscar vendas..."
-    />
+    <>
+      <DataTable 
+        columns={columns} 
+        data={sales || []} 
+        searchKey="vehicleName"
+        searchPlaceholder="Buscar vendas..."
+      />
+      
+      {selectedSale && (
+        <SaleViewModal
+          sale={selectedSale as any}
+          open={!!selectedSale}
+          onOpenChange={(open) => {
+            if (!open) setSelectedSale(null);
+          }}
+        />
+      )}
+    </>
   );
 }
