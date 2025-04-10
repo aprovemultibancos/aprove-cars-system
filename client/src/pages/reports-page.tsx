@@ -320,14 +320,93 @@ export default function ReportsPage() {
       });
     }
     else if (activeTab === "comparison") {
-      const comparisonData = [
-        { month: "Jan", receitas: 400000, despesas: 165000, lucro: 235000 },
-        { month: "Fev", receitas: 450000, despesas: 172000, lucro: 278000 },
-        { month: "Mar", receitas: 600000, despesas: 173000, lucro: 427000 },
-        { month: "Abr", receitas: 700000, despesas: 180000, lucro: 520000 },
-        { month: "Mai", receitas: 650000, despesas: 180000, lucro: 470000 },
-        { month: "Jun", receitas: 800000, despesas: 190000, lucro: 610000 },
-      ];
+      // Gerar dados de comparação por mês usando dados reais
+      const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+      const currentMonth = new Date().getMonth();
+      
+      // Inicializar array com os últimos 6 meses
+      const comparisonData: { month: string; receitas: number; despesas: number; lucro: number }[] = [];
+      for (let i = 5; i >= 0; i--) {
+        const monthIndex = (currentMonth - i + 12) % 12; // Garantir índice positivo
+        comparisonData.push({
+          month: months[monthIndex],
+          receitas: 0,
+          despesas: 0,
+          lucro: 0
+        });
+      }
+      
+      // Processar vendas por mês
+      if (sales && sales.length > 0) {
+        sales.forEach(sale => {
+          try {
+            if (!sale.saleDate) return;
+            
+            const saleDate = new Date(sale.saleDate);
+            if (isNaN(saleDate.getTime())) return; // Ignorar datas inválidas
+            
+            const monthIndex = saleDate.getMonth();
+            const monthName = months[monthIndex];
+            
+            // Verificar se o mês está nos últimos 6 meses
+            const entry = comparisonData.find(entry => entry.month === monthName);
+            if (entry) {
+              entry.receitas += Number(sale.salePrice || 0);
+            }
+          } catch (error) {
+            console.error("Erro ao processar venda:", error);
+          }
+        });
+      }
+      
+      // Adicionar financiamentos às receitas
+      if (financings && financings.length > 0) {
+        financings.forEach(financing => {
+          try {
+            const createdAt = financing.createdAt ? new Date(financing.createdAt) : new Date();
+            if (isNaN(createdAt.getTime())) return; // Ignorar datas inválidas
+            
+            const monthIndex = createdAt.getMonth();
+            const monthName = months[monthIndex];
+            
+            // Verificar se o mês está nos últimos 6 meses
+            const entry = comparisonData.find(entry => entry.month === monthName);
+            if (entry) {
+              entry.receitas += Number(financing.assetValue || 0);
+            }
+          } catch (error) {
+            console.error("Erro ao processar financiamento:", error);
+          }
+        });
+      }
+      
+      // Processar despesas por mês
+      if (expenses && expenses.length > 0) {
+        expenses.forEach(expense => {
+          try {
+            if (!expense.date) return;
+            
+            const expenseDate = new Date(expense.date);
+            if (isNaN(expenseDate.getTime())) return; // Ignorar datas inválidas
+            
+            const monthIndex = expenseDate.getMonth();
+            const monthName = months[monthIndex];
+            
+            // Verificar se o mês está nos últimos 6 meses
+            const entry = comparisonData.find(entry => entry.month === monthName);
+            if (entry) {
+              entry.despesas += Number(expense.amount || 0);
+            }
+          } catch (error) {
+            console.error("Erro ao processar despesa:", error);
+          }
+        });
+      }
+      
+      // Calcular lucro para cada mês
+      comparisonData.forEach(entry => {
+        entry.lucro = entry.receitas - entry.despesas;
+      });
       
       columns = [
         { header: "Mês", dataKey: "month" },
@@ -428,14 +507,25 @@ export default function ReportsPage() {
       fileName = "Relatorio_Despesas";
     }
     else if (activeTab === "comparison") {
-      data = [
-        { Mês: "Jan", Receitas: formatBRL(400000), Despesas: formatBRL(165000), Lucro: formatBRL(235000) },
-        { Mês: "Fev", Receitas: formatBRL(450000), Despesas: formatBRL(172000), Lucro: formatBRL(278000) },
-        { Mês: "Mar", Receitas: formatBRL(600000), Despesas: formatBRL(173000), Lucro: formatBRL(427000) },
-        { Mês: "Abr", Receitas: formatBRL(700000), Despesas: formatBRL(180000), Lucro: formatBRL(520000) },
-        { Mês: "Mai", Receitas: formatBRL(650000), Despesas: formatBRL(180000), Lucro: formatBRL(470000) },
-        { Mês: "Jun", Receitas: formatBRL(800000), Despesas: formatBRL(190000), Lucro: formatBRL(610000) },
-      ];
+      // Usar os mesmos dados gerados para o PDF
+      data = comparisonData.map(item => ({
+        Mês: item.month,
+        Receitas: formatBRL(item.receitas),
+        Despesas: formatBRL(item.despesas),
+        Lucro: formatBRL(item.lucro)
+      }));
+      
+      // Adicionar linha de total
+      const totalReceitas = comparisonData.reduce((acc, item) => acc + item.receitas, 0);
+      const totalDespesas = comparisonData.reduce((acc, item) => acc + item.despesas, 0);
+      const totalLucro = comparisonData.reduce((acc, item) => acc + item.lucro, 0);
+      
+      data.push({
+        Mês: "TOTAL",
+        Receitas: formatBRL(totalReceitas),
+        Despesas: formatBRL(totalDespesas),
+        Lucro: formatBRL(totalLucro)
+      });
       fileName = "Relatorio_Comparativo";
     }
     
@@ -752,14 +842,7 @@ export default function ReportsPage() {
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <RechartsBarChart
-                      data={[
-                        { month: "Jan", receitas: 400000, despesas: 165000, lucro: 235000 },
-                        { month: "Fev", receitas: 450000, despesas: 172000, lucro: 278000 },
-                        { month: "Mar", receitas: 600000, despesas: 173000, lucro: 427000 },
-                        { month: "Abr", receitas: 700000, despesas: 180000, lucro: 520000 },
-                        { month: "Mai", receitas: 650000, despesas: 180000, lucro: 470000 },
-                        { month: "Jun", receitas: 800000, despesas: 190000, lucro: 610000 },
-                      ]}
+                      data={comparisonData}
                       margin={{
                         top: 20,
                         right: 30,
