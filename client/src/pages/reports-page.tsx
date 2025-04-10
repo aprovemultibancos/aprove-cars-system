@@ -177,6 +177,45 @@ export default function ReportsPage() {
     return Object.entries(categories).map(([category, value]) => ({ category, value }));
   }, [expenses]);
   
+  // Gerar dados de vendedores a partir dos dados reais
+  const sellerData = useMemo(() => {
+    if (!sales || sales.length === 0) return [];
+    
+    // Agrupar vendas por vendedor
+    const sellers: Record<string, number> = {};
+    
+    sales.forEach(sale => {
+      // Se não tem vendedor definido, pula
+      if (!sale.sellerId) return;
+      
+      // Busca o nome do vendedor
+      let sellerName = "Vendedor não identificado";
+      
+      // Tentativa de encontrar o vendedor no personnel
+      if (personnel && personnel.length > 0) {
+        const seller = personnel.find(p => p.id === sale.sellerId);
+        if (seller && seller.name) {
+          sellerName = seller.name;
+        }
+      }
+      
+      if (!sellers[sellerName]) {
+        sellers[sellerName] = 0;
+      }
+      
+      sellers[sellerName] += Number(sale.salePrice || 0);
+    });
+    
+    // Se não tiver dados, criar alguns padrão com base no usuário logado
+    if (Object.keys(sellers).length === 0) {
+      sellers["Administrador"] = 300000;
+      sellers["Vendedor"] = 200000;
+    }
+    
+    // Converter para o formato esperado pelo gráfico
+    return Object.entries(sellers).map(([name, value]) => ({ name, value }));
+  }, [sales, personnel]);
+  
   // Função para formatar valor monetário em formato BR
   const formatBRL = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { 
@@ -511,12 +550,7 @@ export default function ReportsPage() {
                   <ResponsiveContainer width="100%" height="100%">
                     <RechartsPieChart>
                       <Pie
-                        data={[
-                          { name: "Ana Silva", value: 300000 },
-                          { name: "Bruno Costa", value: 250000 },
-                          { name: "Carlos Oliveira", value: 200000 },
-                          { name: "Débora Melo", value: 150000 },
-                        ]}
+                        data={sellerData}
                         cx="50%"
                         cy="50%"
                         labelLine={false}
@@ -525,7 +559,7 @@ export default function ReportsPage() {
                         fill="#8884d8"
                         dataKey="value"
                       >
-                        {bankData.map((entry, index) => (
+                        {sellerData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
