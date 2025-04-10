@@ -128,6 +128,7 @@ export const financings = pgTable("financings", {
   sellerCommission: numeric("seller_commission").notNull(),
   status: text("status", { enum: ["analysis", "approved", "paid", "rejected"] }).notNull().default("analysis"),
   agentId: integer("agent_id").notNull(),
+  agentName: text("agent_name"),
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -147,6 +148,7 @@ export const insertFinancingSchema = z.object({
   sellerCommission: z.coerce.number(),
   status: z.enum(["analysis", "approved", "paid", "rejected"]).default("analysis"),
   agentId: z.coerce.number(),
+  agentName: z.string().optional(),
   notes: z.string().optional(),
 });
 

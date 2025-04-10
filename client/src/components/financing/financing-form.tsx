@@ -131,8 +131,8 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/financings"] });
       
-      // Garantir que o redirecionamento para a página de financiamentos aconteça após criação bem-sucedida
-      navigate("/finances");
+      // Garantir que o redirecionamento para a página anterior aconteça após criação bem-sucedida
+      window.history.back();
     },
     onError: (error) => {
       toast({
