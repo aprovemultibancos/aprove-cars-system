@@ -11,3 +11,60 @@
     @apply font-sans antialiased bg-background text-foreground;
   }
 }
+
+/* Ajustes responsivos globais */
+@layer components {
+  /* Ajustes para Cards e componentes do dashboard */
+  .dashboard-card {
+    @apply bg-white rounded-lg shadow-sm p-4 md:p-6;
+  }
+  
+  /* Ajustes para tabelas em dispositivos móveis */
+  .responsive-table {
+    @apply overflow-x-auto -mx-4 md:mx-0;
+  }
+  
+  .responsive-table-inner {
+    @apply min-w-full md:w-full;
+  }
+  
+  /* Ajustes para formulários em dispositivos móveis */
+  .form-container {
+    @apply w-full md:max-w-4xl mx-auto;
+  }
+  
+  /* Ajustes para os gráficos em dispositivos móveis */
+  .chart-container {
+    @apply h-60 md:h-80 w-full;
+  }
+  
+  /* Ajustes para os botões em dispositivos móveis */
+  .mobile-btn-lg {
+    @apply w-full md:w-auto text-center px-3 py-2;
+  }
+  
+  /* Grid layout para dashboards */
+  .dashboard-grid {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6;
+  }
+  
+  /* Evitar problemas de overflow com textos longos */
+  .truncate-text {
+    @apply truncate;
+  }
+  
+  /* Espaçamento menor em dispositivos móveis */
+  .mobile-spacing {
+    @apply px-2 py-1 md:px-4 md:py-2;
+  }
+  
+  /* Fontes ligeiramente menores em dispositivos móveis */
+  .mobile-text {
+    @apply text-sm md:text-base;
+  }
+  
+  /* Estilo para campos selecionados */
+  .selected-item {
+    @apply bg-primary text-black font-bold;
+  }
+}

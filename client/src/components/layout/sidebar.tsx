@@ -55,9 +55,9 @@ export function Sidebar() {
     : 'U';
   
   return (
-    <div className="hidden md:flex md:flex-shrink-0">
+    <div className="flex flex-shrink-0 h-full">
       <div className="flex flex-col w-64">
-        <div className="flex flex-col flex-grow border-r border-gray-200 pt-5 pb-4 bg-white overflow-y-auto">
+        <div className="flex flex-col flex-grow border-r border-gray-200 pt-5 pb-4 bg-white overflow-y-auto h-full">
           <div className="flex items-center flex-shrink-0 px-4">
             <div className="flex items-center">
               <svg className="h-8 w-8 text-primary" fill="currentColor" viewBox="0 0 24 24">
