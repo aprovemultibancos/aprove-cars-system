@@ -43,8 +43,9 @@ const extendedFinancingSchema = insertFinancingSchema.extend({
   feeAmount: z.coerce.number().min(0, "Valor da taxa inválido"),
   agentCommission: z.coerce.number().min(0, "Comissão inválida"),
   sellerCommission: z.coerce.number().min(0, "Comissão inválida"),
-  status: z.enum(["analysis", "approved", "paid", "rejected"]),
+  status: z.enum(["pending", "paid"]),
   agentId: z.coerce.number().positive("Agente é obrigatório"),
+  agentName: z.string().optional(),
   notes: z.string().optional(),
   // Adicionando campos que estavam faltando no esquema estendido
   releasedAmount: z.any().optional(),
@@ -88,7 +89,7 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
         feeAmount: Number(editFinancing.feeAmount) || 0,
         agentCommission: Number(editFinancing.agentCommission) || 0,
         sellerCommission: Number(editFinancing.sellerCommission) || 0,
-        status: (editFinancing.status as "analysis" | "approved" | "paid" | "rejected") || "analysis",
+        status: (editFinancing.status as "pending" | "paid") || "pending",
         agentId: Number(editFinancing.agentId) || 1, // Valor padrão para o agentId
         notes: editFinancing.notes || "",
         releasedAmount: editFinancing.releasedAmount?.toString() || "0",
@@ -103,7 +104,7 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
         feeAmount: 0,
         agentCommission: 0,
         sellerCommission: 0,
-        status: "analysis",
+        status: "pending",
         agentId: 1, // Valor padrão para o agentId
         notes: "",
         releasedAmount: "0",
@@ -377,10 +378,8 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="analysis">Em Análise</SelectItem>
-                    <SelectItem value="approved">Aprovado</SelectItem>
+                    <SelectItem value="pending">Pendente</SelectItem>
                     <SelectItem value="paid">Pago</SelectItem>
-                    <SelectItem value="rejected">Rejeitado</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -390,32 +389,24 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
 
           <FormField
             control={form.control}
-            name="agentId"
+            name="agentName"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Agente/Loja</FormLabel>
-                <Select 
-                  onValueChange={field.onChange} 
-                  defaultValue={field.value?.toString()}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o agente" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {agents?.map((agent) => (
-                      <SelectItem key={agent.id} value={agent.id.toString()}>
-                        {agent.name}
-                      </SelectItem>
-                    ))}
-                    {!agents?.length && (
-                      <SelectItem value="1">Agente Padrão</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
+                <FormControl>
+                  <Input placeholder="Digite o nome do agente/loja" {...field} value={field.value || ""} />
+                </FormControl>
                 <FormMessage />
               </FormItem>
+            )}
+          />
+          
+          {/* Campo oculto para agentId */}
+          <FormField
+            control={form.control}
+            name="agentId"
+            render={({ field }) => (
+              <input type="hidden" {...field} value="1" />
             )}
           />
 
