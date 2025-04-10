@@ -610,10 +610,23 @@ export class DatabaseStorage implements IStorage {
   }
   
   async createFinancing(financing: InsertFinancing): Promise<Financing> {
+    // Obter o agentName do agente se for enviado como campo adicional
+    const agentName = (financing as any).agentName;
+    
+    // Inserir o financiamento no banco de dados
     const [newFinancing] = await db.insert(financings).values({
       ...financing,
       createdAt: new Date()
     }).returning();
+    
+    // Adicionar o agentName no retorno se disponível
+    if (agentName) {
+      return {
+        ...newFinancing,
+        agentName
+      } as any;
+    }
+    
     return newFinancing;
   }
   
