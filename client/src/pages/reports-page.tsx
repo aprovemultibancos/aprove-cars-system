@@ -129,7 +129,7 @@ export default function ReportsPage() {
         const entry = result.find(entry => entry.month === monthName);
         if (entry) {
           entry.count += 1;
-          entry.value += Number(financing.releasedAmount || 0);
+          entry.value += Number(financing.assetValue || 0);
         }
       } catch (error) {
         console.error("Erro ao processar financiamento:", error);
@@ -151,7 +151,7 @@ export default function ReportsPage() {
       if (!banks[bank]) {
         banks[bank] = 0;
       }
-      banks[bank] += Number(financing.releasedAmount || 0);
+      banks[bank] += Number(financing.assetValue || 0);
     });
     
     // Converter para o formato esperado pelo gráfico
