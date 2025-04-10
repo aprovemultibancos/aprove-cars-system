@@ -93,8 +93,8 @@ export function RecentFinancing({ financings, isLoading = false }: RecentFinanci
                         <TableCell className="whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="ml-0">
-                              <div className="text-sm font-medium text-gray-900">{financing.customer?.name || "Cliente não identificado"}</div>
-                              <div className="text-sm text-gray-500">{financing.customer?.email || "Email não disponível"}</div>
+                              <div className="text-sm font-medium text-gray-900">{financing.customerName || "Cliente não identificado"}</div>
+                              <div className="text-sm text-gray-500">ID: {financing.id || "N/A"}</div>
                             </div>
                           </div>
                         </TableCell>

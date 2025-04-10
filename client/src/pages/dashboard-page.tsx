@@ -210,16 +210,19 @@ export default function DashboardPage() {
   };
   
   const getRecentFinancings = () => {
-    if (!financings || !customers || !personnel) return [];
+    if (!financings) return [];
     
     return financings.slice(0, 3).map(financing => {
-      const customer = customers.find(c => c.id === financing.customerId);
-      const agent = personnel.find(p => p.id === financing.agentId);
-      
+      // Não precisamos mais procurar o cliente, pois já temos o nome diretamente
       return {
         ...financing,
-        customer,
-        agentName: agent?.name
+        // Criar um objeto customer simulado com o nome que já temos no financiamento
+        customer: {
+          name: financing.customerName,
+          email: null
+        },
+        // Usar o agentName que já está no financiamento
+        agentName: financing.agentName
       } as FinancingWithCustomer;
     });
   };
