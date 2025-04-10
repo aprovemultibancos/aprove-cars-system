@@ -602,8 +602,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/payments/:id", async (req, res) => {
     try {
       const paymentId = req.params.id;
-      const payment = await getPaymentById(paymentId);
-      res.json(payment);
+      
+      // Tenta buscar no Asaas primeiro
+      try {
+        const payment = await getPaymentById(paymentId);
+        res.json(payment);
+      } catch (asaasError) {
+        // Se falhar com Asaas, busca do banco de dados local
+        console.error(`Erro ao buscar pagamento ${paymentId} do Asaas:`, asaasError);
+        console.log(`Buscando pagamento ${paymentId} do banco de dados local`);
+        
+        const localPayment = await storage.getPayment(paymentId);
+        if (!localPayment) {
+          return res.status(404).json({ message: "Pagamento não encontrado" });
+        }
+        res.json(localPayment);
+      }
     } catch (error) {
       console.error(`Erro ao buscar pagamento ${req.params.id}:`, error);
       res.status(500).json({ 
@@ -781,8 +795,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const paymentId = req.params.id;
-      const result = await cancelPayment(paymentId);
-      res.json(result);
+      
+      // Verificar se é um pagamento local (com prefixo "local-")
+      if (paymentId.startsWith('local-')) {
+        console.log(`Cancelando pagamento local ${paymentId}`);
+        
+        // Buscar o pagamento para verificar se existe
+        const payment = await storage.getPayment(paymentId);
+        if (!payment) {
+          return res.status(404).json({ message: "Pagamento não encontrado" });
+        }
+        
+        // Atualizar o status no banco para "CANCELED"
+        const updatedPayment = await storage.updatePayment(paymentId, {
+          status: "CANCELED"
+        });
+        
+        return res.json({ 
+          ...updatedPayment, 
+          message: "Pagamento local cancelado com sucesso" 
+        });
+      }
+      
+      // Se não for local, tentar cancelar no Asaas
+      try {
+        const result = await cancelPayment(paymentId);
+        res.json(result);
+      } catch (asaasError) {
+        console.error(`Erro ao cancelar pagamento ${paymentId} no Asaas:`, asaasError);
+        
+        // Verificar se o pagamento existe no banco local
+        const localPayment = await storage.getPayment(paymentId);
+        if (localPayment) {
+          // Atualizar o status no banco para "CANCELED"
+          const updatedPayment = await storage.updatePayment(paymentId, {
+            status: "CANCELED"
+          });
+          
+          return res.json({ 
+            ...updatedPayment, 
+            message: "Pagamento cancelado localmente (falha no Asaas)" 
+          });
+        }
+        
+        // Se não encontrar no banco local, retornar o erro
+        throw asaasError;
+      }
     } catch (error) {
       console.error(`Erro ao cancelar pagamento ${req.params.id}:`, error);
       res.status(500).json({ 
