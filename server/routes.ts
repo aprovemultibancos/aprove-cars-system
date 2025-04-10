@@ -243,7 +243,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const financingData = insertFinancingSchema.parse(preprocessedData);
       console.log("Dados após parse do schema:", JSON.stringify(financingData, null, 2));
       
-      const financing = await storage.createFinancing(financingData);
+      // Garantir que o campo agentName seja preservado
+      const dataWithAgentName = {
+        ...financingData,
+        agentName: preprocessedData.agentName || null
+      };
+      
+      const financing = await storage.createFinancing(dataWithAgentName);
       console.log("Financiamento criado com sucesso:", financing);
       
       res.status(201).json(financing);
