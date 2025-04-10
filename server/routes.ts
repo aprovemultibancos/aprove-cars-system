@@ -182,7 +182,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Financings routes
   app.get("/api/financings", async (req, res) => {
     const financings = await storage.getFinancings();
-    res.json(financings);
+    
+    // Enriquecer os financiamentos com informações adicionais
+    const enrichedFinancings = await Promise.all(financings.map(async (financing) => {
+      let enriched = { ...financing };
+      
+      // Se o financiamento estiver associado a um agente, buscar o nome do agente
+      if (financing.agentId) {
+        try {
+          const agent = await storage.getPersonnelById(financing.agentId);
+          if (agent) {
+            enriched.agentName = agent.name;
+          }
+        } catch (error) {
+          console.error(`Erro ao buscar agente ${financing.agentId}:`, error);
+        }
+      }
+      
+      return enriched;
+    }));
+    
+    res.json(enrichedFinancings);
   });
 
   app.get("/api/financings/:id", async (req, res) => {

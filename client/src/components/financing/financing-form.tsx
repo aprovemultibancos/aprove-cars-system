@@ -130,6 +130,8 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
           : "O financiamento foi cadastrado com sucesso",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/financings"] });
+      
+      // Garantir que o redirecionamento para a página de financiamentos aconteça após criação bem-sucedida
       navigate("/finances");
     },
     onError: (error) => {
@@ -153,7 +155,9 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
       accessoriesPercentage: Number(data.accessoriesPercentage || 0),
       feeAmount: Number(data.feeAmount || 0),
       agentCommission: Number(data.agentCommission),
-      sellerCommission: Number(data.sellerCommission)
+      sellerCommission: Number(data.sellerCommission),
+      // Garantir que o nome do agente/lojista é enviado
+      agentName: data.agentName || ""
     };
     
     console.log("Enviando dados do formulário:", submittingData);
