@@ -131,6 +131,11 @@ export function VehicleTable() {
               <Eye className="h-4 w-4" />
               <span className="sr-only">Visualizar</span>
             </Button>
+            <Button variant="ghost" size="icon" asChild>
+              <Link href={`/vehicles/${vehicle.id}/edit`}>
+                <span>Editar</span>
+              </Link>
+            </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button 

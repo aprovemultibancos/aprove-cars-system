@@ -168,8 +168,7 @@ export function PersonnelTable({ filter }: PersonnelTableProps) {
             </Button>
             <Button variant="ghost" size="icon" asChild>
               <Link href={`/personnel/${person.id}/edit`}>
-                <Pencil className="h-4 w-4" />
-                <span className="sr-only">Editar</span>
+                <span>Editar</span>
               </Link>
             </Button>
             <AlertDialog>
