@@ -242,10 +242,87 @@ export default function ReportsPage() {
       });
     }
     
-    // Calcular lucro para cada mês
-    result.forEach(entry => {
-      entry.lucro = entry.receitas - entry.despesas;
-    });
+    // Calcular lucro para cada mês usando a fórmula correta
+    // Usaremos o cálculo mensal de lucro baseado nos financiamentos
+    
+    // Para cada mês, calcular o lucro de financiamentos
+    if (financings && financings.length > 0) {
+      financings.forEach(financing => {
+        try {
+          const createdAt = financing.createdAt ? new Date(financing.createdAt) : new Date();
+          if (isNaN(createdAt.getTime())) return; // Ignorar datas inválidas
+          
+          const monthIndex = createdAt.getMonth();
+          const monthName = months[monthIndex];
+          
+          // Verificar se o mês está nos últimos 6 meses
+          const entry = result.find(entry => entry.month === monthName);
+          if (entry) {
+            // Retorno esperado
+            const returnAmount = Number(financing.expectedReturn || 0);
+            // Comissões
+            const agentComm = Number(financing.agentCommission || 0);
+            const sellerComm = Number(financing.sellerCommission || 0);
+            
+            // ILA: 25.5% do valor de retorno
+            const ilaAmount = returnAmount * 0.255;
+            
+            // Acessórios (calculados a partir do percentual)
+            const assetValue = Number(financing.assetValue || 0);
+            const accessoriesPercentage = Number(financing.accessoriesPercentage || 0);
+            const accessoriesValue = assetValue * (accessoriesPercentage / 100);
+            
+            // Taxa adicional
+            const feeAmount = Number(financing.feeAmount || 0);
+            
+            // Lucro = Retorno - ILA + Acessórios + Taxa - Comissões
+            const profit = returnAmount - ilaAmount + accessoriesValue + feeAmount - agentComm - sellerComm;
+            
+            // Acumular lucro no mês correspondente
+            entry.lucro += profit;
+          }
+        } catch (error) {
+          console.error("Erro ao calcular lucro de financiamento:", error);
+        }
+      });
+    }
+    
+    // Adicionar o lucro das vendas
+    if (sales && sales.length > 0 && vehicles && vehicles.length > 0) {
+      sales.forEach(sale => {
+        try {
+          if (!sale.saleDate) return;
+          
+          const saleDate = new Date(sale.saleDate);
+          if (isNaN(saleDate.getTime())) return; // Ignorar datas inválidas
+          
+          const monthIndex = saleDate.getMonth();
+          const monthName = months[monthIndex];
+          
+          // Verificar se o mês está nos últimos 6 meses
+          const entry = result.find(entry => entry.month === monthName);
+          if (entry && sale.vehicleId) {
+            // Buscar o veículo relacionado à venda
+            const vehicleId = Number(sale.vehicleId);
+            const vehicle = vehicles.find(v => v.id === vehicleId);
+            
+            if (vehicle) {
+              // Calcular o lucro líquido: preço de venda - custo de compra - despesas - comissão
+              const saleProfit = 
+                Number(sale.salePrice || 0) - 
+                Number(vehicle.purchaseCost || 0) - 
+                Number(vehicle.expenses || 0) - 
+                Number(sale.commission || 0);
+              
+              // Acumular lucro no mês correspondente
+              entry.lucro += saleProfit;
+            }
+          }
+        } catch (error) {
+          console.error("Erro ao calcular lucro de venda:", error);
+        }
+      });
+    }
     
     return result;
   }, [sales, financings, expenses]);
