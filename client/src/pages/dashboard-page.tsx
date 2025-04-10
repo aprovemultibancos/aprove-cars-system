@@ -69,8 +69,58 @@ export default function DashboardPage() {
     // Cálculo dos retornos esperados dos financiamentos
     const expectedReturns = financings?.reduce((sum, f) => sum + Number(f.expectedReturn || 0), 0) || 0;
     
-    // Cálculo do lucro com base nas vendas, financiamentos e custos
-    const totalProfit = salesTotal * 0.15 + expectedReturns; // Lucro das vendas + retornos financiamentos
+    // Cálculo do lucro das vendas de forma correta
+    let salesProfit = 0;
+    if (sales && vehicles) {
+      // Para cada venda, calcular o lucro específico
+      for (const sale of recentSales) {
+        if (sale.vehicleId) {
+          // Buscar o veículo relacionado à venda
+          const vehicleId = Number(sale.vehicleId);
+          const vehicle = vehicles.find(v => v.id === vehicleId);
+          
+          if (vehicle) {
+            // Calcular o lucro líquido: preço de venda - custo de compra - despesas - comissão
+            const saleProfit = 
+              Number(sale.salePrice || 0) - 
+              Number(vehicle.purchaseCost || 0) - 
+              Number(vehicle.expenses || 0) - 
+              Number(sale.commission || 0);
+            
+            salesProfit += saleProfit;
+          }
+        }
+      }
+    }
+    
+    // Cálculo do lucro dos financiamentos corretamente
+    let financingProfit = 0;
+    if (financings) {
+      financingProfit = financings.reduce((sum, financing) => {
+        // Retorno esperado
+        const returnAmount = Number(financing.expectedReturn || 0);
+        // Comissões
+        const agentComm = Number(financing.agentCommission || 0);
+        const sellerComm = Number(financing.sellerCommission || 0);
+        
+        // ILA: 25.5% do valor de retorno
+        const ilaAmount = returnAmount * 0.255;
+        
+        // Acessórios (calculados a partir do percentual)
+        const assetValue = Number(financing.assetValue || 0);
+        const accessoriesPercentage = Number(financing.accessoriesPercentage || 0);
+        const accessoriesValue = assetValue * (accessoriesPercentage / 100);
+        
+        // Taxa adicional
+        const feeAmount = Number(financing.feeAmount || 0);
+        
+        // Lucro = Retorno - ILA + Acessórios + Taxa - Comissões
+        return sum + (returnAmount - ilaAmount + accessoriesValue + feeAmount - agentComm - sellerComm);
+      }, 0);
+    }
+    
+    // Lucro total = Lucro das vendas + Lucro dos financiamentos
+    const totalProfit = salesProfit + financingProfit;
     
     // Retorna os dados calculados
     return {
