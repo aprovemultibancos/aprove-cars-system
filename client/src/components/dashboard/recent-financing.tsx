@@ -107,8 +107,10 @@ export function RecentFinancing({ financings, isLoading = false }: RecentFinanci
                         <TableCell className="whitespace-nowrap">
                           {getStatusBadge(financing.status)}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap text-sm text-gray-500">
-                          {financing.agentName || "Não designado"}
+                        <TableCell className="whitespace-nowrap">
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-medium">
+                            {financing.agentName || "Não designado"}
+                          </Badge>
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-right text-sm font-medium">
                           <Link href={`/finances/${financing.id}`} className="text-primary hover:text-primary-800">

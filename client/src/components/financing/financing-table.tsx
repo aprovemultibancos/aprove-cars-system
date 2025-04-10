@@ -133,7 +133,15 @@ export function FinancingTable() {
     {
       accessorKey: "agentName",
       header: "Agente",
-      cell: ({ row }) => row.original.agentName || `Agente #${row.original.agentId}`,
+      cell: ({ row }) => {
+        return (
+          <div className="flex items-center">
+            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-medium">
+              {row.original.agentName || "Não designado"}
+            </Badge>
+          </div>
+        );
+      },
     },
     {
       id: "actions",
