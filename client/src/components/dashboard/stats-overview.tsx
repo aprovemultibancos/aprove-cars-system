@@ -1,4 +1,4 @@
-import { BarChart3, DollarSign, CreditCard, Clock } from "lucide-react";
+import { BarChart3, DollarSign, CreditCard, TrendingUp } from "lucide-react";
 import { StatCard } from "../ui/stat-card";
 
 interface StatsData {
@@ -69,7 +69,7 @@ export function StatsOverview({ data, isLoading = false }: StatsOverviewProps) {
       <StatCard
         title="Lucro Total"
         value={data.totalProfit}
-        icon={Clock}
+        icon={TrendingUp}
         iconColor="bg-green-700"
         trend={data.profitTrend ? {
           value: data.profitTrend,
