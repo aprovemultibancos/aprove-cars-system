@@ -416,28 +416,24 @@ export default function ReportsPage() {
       
       columns = [
         { header: "Mês", dataKey: "month" },
-        { header: "Receitas", dataKey: "formattedReceitas" },
-        { header: "Despesas", dataKey: "formattedDespesas" },
-        { header: "Lucro", dataKey: "formattedLucro" }
+        { header: "Lucro Líquido", dataKey: "formattedLucro" },
+        { header: "Despesas", dataKey: "formattedDespesas" }
       ];
       
       tableData = comparisonData.map(item => ({
         month: item.month,
-        formattedReceitas: formatBRL(item.receitas),
-        formattedDespesas: formatBRL(item.despesas),
-        formattedLucro: formatBRL(item.lucro)
+        formattedLucro: formatBRL(item.lucro),
+        formattedDespesas: formatBRL(item.despesas)
       }));
       
       // Adicionar totais
-      const totalReceitas = comparisonData.reduce((acc, item) => acc + item.receitas, 0);
       const totalDespesas = comparisonData.reduce((acc, item) => acc + item.despesas, 0);
       const totalLucro = comparisonData.reduce((acc, item) => acc + item.lucro, 0);
       
       tableData.push({
         month: "TOTAL",
-        formattedReceitas: formatBRL(totalReceitas),
-        formattedDespesas: formatBRL(totalDespesas),
-        formattedLucro: formatBRL(totalLucro)
+        formattedLucro: formatBRL(totalLucro),
+        formattedDespesas: formatBRL(totalDespesas)
       });
     }
     
@@ -516,21 +512,18 @@ export default function ReportsPage() {
       // Usar os mesmos dados gerados para o PDF
       data = comparisonData.map(item => ({
         Mês: item.month,
-        Receitas: formatBRL(item.receitas),
-        Despesas: formatBRL(item.despesas),
-        Lucro: formatBRL(item.lucro)
+        "Lucro Líquido": formatBRL(item.lucro),
+        Despesas: formatBRL(item.despesas)
       }));
       
       // Adicionar linha de total
-      const totalReceitas = comparisonData.reduce((acc, item) => acc + item.receitas, 0);
       const totalDespesas = comparisonData.reduce((acc, item) => acc + item.despesas, 0);
       const totalLucro = comparisonData.reduce((acc, item) => acc + item.lucro, 0);
       
       data.push({
         Mês: "TOTAL",
-        Receitas: formatBRL(totalReceitas),
-        Despesas: formatBRL(totalDespesas),
-        Lucro: formatBRL(totalLucro)
+        "Lucro Líquido": formatBRL(totalLucro),
+        Despesas: formatBRL(totalDespesas)
       });
       fileName = "Relatorio_Comparativo";
     }
@@ -834,7 +827,7 @@ export default function ReportsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <BarChart className="h-5 w-5 mr-2" />
-                  Receitas, Despesas e Lucro Líquido
+                  Lucro Líquido e Despesas
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -854,9 +847,8 @@ export default function ReportsPage() {
                       <YAxis />
                       <Tooltip formatter={value => formatCurrency(value as number)} />
                       <Legend />
-                      <Bar dataKey="receitas" name="Receitas" fill="#10b981" />
+                      <Bar dataKey="lucro" name="Lucro Líquido" fill="#10b981" />
                       <Bar dataKey="despesas" name="Despesas" fill="#ef4444" />
-                      <Bar dataKey="lucro" name="Lucro" fill="#3b82f6" />
                     </RechartsBarChart>
                   </ResponsiveContainer>
                 </div>
