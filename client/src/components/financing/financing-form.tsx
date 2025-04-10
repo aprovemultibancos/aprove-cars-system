@@ -388,12 +388,34 @@ export function FinancingForm({ editFinancing }: FinancingFormProps) {
             )}
           />
 
-          {/* Campo de agente como hidden */}
           <FormField
             control={form.control}
             name="agentId"
             render={({ field }) => (
-              <input type="hidden" {...field} value="1" />
+              <FormItem>
+                <FormLabel>Agente/Loja</FormLabel>
+                <Select 
+                  onValueChange={field.onChange} 
+                  defaultValue={field.value?.toString()}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o agente" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {agents?.map((agent) => (
+                      <SelectItem key={agent.id} value={agent.id.toString()}>
+                        {agent.name}
+                      </SelectItem>
+                    ))}
+                    {!agents?.length && (
+                      <SelectItem value="1">Agente Padrão</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
             )}
           />
 
