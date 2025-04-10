@@ -44,17 +44,30 @@ export default function FinancesPage() {
   // Calculate financing stats
   const calculateTotalValue = () => {
     if (!financings || financings.length === 0) return 0;
-    return financings.reduce((sum, financing) => sum + Number(financing.releasedAmount), 0);
+    return financings.reduce((sum, financing) => sum + Number(financing.assetValue), 0);
   };
 
   const calculateTotalProfit = () => {
     if (!financings || financings.length === 0) return 0;
     return financings.reduce((sum, financing) => {
-      const asset = Number(financing.assetValue);
-      const released = Number(financing.releasedAmount);
-      const agentComm = Number(financing.agentCommission);
-      const sellerComm = Number(financing.sellerCommission);
-      return sum + (released - asset - agentComm - sellerComm);
+      // Cálculo correto do lucro com retorno esperado
+      const returnAmount = Number(financing.expectedReturn || 0);
+      const agentComm = Number(financing.agentCommission || 0);
+      const sellerComm = Number(financing.sellerCommission || 0);
+      
+      // ILA: 25.5% do valor de retorno
+      const ilaAmount = returnAmount * 0.255;
+      
+      // Acessórios (calculados a partir do percentual)
+      const assetValue = Number(financing.assetValue || 0);
+      const accessoriesPercentage = Number(financing.accessoriesPercentage || 0);
+      const accessoriesValue = assetValue * (accessoriesPercentage / 100);
+      
+      // Taxa adicional
+      const feeAmount = Number(financing.feeAmount || 0);
+      
+      // Lucro = Retorno - ILA + Acessórios + Taxa - Comissão do agente - Comissão do vendedor
+      return sum + (returnAmount - ilaAmount + accessoriesValue + feeAmount - agentComm - sellerComm);
     }, 0);
   };
   

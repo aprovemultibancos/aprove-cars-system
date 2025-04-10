@@ -146,7 +146,7 @@ export function FinancingTable() {
                 <span className="sr-only">Ver</span>
               </Link>
             </Button>
-            <Button variant="ghost" size="icon" asChild>
+            <Button variant="ghost" size="sm" asChild>
               <Link href={`/finances/${financing.id}/edit`}>
                 <span>Editar</span>
               </Link>
