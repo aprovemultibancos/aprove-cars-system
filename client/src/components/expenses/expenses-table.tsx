@@ -141,8 +141,7 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
             </Link>
             <Link href={`/expenses/${expense.id}/edit`}>
               <Button variant="ghost" size="icon">
-                <Pencil className="h-4 w-4" />
-                <span className="sr-only">Editar</span>
+                <span>Editar</span>
               </Button>
             </Link>
             <AlertDialog>
