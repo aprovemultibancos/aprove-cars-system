@@ -63,11 +63,14 @@ export default function DashboardPage() {
     
     const salesTotal = recentSales.reduce((sum, sale) => sum + Number(sale.salePrice || 0), 0);
     
-    // Cálculo de financiamentos
+    // Cálculo de financiamentos - usamos o valor correto
     const financingTotal = financings?.reduce((sum, f) => sum + Number(f.assetValue || 0), 0) || 0;
     
-    // Cálculo do lucro com base nas vendas e nos custos de aquisição
-    const totalProfit = salesTotal * 0.15; // Estimativa simplificada de 15% de lucro
+    // Cálculo dos retornos esperados dos financiamentos
+    const expectedReturns = financings?.reduce((sum, f) => sum + Number(f.expectedReturn || 0), 0) || 0;
+    
+    // Cálculo do lucro com base nas vendas, financiamentos e custos
+    const totalProfit = salesTotal * 0.15 + expectedReturns; // Lucro das vendas + retornos financiamentos
     
     // Retorna os dados calculados
     return {
