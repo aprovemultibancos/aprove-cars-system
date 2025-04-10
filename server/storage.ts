@@ -63,6 +63,13 @@ export interface IStorage {
   updatePersonnel(id: number, personnel: Partial<Personnel>): Promise<Personnel | undefined>;
   deletePersonnel(id: number): Promise<boolean>;
   
+  // Payment methods
+  getPayments(): Promise<Payment[]>;
+  getPayment(id: string): Promise<Payment | undefined>;
+  createPayment(payment: InsertPayment): Promise<Payment>;
+  updatePayment(id: string, payment: Partial<Payment>): Promise<Payment | undefined>;
+  deletePayment(id: string): Promise<boolean>;
+  
   // Session store
   sessionStore: session.Store;
 }
