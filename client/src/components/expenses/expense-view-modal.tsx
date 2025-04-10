@@ -6,9 +6,11 @@ import { Badge } from "@/components/ui/badge";
 
 interface ExpenseViewModalProps {
   expense: Expense;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function ExpenseViewModal({ expense }: ExpenseViewModalProps) {
+export function ExpenseViewModal({ expense, open, onOpenChange }: ExpenseViewModalProps) {
   const renderExpenseDetails = (e: Expense) => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -64,6 +66,8 @@ export function ExpenseViewModal({ expense }: ExpenseViewModalProps) {
       title={`Despesa: ${expense.description}`}
       item={expense}
       renderContent={renderExpenseDetails}
+      open={open}
+      onOpenChange={onOpenChange}
     />
   );
 }

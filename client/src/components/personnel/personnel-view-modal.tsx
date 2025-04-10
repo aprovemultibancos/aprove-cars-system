@@ -6,15 +6,18 @@ import { Badge } from "@/components/ui/badge";
 
 interface PersonnelViewModalProps {
   personnel: Personnel;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 const typeMap = {
   employee: { label: "Funcionário", color: "default" },
   agent: { label: "Agente", color: "secondary" },
   partner: { label: "Parceiro", color: "primary" },
+  dealer: { label: "Lojista", color: "secondary" },
 };
 
-export function PersonnelViewModal({ personnel }: PersonnelViewModalProps) {
+export function PersonnelViewModal({ personnel, open, onOpenChange }: PersonnelViewModalProps) {
   const renderPersonnelDetails = (p: Personnel) => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -34,7 +37,7 @@ export function PersonnelViewModal({ personnel }: PersonnelViewModalProps) {
             <dd>{p.role || "Não especificado"}</dd>
             <dt className="font-medium">Status:</dt>
             <dd>
-              <Badge variant={p.isActive ? "success" : "destructive"}>
+              <Badge variant={p.isActive ? "default" : "destructive"}>
                 {p.isActive ? "Ativo" : "Inativo"}
               </Badge>
             </dd>
@@ -90,6 +93,8 @@ export function PersonnelViewModal({ personnel }: PersonnelViewModalProps) {
       title={`${personnel.name} - ${typeMap[personnel.type]?.label || personnel.type}`}
       item={personnel}
       renderContent={renderPersonnelDetails}
+      open={open}
+      onOpenChange={onOpenChange}
     />
   );
 }
