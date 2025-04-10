@@ -1,4 +1,4 @@
-import { users, type User, type InsertUser, vehicles, Vehicle, InsertVehicle, customers, Customer, InsertCustomer, sales, Sale, InsertSale, financings, Financing, InsertFinancing, expenses, Expense, InsertExpense, personnel, Personnel, InsertPersonnel } from "@shared/schema";
+import { users, type User, type InsertUser, vehicles, Vehicle, InsertVehicle, customers, Customer, InsertCustomer, sales, Sale, InsertSale, financings, Financing, InsertFinancing, expenses, Expense, InsertExpense, personnel, Personnel, InsertPersonnel, payments, Payment, InsertPayment } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 import connectPg from "connect-pg-simple";
@@ -400,6 +400,27 @@ export class MemStorage implements IStorage {
   async deletePersonnel(id: number): Promise<boolean> {
     return this.personnel.delete(id);
   }
+  
+  // Payment methods
+  async getPayments(): Promise<Payment[]> {
+    return [];
+  }
+  
+  async getPayment(id: string): Promise<Payment | undefined> {
+    return undefined;
+  }
+  
+  async createPayment(payment: InsertPayment): Promise<Payment> {
+    return payment as any;
+  }
+  
+  async updatePayment(id: string, payment: Partial<Payment>): Promise<Payment | undefined> {
+    return undefined;
+  }
+  
+  async deletePayment(id: string): Promise<boolean> {
+    return false;
+  }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -672,6 +693,36 @@ export class DatabaseStorage implements IStorage {
   
   async deletePersonnel(id: number): Promise<boolean> {
     const result = await db.delete(personnel).where(eq(personnel.id, id));
+    return result.rowCount > 0;
+  }
+  
+  // Payment methods
+  async getPayments(): Promise<Payment[]> {
+    return await db.select().from(payments);
+  }
+  
+  async getPayment(id: string): Promise<Payment | undefined> {
+    const [payment] = await db.select().from(payments).where(eq(payments.id, id));
+    return payment;
+  }
+  
+  async createPayment(payment: InsertPayment): Promise<Payment> {
+    const [newPayment] = await db.insert(payments).values({
+      ...payment
+    }).returning();
+    return newPayment;
+  }
+  
+  async updatePayment(id: string, paymentData: Partial<Payment>): Promise<Payment | undefined> {
+    const [updatedPayment] = await db.update(payments)
+      .set(paymentData)
+      .where(eq(payments.id, id))
+      .returning();
+    return updatedPayment;
+  }
+  
+  async deletePayment(id: string): Promise<boolean> {
+    const result = await db.delete(payments).where(eq(payments.id, id));
     return result.rowCount > 0;
   }
 }

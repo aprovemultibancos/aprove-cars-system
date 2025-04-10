@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
-import { insertVehicleSchema, insertCustomerSchema, insertSaleSchema, insertFinancingSchema, insertExpenseSchema, insertPersonnelSchema, insertUserSchema, users as usersTable } from "@shared/schema";
+import { insertVehicleSchema, insertCustomerSchema, insertSaleSchema, insertFinancingSchema, insertExpenseSchema, insertPersonnelSchema, insertUserSchema, users as usersTable, InsertPayment } from "@shared/schema";
 import { db } from "./db";
 import { z } from "zod";
 import { 
@@ -577,8 +577,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Listar pagamentos
   app.get("/api/payments", async (req, res) => {
     try {
-      const payments = await listPayments();
-      res.json(payments);
+      // Primeiro tenta buscar do Asaas
+      try {
+        const payments = await listPayments();
+        res.json(payments);
+      } catch (asaasError) {
+        // Se falhar com Asaas, busca do banco de dados local
+        console.error("Erro ao listar pagamentos do Asaas:", asaasError);
+        console.log("Buscando pagamentos do banco de dados local");
+        
+        const localPayments = await storage.getPayments();
+        res.json(localPayments);
+      }
     } catch (error) {
       console.error("Erro ao listar pagamentos:", error);
       res.status(500).json({ 
@@ -715,6 +725,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
             customerName: "Cliente não encontrado",
             customerDocumentNumber: ""
           };
+        }
+      }
+      
+      // Se o pagamento foi criado localmente, salve-o no banco de dados
+      if (payment.id.startsWith('local-')) {
+        try {
+          // Prepare the payment data for the database
+          const dbPayment: InsertPayment = {
+            id: payment.id,
+            customer: payment.customer,
+            customerName: enrichedPayment.customerName,
+            customerDocumentNumber: enrichedPayment.customerDocumentNumber || "00000000000",
+            value: payment.value.toString(),
+            netValue: payment.netValue.toString(),
+            description: payment.description,
+            billingType: payment.billingType,
+            status: payment.status,
+            dueDate: payment.dueDate,
+            createdAt: payment.createdAt,
+            isExternal: false,
+            relatedSaleId: relatedSaleId
+          };
+          
+          console.log("Salvando pagamento local no banco de dados:", dbPayment);
+          const savedPayment = await storage.createPayment(dbPayment);
+          console.log("Pagamento local salvo com sucesso:", savedPayment);
+          enrichedPayment = savedPayment;
+        } catch (dbError) {
+          console.error("Erro ao salvar pagamento local no banco de dados:", dbError);
+          // Continue with the response even if database saving fails
         }
       }
 
