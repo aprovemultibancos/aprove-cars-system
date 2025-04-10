@@ -68,8 +68,8 @@ export function PaymentForm({ customers, sales }: PaymentFormProps) {
   const form = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentFormSchema),
     defaultValues: {
-      customerId: customers.length > 0 ? String(customers[0].id) : "manual",
-      customerName: customers.length > 0 ? customers[0].name : "",
+      customerId: "manual",
+      customerName: "",
       description: "",
       value: 0,
       dueDate: new Date(),
@@ -163,61 +163,14 @@ export function PaymentForm({ customers, sales }: PaymentFormProps) {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="md:col-span-2">
-            <div className="mb-6">
-              <FormField
-                control={form.control}
-                name="customerId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cliente (Registrado)</FormLabel>
-                    <Select
-                      onValueChange={(value) => {
-                        field.onChange(value);
-                        
-                        if (value === "manual") {
-                          // Limpar o nome do cliente para entrada manual
-                          form.setValue("customerName", "");
-                        } else {
-                          // Encontrar o cliente selecionado para atualizar também o customerName
-                          const selectedCustomer = customers.find(
-                            (customer) => customer.id.toString() === value
-                          );
-                          if (selectedCustomer) {
-                            form.setValue("customerName", selectedCustomer.name);
-                          }
-                        }
-                      }}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione um cliente" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="manual">-- Cliente Manual --</SelectItem>
-                        {customers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id.toString()}>
-                            {customer.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      Selecione um cliente registrado ou use a opção "Cliente Manual"
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            <input type="hidden" name="customerId" value="manual" />
             
             <FormField
               control={form.control}
               name="customerName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nome do Cliente</FormLabel>
+                  <FormLabel>Nome do Cliente Manual</FormLabel>
                   <FormControl>
                     <Input 
                       placeholder="Digite o nome do cliente" 
