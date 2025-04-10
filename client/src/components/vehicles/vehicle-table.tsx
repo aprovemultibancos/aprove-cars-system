@@ -23,11 +23,13 @@ import {
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { VehicleViewModal } from "./vehicle-view-modal";
 
 export function VehicleTable() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [vehicleToDelete, setVehicleToDelete] = useState<number | null>(null);
+  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   
   const { data: vehicles, isLoading } = useQuery<Vehicle[]>({
     queryKey: ["/api/vehicles"],
