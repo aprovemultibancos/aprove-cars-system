@@ -23,21 +23,21 @@ export function StatCard({
   iconColor = "bg-primary-500"
 }: StatCardProps) {
   return (
-    <Card className={cn("p-4", className)}>
+    <Card className={cn("p-3 md:p-4", className)}>
       <div className="flex items-center">
         <div className="flex-shrink-0">
-          <div className={cn("flex items-center justify-center h-12 w-12 rounded-md text-white", iconColor)}>
-            <Icon className="h-6 w-6" />
+          <div className={cn("flex items-center justify-center h-10 w-10 md:h-12 md:w-12 rounded-md text-white", iconColor)}>
+            <Icon className="h-5 w-5 md:h-6 md:w-6" />
           </div>
         </div>
-        <div className="ml-5">
-          <div className="text-sm font-medium text-gray-500 truncate">{title}</div>
-          <div className="mt-1 text-xl font-semibold text-gray-900">{value}</div>
+        <div className="ml-3 md:ml-5">
+          <div className="text-xs md:text-sm font-medium text-gray-500 truncate-text">{title}</div>
+          <div className="mt-1 text-lg md:text-xl font-semibold text-gray-900 mobile-text">{value}</div>
           {trend && (
-            <div className={cn("text-sm flex items-center", 
+            <div className={cn("text-xs md:text-sm flex items-center", 
               trend.positive ? "text-green-600" : "text-red-600")}>
               <svg 
-                className={cn("self-center flex-shrink-0 h-4 w-4", 
+                className={cn("self-center flex-shrink-0 h-3 w-3 md:h-4 md:w-4", 
                   trend.positive ? "text-green-500" : "text-red-500")} 
                 fill="currentColor" 
                 viewBox="0 0 20 20" 
@@ -51,7 +51,7 @@ export function StatCard({
                   clipRule="evenodd"
                 />
               </svg>
-              {trend.value}
+              <span className="ml-1 truncate-text">{trend.value}</span>
             </div>
           )}
         </div>

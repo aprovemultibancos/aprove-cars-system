@@ -29,7 +29,7 @@ function SidebarLink({ href, icon: Icon, children, currentPath }: SidebarLinkPro
   
   return (
     <Link href={href}>
-      <a 
+      <div 
         className={cn(
           "flex items-center px-3 py-2 text-gray-700 hover:bg-green-100 hover:text-green-800 rounded-md transition-all",
           isActive && "bg-primary text-black hover:bg-primary-600 hover:text-black font-bold"
@@ -37,7 +37,7 @@ function SidebarLink({ href, icon: Icon, children, currentPath }: SidebarLinkPro
       >
         <Icon className="mr-3 h-5 w-5" />
         {children}
-      </a>
+      </div>
     </Link>
   );
 }

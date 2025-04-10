@@ -20,16 +20,16 @@ interface StatsOverviewProps {
 export function StatsOverview({ data, isLoading = false }: StatsOverviewProps) {
   if (isLoading) {
     return (
-      <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 md:gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-32 bg-gray-100 animate-pulse rounded-lg"></div>
+          <div key={i} className="h-28 md:h-32 bg-gray-100 animate-pulse rounded-lg"></div>
         ))}
       </div>
     );
   }
 
   return (
-    <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 md:gap-4">
       <StatCard
         title="Valor do Inventário"
         value={data.inventoryValue}
@@ -39,6 +39,7 @@ export function StatsOverview({ data, isLoading = false }: StatsOverviewProps) {
           value: data.inventoryTrend,
           positive: !data.inventoryTrend.includes("-")
         } : undefined}
+        className="dashboard-card"
       />
       
       <StatCard
@@ -50,6 +51,7 @@ export function StatsOverview({ data, isLoading = false }: StatsOverviewProps) {
           value: data.salesTrend,
           positive: !data.salesTrend.includes("-")
         } : undefined}
+        className="dashboard-card"
       />
       
       <StatCard
@@ -61,6 +63,7 @@ export function StatsOverview({ data, isLoading = false }: StatsOverviewProps) {
           value: data.financingTrend,
           positive: !data.financingTrend.includes("-")
         } : undefined}
+        className="dashboard-card"
       />
       
       <StatCard
@@ -72,6 +75,7 @@ export function StatsOverview({ data, isLoading = false }: StatsOverviewProps) {
           value: data.profitTrend,
           positive: !data.profitTrend.includes("-")
         } : undefined}
+        className="dashboard-card"
       />
     </div>
   );

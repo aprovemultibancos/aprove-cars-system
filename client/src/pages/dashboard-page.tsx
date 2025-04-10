@@ -290,9 +290,9 @@ export default function DashboardPage() {
     <div>
       <PageHeader title="Dashboard">
         <PageHeader.Action>
-          <div className="flex space-x-2">
+          <div className="flex flex-col md:flex-row gap-2">
             <Select value={dateRange} onValueChange={(value) => setDateRange(value as DateRange)}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full md:w-[180px]">
                 <SelectValue placeholder="Período" />
               </SelectTrigger>
               <SelectContent>
@@ -306,6 +306,7 @@ export default function DashboardPage() {
             <Button 
               variant="outline" 
               onClick={exportDashboardData}
+              className="mobile-btn-lg"
             >
               <Download className="h-4 w-4 mr-2" />
               Exportar
@@ -318,19 +319,25 @@ export default function DashboardPage() {
       <UpcomingExpensesAlert />
       
       {/* Stats Cards */}
-      <StatsOverview 
-        data={calculateStats()}
-        isLoading={vehiclesLoading || financingsLoading}
-      />
+      <div className="mt-4 md:mt-6">
+        <StatsOverview 
+          data={calculateStats()}
+          isLoading={vehiclesLoading || financingsLoading}
+        />
+      </div>
       
       {/* Charts */}
-      <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2">
-        <SalesChart data={salesChartData} />
-        <FinancingChart data={financingChartData} />
+      <div className="mt-6 md:mt-8 grid grid-cols-1 gap-4 md:gap-5 lg:grid-cols-2">
+        <div className="dashboard-card">
+          <SalesChart data={salesChartData} />
+        </div>
+        <div className="dashboard-card">
+          <FinancingChart data={financingChartData} />
+        </div>
       </div>
       
       {/* Recent Vehicles */}
-      <div className="mt-8">
+      <div className="mt-6 md:mt-8">
         <RecentVehicles 
           vehicles={getRecentVehicles()}
           isLoading={vehiclesLoading}
@@ -338,7 +345,7 @@ export default function DashboardPage() {
       </div>
       
       {/* Recent Financing */}
-      <div className="mt-8 mb-8">
+      <div className="mt-6 md:mt-8 mb-6 md:mb-8">
         <RecentFinancing 
           financings={getRecentFinancings()}
           isLoading={financingsLoading}
