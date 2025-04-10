@@ -158,6 +158,98 @@ export default function ReportsPage() {
     return Object.entries(banks).map(([name, value]) => ({ name, value }));
   }, [financings]);
   
+  // Gerar dados de comparação por mês usando dados reais
+  const comparisonData = useMemo(() => {
+    const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+    const currentMonth = new Date().getMonth();
+    
+    // Inicializar array com os últimos 6 meses
+    const result: { month: string; receitas: number; despesas: number; lucro: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const monthIndex = (currentMonth - i + 12) % 12; // Garantir índice positivo
+      result.push({
+        month: months[monthIndex],
+        receitas: 0,
+        despesas: 0,
+        lucro: 0
+      });
+    }
+    
+    // Processar vendas por mês
+    if (sales && sales.length > 0) {
+      sales.forEach(sale => {
+        try {
+          if (!sale.saleDate) return;
+          
+          const saleDate = new Date(sale.saleDate);
+          if (isNaN(saleDate.getTime())) return; // Ignorar datas inválidas
+          
+          const monthIndex = saleDate.getMonth();
+          const monthName = months[monthIndex];
+          
+          // Verificar se o mês está nos últimos 6 meses
+          const entry = result.find(entry => entry.month === monthName);
+          if (entry) {
+            entry.receitas += Number(sale.salePrice || 0);
+          }
+        } catch (error) {
+          console.error("Erro ao processar venda:", error);
+        }
+      });
+    }
+    
+    // Adicionar financiamentos às receitas
+    if (financings && financings.length > 0) {
+      financings.forEach(financing => {
+        try {
+          const createdAt = financing.createdAt ? new Date(financing.createdAt) : new Date();
+          if (isNaN(createdAt.getTime())) return; // Ignorar datas inválidas
+          
+          const monthIndex = createdAt.getMonth();
+          const monthName = months[monthIndex];
+          
+          // Verificar se o mês está nos últimos 6 meses
+          const entry = result.find(entry => entry.month === monthName);
+          if (entry) {
+            entry.receitas += Number(financing.assetValue || 0);
+          }
+        } catch (error) {
+          console.error("Erro ao processar financiamento:", error);
+        }
+      });
+    }
+    
+    // Processar despesas por mês
+    if (expenses && expenses.length > 0) {
+      expenses.forEach(expense => {
+        try {
+          if (!expense.date) return;
+          
+          const expenseDate = new Date(expense.date);
+          if (isNaN(expenseDate.getTime())) return; // Ignorar datas inválidas
+          
+          const monthIndex = expenseDate.getMonth();
+          const monthName = months[monthIndex];
+          
+          // Verificar se o mês está nos últimos 6 meses
+          const entry = result.find(entry => entry.month === monthName);
+          if (entry) {
+            entry.despesas += Number(expense.amount || 0);
+          }
+        } catch (error) {
+          console.error("Erro ao processar despesa:", error);
+        }
+      });
+    }
+    
+    // Calcular lucro para cada mês
+    result.forEach(entry => {
+      entry.lucro = entry.receitas - entry.despesas;
+    });
+    
+    return result;
+  }, [sales, financings, expenses]);
+  
   // Gerar dados de despesas a partir dos dados reais
   const expenseData = useMemo(() => {
     if (!expenses || expenses.length === 0) return [];
@@ -320,93 +412,7 @@ export default function ReportsPage() {
       });
     }
     else if (activeTab === "comparison") {
-      // Gerar dados de comparação por mês usando dados reais
-      const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-      const currentMonth = new Date().getMonth();
-      
-      // Inicializar array com os últimos 6 meses
-      const comparisonData: { month: string; receitas: number; despesas: number; lucro: number }[] = [];
-      for (let i = 5; i >= 0; i--) {
-        const monthIndex = (currentMonth - i + 12) % 12; // Garantir índice positivo
-        comparisonData.push({
-          month: months[monthIndex],
-          receitas: 0,
-          despesas: 0,
-          lucro: 0
-        });
-      }
-      
-      // Processar vendas por mês
-      if (sales && sales.length > 0) {
-        sales.forEach(sale => {
-          try {
-            if (!sale.saleDate) return;
-            
-            const saleDate = new Date(sale.saleDate);
-            if (isNaN(saleDate.getTime())) return; // Ignorar datas inválidas
-            
-            const monthIndex = saleDate.getMonth();
-            const monthName = months[monthIndex];
-            
-            // Verificar se o mês está nos últimos 6 meses
-            const entry = comparisonData.find(entry => entry.month === monthName);
-            if (entry) {
-              entry.receitas += Number(sale.salePrice || 0);
-            }
-          } catch (error) {
-            console.error("Erro ao processar venda:", error);
-          }
-        });
-      }
-      
-      // Adicionar financiamentos às receitas
-      if (financings && financings.length > 0) {
-        financings.forEach(financing => {
-          try {
-            const createdAt = financing.createdAt ? new Date(financing.createdAt) : new Date();
-            if (isNaN(createdAt.getTime())) return; // Ignorar datas inválidas
-            
-            const monthIndex = createdAt.getMonth();
-            const monthName = months[monthIndex];
-            
-            // Verificar se o mês está nos últimos 6 meses
-            const entry = comparisonData.find(entry => entry.month === monthName);
-            if (entry) {
-              entry.receitas += Number(financing.assetValue || 0);
-            }
-          } catch (error) {
-            console.error("Erro ao processar financiamento:", error);
-          }
-        });
-      }
-      
-      // Processar despesas por mês
-      if (expenses && expenses.length > 0) {
-        expenses.forEach(expense => {
-          try {
-            if (!expense.date) return;
-            
-            const expenseDate = new Date(expense.date);
-            if (isNaN(expenseDate.getTime())) return; // Ignorar datas inválidas
-            
-            const monthIndex = expenseDate.getMonth();
-            const monthName = months[monthIndex];
-            
-            // Verificar se o mês está nos últimos 6 meses
-            const entry = comparisonData.find(entry => entry.month === monthName);
-            if (entry) {
-              entry.despesas += Number(expense.amount || 0);
-            }
-          } catch (error) {
-            console.error("Erro ao processar despesa:", error);
-          }
-        });
-      }
-      
-      // Calcular lucro para cada mês
-      comparisonData.forEach(entry => {
-        entry.lucro = entry.receitas - entry.despesas;
-      });
+      // Usar os dados já calculados pelo useMemo
       
       columns = [
         { header: "Mês", dataKey: "month" },
