@@ -5,7 +5,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Pencil, Eye, Trash2 } from "lucide-react";
+import { Eye, Trash2 } from "lucide-react";
 import { Link } from "wouter";
 import { formatCurrency } from "@/lib/utils";
 import {
@@ -22,6 +22,7 @@ import {
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { ExpenseViewModal } from "./expense-view-modal";
 
 interface ExpensesTableProps {
   filter?: "fixed" | "variable";
@@ -31,6 +32,7 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [expenseToDelete, setExpenseToDelete] = useState<number | null>(null);
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   
   const { data: expenses, isLoading: expensesLoading } = useQuery<Expense[]>({
     queryKey: ["/api/expenses"],
@@ -133,17 +135,14 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
         
         return (
           <div className="flex items-center justify-end space-x-2">
-            <Link href={`/expenses/${expense.id}/view`}>
-              <Button variant="ghost" size="icon">
-                <Eye className="h-4 w-4" />
-                <span className="sr-only">Ver</span>
-              </Button>
-            </Link>
-            <Link href={`/expenses/${expense.id}/edit`}>
-              <Button variant="ghost" size="icon">
-                <span>Editar</span>
-              </Button>
-            </Link>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSelectedExpense(expense)}
+            >
+              <Eye className="h-4 w-4" />
+              <span className="sr-only">Ver</span>
+            </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button 
@@ -189,11 +188,23 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
   }
 
   return (
-    <DataTable 
-      columns={columns} 
-      data={filteredExpenses} 
-      searchKey="description"
-      searchPlaceholder="Buscar despesas..."
-    />
+    <>
+      <DataTable 
+        columns={columns} 
+        data={filteredExpenses} 
+        searchKey="description"
+        searchPlaceholder="Buscar despesas..."
+      />
+      
+      {selectedExpense && (
+        <ExpenseViewModal
+          expense={selectedExpense}
+          open={!!selectedExpense}
+          onOpenChange={(open) => {
+            if (!open) setSelectedExpense(null);
+          }}
+        />
+      )}
+    </>
   );
 }
