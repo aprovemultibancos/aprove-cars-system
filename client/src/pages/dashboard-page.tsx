@@ -64,7 +64,7 @@ export default function DashboardPage() {
     const salesTotal = recentSales.reduce((sum, sale) => sum + Number(sale.salePrice || 0), 0);
     
     // Cálculo de financiamentos
-    const financingTotal = financings?.reduce((sum, f) => sum + Number(f.releasedAmount || 0), 0) || 0;
+    const financingTotal = financings?.reduce((sum, f) => sum + Number(f.assetValue || 0), 0) || 0;
     
     // Cálculo do lucro com base nas vendas e nos custos de aquisição
     const totalProfit = salesTotal * 0.15; // Estimativa simplificada de 15% de lucro
@@ -137,7 +137,7 @@ export default function DashboardPage() {
       if (!acc[bank]) {
         acc[bank] = 0;
       }
-      acc[bank] += Number(financing.releasedAmount || 0);
+      acc[bank] += Number(financing.assetValue || 0);
       return acc;
     }, {} as Record<string, number>);
     

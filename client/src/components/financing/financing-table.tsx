@@ -114,9 +114,9 @@ export function FinancingTable() {
       cell: ({ row }) => getBankName(row.original.bank),
     },
     {
-      accessorKey: "releasedAmount",
+      accessorKey: "assetValue",
       header: "Valor",
-      cell: ({ row }) => formatCurrency(Number(row.original.releasedAmount)),
+      cell: ({ row }) => formatCurrency(Number(row.original.assetValue)),
     },
     {
       accessorKey: "status",

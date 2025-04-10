@@ -102,7 +102,7 @@ export function RecentFinancing({ financings, isLoading = false }: RecentFinanci
                           <div className="text-sm text-gray-900">{financing.bank}</div>
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{formatCurrency(Number(financing.releasedAmount) || 0)}</div>
+                          <div className="text-sm text-gray-900">{formatCurrency(Number(financing.assetValue) || 0)}</div>
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
                           {getStatusBadge(financing.status)}
