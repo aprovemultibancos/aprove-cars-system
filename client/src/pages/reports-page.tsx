@@ -797,21 +797,14 @@ export default function ReportsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <LineChart className="h-5 w-5 mr-2" />
-                  Despesas ao Longo do Tempo
+                  Despesas e Lucro Líquido ao Longo do Tempo
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <RechartsLineChart
-                      data={[
-                        { month: "Jan", fixed: 120000, variable: 45000 },
-                        { month: "Fev", fixed: 120000, variable: 52000 },
-                        { month: "Mar", fixed: 125000, variable: 48000 },
-                        { month: "Abr", fixed: 125000, variable: 55000 },
-                        { month: "Mai", fixed: 130000, variable: 50000 },
-                        { month: "Jun", fixed: 130000, variable: 60000 },
-                      ]}
+                      data={comparisonData}
                       margin={{
                         top: 20,
                         right: 30,
@@ -824,8 +817,8 @@ export default function ReportsPage() {
                       <YAxis />
                       <Tooltip formatter={value => formatCurrency(value as number)} />
                       <Legend />
-                      <Line type="monotone" dataKey="fixed" name="Fixas" stroke="#10b981" />
-                      <Line type="monotone" dataKey="variable" name="Variáveis" stroke="#059669" />
+                      <Line type="monotone" dataKey="despesas" name="Despesas" stroke="#ef4444" />
+                      <Line type="monotone" dataKey="lucro" name="Lucro Líquido" stroke="#3b82f6" />
                     </RechartsLineChart>
                   </ResponsiveContainer>
                 </div>
@@ -841,7 +834,7 @@ export default function ReportsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <BarChart className="h-5 w-5 mr-2" />
-                  Receitas vs. Despesas
+                  Receitas, Despesas e Lucro Líquido
                 </CardTitle>
               </CardHeader>
               <CardContent>
