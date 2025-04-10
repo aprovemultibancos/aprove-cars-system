@@ -6,7 +6,7 @@ import { FinancingChart } from "@/components/dashboard/chart-section";
 import { RecentVehicles } from "@/components/dashboard/recent-vehicles";
 import { RecentFinancing } from "@/components/dashboard/recent-financing";
 import { UpcomingExpensesAlert } from "@/components/dashboard/upcoming-expenses-alert";
-import { Vehicle, Financing, Customer, Personnel } from "@shared/schema";
+import { Vehicle, Financing, Customer, Personnel, Sale } from "@shared/schema";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
@@ -36,45 +36,120 @@ export default function DashboardPage() {
     queryKey: ["/api/personnel"],
   });
   
-  // Calculate stats
+  const { data: sales } = useQuery<Sale[]>({
+    queryKey: ["/api/sales"],
+  });
+  
+  // Calcular estatísticas reais baseadas nos dados do banco de dados
   const calculateStats = () => {
+    // Cálculo do valor de inventário (veículos disponíveis)
     const availableVehicles = vehicles?.filter(v => v.status === "available") || [];
     const inventoryValue = availableVehicles.reduce((sum, vehicle) => sum + Number(vehicle.sellingPrice), 0);
     
-    // This would typically be filtered by date range
-    const monthlySales = 325400;
-    const financingTotal = financings?.reduce((sum, f) => sum + Number(f.releasedAmount), 0) || 0;
-    const totalProfit = 183450;
+    // Cálculo de vendas utilizando os dados de vendas reais
+    const lastMonthDate = new Date();
+    lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
     
+    // Filtrar vendas do último mês
+    const recentSales = sales?.filter(sale => {
+      if (!sale.saleDate) return false;
+      try {
+        const saleDate = new Date(sale.saleDate);
+        return saleDate >= lastMonthDate;
+      } catch (e) {
+        return false;
+      }
+    }) || [];
+    
+    const salesTotal = recentSales.reduce((sum, sale) => sum + Number(sale.salePrice || 0), 0);
+    
+    // Cálculo de financiamentos
+    const financingTotal = financings?.reduce((sum, f) => sum + Number(f.releasedAmount || 0), 0) || 0;
+    
+    // Cálculo do lucro com base nas vendas e nos custos de aquisição
+    const totalProfit = salesTotal * 0.15; // Estimativa simplificada de 15% de lucro
+    
+    // Retorna os dados calculados
     return {
       inventoryValue: `R$ ${inventoryValue.toLocaleString('pt-BR')}`,
-      monthlySales: `R$ ${monthlySales.toLocaleString('pt-BR')}`,
+      monthlySales: `R$ ${salesTotal.toLocaleString('pt-BR')}`,
       financingTotal: `R$ ${financingTotal.toLocaleString('pt-BR')}`,
       totalProfit: `R$ ${totalProfit.toLocaleString('pt-BR')}`,
-      inventoryTrend: "12% este mês",
-      salesTrend: "8% sobre Abril",
-      financingTrend: "15% este mês",
-      profitTrend: "-5% sobre Abril"
+      inventoryTrend: availableVehicles.length > 0 ? `${availableVehicles.length} veículos` : "Sem dados",
+      salesTrend: recentSales.length > 0 ? `${recentSales.length} vendas recentes` : "Sem dados",
+      financingTrend: financings && financings.length > 0 ? `${financings.length} contratos` : "Sem dados",
+      profitTrend: totalProfit > 0 ? "Positivo" : "Negativo"
     };
   };
   
-  // Sample chart data - in a real app, this would come from an API
-  const salesChartData = [
-    { month: "Jan", sales: 210000 },
-    { month: "Fev", sales: 190000 },
-    { month: "Mar", sales: 250000 },
-    { month: "Abr", sales: 300000 },
-    { month: "Mai", sales: 325400 },
-    { month: "Jun", sales: 0 },
-  ];
+  // Gerar dados reais de vendas mensais
+  const generateSalesChartData = () => {
+    // Se não tiver vendas, retorna array vazio
+    if (!sales || sales.length === 0) return [];
+    
+    // Meses em português
+    const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+    const currentMonth = new Date().getMonth();
+    
+    // Inicializa array com os últimos 6 meses
+    const chartData: { month: string; sales: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const monthIndex = (currentMonth - i + 12) % 12; // Garante que o índice seja positivo
+      chartData.push({
+        month: months[monthIndex],
+        sales: 0
+      });
+    }
+    
+    // Processar dados de vendas
+    sales.forEach(sale => {
+      try {
+        if (!sale.saleDate) return;
+        
+        // Converter a data para um objeto Date
+        const saleDate = new Date(sale.saleDate);
+        if (isNaN(saleDate.getTime())) return; // Ignora datas inválidas
+        
+        const monthIndex = saleDate.getMonth();
+        const monthName = months[monthIndex];
+        
+        // Verificar se o mês está nos últimos 6 meses
+        const chartEntry = chartData.find(entry => entry.month === monthName);
+        if (chartEntry) {
+          chartEntry.sales += Number(sale.salePrice || 0);
+        }
+      } catch (error) {
+        console.error("Erro ao processar data de venda:", error);
+      }
+    });
+    
+    return chartData;
+  };
+
+  // Gerar dados reais de financiamentos por banco
+  const generateFinancingChartData = () => {
+    // Se não tiver financiamentos, retorna array vazio
+    if (!financings || financings.length === 0) return [];
+    
+    // Agrupa financiamentos por banco
+    const bankSummary = financings.reduce((acc, financing) => {
+      const bank = financing.bank || "Outros";
+      if (!acc[bank]) {
+        acc[bank] = 0;
+      }
+      acc[bank] += Number(financing.releasedAmount || 0);
+      return acc;
+    }, {} as Record<string, number>);
+    
+    // Converte para formato do gráfico
+    return Object.entries(bankSummary).map(([bank, value]) => ({
+      bank,
+      value
+    }));
+  };
   
-  const financingChartData = [
-    { bank: "Banco do Brasil", value: 350000 },
-    { bank: "Caixa", value: 250000 },
-    { bank: "Santander", value: 120000 },
-    { bank: "Itaú", value: 80000 },
-    { bank: "Outros", value: 50000 },
-  ];
+  const salesChartData = generateSalesChartData();
+  const financingChartData = generateFinancingChartData();
   
   // Prepare data for recent components
   const getRecentVehicles = () => {

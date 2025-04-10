@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,48 +25,157 @@ import { formatCurrency } from "@/lib/utils";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+import { Sale, Financing, Expense, Vehicle, Personnel } from "@shared/schema";
 
-// Sample data for charts
-const salesData = [
-  { month: "Jan", cars: 10, value: 400000 },
-  { month: "Fev", cars: 12, value: 450000 },
-  { month: "Mar", cars: 15, value: 600000 },
-  { month: "Abr", cars: 18, value: 700000 },
-  { month: "Mai", cars: 16, value: 650000 },
-  { month: "Jun", cars: 20, value: 800000 },
-];
-
-const financingData = [
-  { month: "Jan", count: 8, value: 300000 },
-  { month: "Fev", count: 10, value: 380000 },
-  { month: "Mar", count: 12, value: 450000 },
-  { month: "Abr", count: 15, value: 580000 },
-  { month: "Mai", count: 13, value: 500000 },
-  { month: "Jun", count: 17, value: 650000 },
-];
-
-const bankData = [
-  { name: "Banco do Brasil", value: 350000 },
-  { name: "Caixa", value: 250000 },
-  { name: "Santander", value: 180000 },
-  { name: "Itaú", value: 120000 },
-  { name: "Outros", value: 80000 },
-];
-
-const expenseData = [
-  { category: "Salários", value: 180000 },
-  { category: "Comissões", value: 120000 },
-  { category: "Aluguel", value: 50000 },
-  { category: "Marketing", value: 35000 },
-  { category: "Operacional", value: 45000 },
-  { category: "Outros", value: 30000 },
-];
-
+// Cores para os gráficos
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
 export default function ReportsPage() {
   const [dateRange, setDateRange] = useState("year");
   const [activeTab, setActiveTab] = useState("sales");
+  
+  // Buscar dados reais do backend
+  const { data: sales, isLoading: salesLoading } = useQuery<Sale[]>({
+    queryKey: ["/api/sales"],
+  });
+  
+  const { data: financings, isLoading: financingsLoading } = useQuery<Financing[]>({
+    queryKey: ["/api/financings"],
+  });
+  
+  const { data: expenses, isLoading: expensesLoading } = useQuery<Expense[]>({
+    queryKey: ["/api/expenses"],
+  });
+  
+  const { data: vehicles, isLoading: vehiclesLoading } = useQuery<Vehicle[]>({
+    queryKey: ["/api/vehicles"],
+  });
+  
+  const { data: personnel, isLoading: personnelLoading } = useQuery<Personnel[]>({
+    queryKey: ["/api/personnel"],
+  });
+  
+  // Gerar dados de vendas por mês a partir dos dados reais
+  const salesData = useMemo(() => {
+    if (!sales || sales.length === 0) return [];
+    
+    const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+    const currentMonth = new Date().getMonth();
+    
+    // Inicializar array com os últimos 6 meses
+    const result: { month: string; cars: number; value: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const monthIndex = (currentMonth - i + 12) % 12; // Garantir índice positivo
+      result.push({
+        month: months[monthIndex],
+        cars: 0,
+        value: 0
+      });
+    }
+    
+    // Processar vendas reais
+    sales.forEach(sale => {
+      try {
+        if (!sale.saleDate) return;
+        
+        const saleDate = new Date(sale.saleDate);
+        if (isNaN(saleDate.getTime())) return; // Ignorar datas inválidas
+        
+        const monthIndex = saleDate.getMonth();
+        const monthName = months[monthIndex];
+        
+        // Verificar se o mês está nos últimos 6 meses
+        const entry = result.find(entry => entry.month === monthName);
+        if (entry) {
+          entry.cars += 1;
+          entry.value += Number(sale.salePrice || 0);
+        }
+      } catch (error) {
+        console.error("Erro ao processar venda:", error);
+      }
+    });
+    
+    return result;
+  }, [sales]);
+  
+  // Gerar dados de financiamentos por mês
+  const financingData = useMemo(() => {
+    if (!financings || financings.length === 0) return [];
+    
+    const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+    const currentMonth = new Date().getMonth();
+    
+    // Inicializar array com os últimos 6 meses
+    const result: { month: string; count: number; value: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const monthIndex = (currentMonth - i + 12) % 12; // Garantir índice positivo
+      result.push({
+        month: months[monthIndex],
+        count: 0,
+        value: 0
+      });
+    }
+    
+    // Processar financiamentos reais
+    financings.forEach(financing => {
+      try {
+        const createdAt = financing.createdAt ? new Date(financing.createdAt) : new Date();
+        if (isNaN(createdAt.getTime())) return; // Ignorar datas inválidas
+        
+        const monthIndex = createdAt.getMonth();
+        const monthName = months[monthIndex];
+        
+        // Verificar se o mês está nos últimos 6 meses
+        const entry = result.find(entry => entry.month === monthName);
+        if (entry) {
+          entry.count += 1;
+          entry.value += Number(financing.releasedAmount || 0);
+        }
+      } catch (error) {
+        console.error("Erro ao processar financiamento:", error);
+      }
+    });
+    
+    return result;
+  }, [financings]);
+  
+  // Gerar dados de bancos a partir dos dados reais
+  const bankData = useMemo(() => {
+    if (!financings || financings.length === 0) return [];
+    
+    // Agrupar financiamentos por banco
+    const banks: Record<string, number> = {};
+    
+    financings.forEach(financing => {
+      const bank = financing.bank || "Outros";
+      if (!banks[bank]) {
+        banks[bank] = 0;
+      }
+      banks[bank] += Number(financing.releasedAmount || 0);
+    });
+    
+    // Converter para o formato esperado pelo gráfico
+    return Object.entries(banks).map(([name, value]) => ({ name, value }));
+  }, [financings]);
+  
+  // Gerar dados de despesas a partir dos dados reais
+  const expenseData = useMemo(() => {
+    if (!expenses || expenses.length === 0) return [];
+    
+    // Agrupar despesas por categoria
+    const categories: Record<string, number> = {};
+    
+    expenses.forEach(expense => {
+      const category = expense.category || "Outros";
+      if (!categories[category]) {
+        categories[category] = 0;
+      }
+      categories[category] += Number(expense.amount || 0);
+    });
+    
+    // Converter para o formato esperado pelo gráfico
+    return Object.entries(categories).map(([category, value]) => ({ category, value }));
+  }, [expenses]);
   
   // Função para formatar valor monetário em formato BR
   const formatBRL = (value: number) => {
