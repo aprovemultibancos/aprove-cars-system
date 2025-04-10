@@ -5,7 +5,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Pencil, Eye, Trash2 } from "lucide-react";
+import { Eye, Trash2 } from "lucide-react";
 import { Link } from "wouter";
 import { formatCurrency, formatPhone } from "@/lib/utils";
 import {
@@ -23,6 +23,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { PersonnelViewModal } from "./personnel-view-modal";
 
 interface PersonnelTableProps {
   filter?: "employee" | "agent" | "dealer";
@@ -32,6 +33,7 @@ export function PersonnelTable({ filter }: PersonnelTableProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [personnelToDelete, setPersonnelToDelete] = useState<number | null>(null);
+  const [selectedPersonnel, setSelectedPersonnel] = useState<Personnel | null>(null);
   
   const { data: personnel, isLoading } = useQuery<Personnel[]>({
     queryKey: ["/api/personnel"],
@@ -160,16 +162,13 @@ export function PersonnelTable({ filter }: PersonnelTableProps) {
         
         return (
           <div className="flex items-center justify-end space-x-2">
-            <Button variant="ghost" size="icon" asChild>
-              <Link href={`/personnel/${person.id}/view`}>
-                <Eye className="h-4 w-4" />
-                <span className="sr-only">Ver</span>
-              </Link>
-            </Button>
-            <Button variant="ghost" size="icon" asChild>
-              <Link href={`/personnel/${person.id}/edit`}>
-                <span>Editar</span>
-              </Link>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSelectedPersonnel(person)}
+            >
+              <Eye className="h-4 w-4" />
+              <span className="sr-only">Ver</span>
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -216,11 +215,23 @@ export function PersonnelTable({ filter }: PersonnelTableProps) {
   }
 
   return (
-    <DataTable 
-      columns={columns} 
-      data={filteredPersonnel} 
-      searchKey="name"
-      searchPlaceholder="Buscar por nome..."
-    />
+    <>
+      <DataTable 
+        columns={columns} 
+        data={filteredPersonnel} 
+        searchKey="name"
+        searchPlaceholder="Buscar por nome..."
+      />
+      
+      {selectedPersonnel && (
+        <PersonnelViewModal
+          personnel={selectedPersonnel}
+          open={!!selectedPersonnel}
+          onOpenChange={(open) => {
+            if (!open) setSelectedPersonnel(null);
+          }}
+        />
+      )}
+    </>
   );
 }
