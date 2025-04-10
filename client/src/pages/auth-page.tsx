@@ -143,51 +143,51 @@ export default function AuthPage() {
       </div>
       
       {/* Right Panel: Hero */}
-      <div className="hidden md:flex md:w-1/2 bg-gradient-to-r from-primary-600 to-primary-800 text-white p-12 flex-col justify-center">
+      <div className="hidden md:flex md:w-1/2 bg-primary p-12 flex-col justify-center">
         <div className="max-w-lg">
-          <h1 className="text-4xl font-bold mb-6">Sistema Unificado Aprove</h1>
-          <p className="text-xl mb-8">
+          <h1 className="text-4xl font-bold mb-6 text-black">Sistema Unificado Aprove</h1>
+          <p className="text-xl mb-8 text-black">
             Uma plataforma completa para gerenciamento de veículos, vendas e financiamentos.
           </p>
           
           <div className="space-y-6">
-            <div className="flex items-start">
+            <div className="flex items-start bg-white/90 p-4 rounded-lg shadow-md">
               <div className="flex-shrink-0 mt-1">
-                <svg className="h-6 w-6 text-primary-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <svg className="h-6 w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
               <div className="ml-3">
-                <h3 className="text-lg font-medium">Aprove Cars</h3>
-                <p className="mt-1 text-primary-200">
+                <h3 className="text-lg font-medium text-black">Aprove Cars</h3>
+                <p className="mt-1 text-black">
                   Gerencie seu inventário de veículos, controle vendas e acompanhe o desempenho.
                 </p>
               </div>
             </div>
             
-            <div className="flex items-start">
+            <div className="flex items-start bg-white/90 p-4 rounded-lg shadow-md">
               <div className="flex-shrink-0 mt-1">
-                <svg className="h-6 w-6 text-primary-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <svg className="h-6 w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
               <div className="ml-3">
-                <h3 className="text-lg font-medium">Aprove Financiamentos</h3>
-                <p className="mt-1 text-primary-200">
+                <h3 className="text-lg font-medium text-black">Aprove Financiamentos</h3>
+                <p className="mt-1 text-black">
                   Acompanhe propostas de financiamento, comissões e resultados financeiros.
                 </p>
               </div>
             </div>
             
-            <div className="flex items-start">
+            <div className="flex items-start bg-white/90 p-4 rounded-lg shadow-md">
               <div className="flex-shrink-0 mt-1">
-                <svg className="h-6 w-6 text-primary-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <svg className="h-6 w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
               <div className="ml-3">
-                <h3 className="text-lg font-medium">Relatórios Detalhados</h3>
-                <p className="mt-1 text-primary-200">
+                <h3 className="text-lg font-medium text-black">Relatórios Detalhados</h3>
+                <p className="mt-1 text-black">
                   Análises e insights para tomada de decisões estratégicas.
                 </p>
               </div>
