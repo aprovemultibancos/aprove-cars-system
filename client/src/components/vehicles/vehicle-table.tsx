@@ -123,12 +123,14 @@ export function VehicleTable() {
         
         return (
           <div className="flex items-center justify-end space-x-2">
-            <Link href={`/vehicles/${vehicle.id}/view`}>
-              <Button variant="ghost" size="icon">
-                <Eye className="h-4 w-4" />
-                <span className="sr-only">Visualizar</span>
-              </Button>
-            </Link>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSelectedVehicle(vehicle)}
+            >
+              <Eye className="h-4 w-4" />
+              <span className="sr-only">Visualizar</span>
+            </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button 
@@ -174,11 +176,23 @@ export function VehicleTable() {
   }
 
   return (
-    <DataTable 
-      columns={columns} 
-      data={vehicles || []} 
-      searchKey="vehicle"
-      searchPlaceholder="Buscar veículos..."
-    />
+    <>
+      <DataTable 
+        columns={columns} 
+        data={vehicles || []} 
+        searchKey="vehicle"
+        searchPlaceholder="Buscar veículos..."
+      />
+      
+      {selectedVehicle && (
+        <VehicleViewModal
+          vehicle={selectedVehicle}
+          open={!!selectedVehicle}
+          onOpenChange={(open) => {
+            if (!open) setSelectedVehicle(null);
+          }}
+        />
+      )}
+    </>
   );
 }

@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 
 interface VehicleViewModalProps {
   vehicle: Vehicle;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 const statusMap = {
@@ -14,7 +16,7 @@ const statusMap = {
   sold: { label: "Vendido", color: "bg-red-100 text-red-800" },
 };
 
-export function VehicleViewModal({ vehicle }: VehicleViewModalProps) {
+export function VehicleViewModal({ vehicle, open, onOpenChange }: VehicleViewModalProps) {
   const renderVehicleDetails = (v: Vehicle) => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -92,6 +94,8 @@ export function VehicleViewModal({ vehicle }: VehicleViewModalProps) {
       title={`${vehicle.make} ${vehicle.model} ${vehicle.year}`}
       item={vehicle}
       renderContent={renderVehicleDetails}
+      open={open}
+      onOpenChange={onOpenChange}
     />
   );
 }
