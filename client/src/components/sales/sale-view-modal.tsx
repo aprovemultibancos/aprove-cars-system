@@ -1,123 +1,134 @@
-import { Sale, Vehicle, Customer } from "@shared/schema";
-import { ViewModal } from "@/components/view-modal";
 import { formatCurrency } from "@/lib/utils";
-import { Separator } from "@/components/ui/separator";
+import { Sale, Vehicle } from "@shared/schema";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 
 interface SaleViewModalProps {
   sale: Sale;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export function SaleViewModal({ sale }: SaleViewModalProps) {
-  // Buscar dados relacionados para exibir detalhes completos
+export function SaleViewModal({ sale, open, onOpenChange }: SaleViewModalProps) {
   const { data: vehicle } = useQuery<Vehicle>({
     queryKey: [`/api/vehicles/${sale.vehicleId}`],
-    enabled: !!sale.vehicleId,
+    enabled: !!sale.vehicleId
   });
 
-  const { data: customer } = useQuery<Customer>({
-    queryKey: [`/api/customers/${sale.customerId}`],
-    enabled: !!sale.customerId,
-  });
+  const formatDate = (dateString?: string | Date | null) => {
+    if (!dateString) return "—";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("pt-BR");
+  };
+  
+  const getPaymentMethodLabel = (method: string) => {
+    const methodMap: Record<string, string> = {
+      cash: "Dinheiro",
+      credit_card: "Cartão de Crédito",
+      debit_card: "Cartão de Débito",
+      bank_transfer: "Transferência",
+      pix: "PIX",
+      financing: "Financiamento"
+    };
+    
+    return methodMap[method] || method;
+  };
 
-  const renderSaleDetails = (s: Sale) => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <h3 className="text-lg font-semibold">Informações da Venda</h3>
-          <Separator className="my-2" />
-          <dl className="grid grid-cols-[140px_1fr] gap-2 text-sm">
-            <dt className="font-medium">ID da Venda:</dt>
-            <dd>{s.id}</dd>
-            <dt className="font-medium">Data da Venda:</dt>
-            <dd>{s.saleDate ? new Date(s.saleDate).toLocaleDateString('pt-BR') : "-"}</dd>
-            <dt className="font-medium">Valor:</dt>
-            <dd className="font-semibold text-green-600">{formatCurrency(Number(s.salePrice) || 0)}</dd>
-            <dt className="font-medium">Método:</dt>
-            <dd>{s.paymentMethod || "Não especificado"}</dd>
-            <dt className="font-medium">Status:</dt>
-            <dd>{s.status || "Concluída"}</dd>
-            <dt className="font-medium">Vendedor:</dt>
-            <dd>{s.sellerName || "Não especificado"}</dd>
-          </dl>
-        </div>
-        
-        <div>
-          <h3 className="text-lg font-semibold">Informações do Cliente</h3>
-          <Separator className="my-2" />
-          <dl className="grid grid-cols-[140px_1fr] gap-2 text-sm">
-            <dt className="font-medium">Nome:</dt>
-            <dd>{s.customerName || customer?.name || "Não especificado"}</dd>
-            <dt className="font-medium">CPF/CNPJ:</dt>
-            <dd>{customer?.document || "Não especificado"}</dd>
-            <dt className="font-medium">Email:</dt>
-            <dd>{customer?.email || "Não especificado"}</dd>
-            <dt className="font-medium">Telefone:</dt>
-            <dd>{customer?.phone || "Não especificado"}</dd>
-            {customer?.address && (
-              <>
-                <dt className="font-medium">Endereço:</dt>
-                <dd>{customer.address}</dd>
-              </>
-            )}
-          </dl>
-        </div>
-      </div>
-      
-      <div>
-        <h3 className="text-lg font-semibold">Informações do Veículo</h3>
-        <Separator className="my-2" />
-        <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="grid grid-cols-[120px_1fr] gap-2 text-sm">
-            <dt className="font-medium">Marca/Modelo:</dt>
-            <dd>{vehicle ? `${vehicle.make} ${vehicle.model}` : s.vehicleName || "Não especificado"}</dd>
-            <dt className="font-medium">Ano:</dt>
-            <dd>{vehicle?.year || "Não especificado"}</dd>
-            <dt className="font-medium">Placa:</dt>
-            <dd>{vehicle?.licensePlate || "Não especificado"}</dd>
-            <dt className="font-medium">Cor:</dt>
-            <dd>{vehicle?.color || "Não especificado"}</dd>
-          </div>
-          
-          <div className="grid grid-cols-[140px_1fr] gap-2 text-sm">
-            <dt className="font-medium">Preço de Compra:</dt>
-            <dd>{vehicle ? formatCurrency(Number(vehicle.purchasePrice) || 0) : "Não especificado"}</dd>
-            <dt className="font-medium">Preço de Venda:</dt>
-            <dd className="font-semibold">{formatCurrency(Number(s.salePrice) || 0)}</dd>
-            <dt className="font-medium">Lucro Bruto:</dt>
-            <dd className="text-green-600 font-semibold">
-              {vehicle && s.salePrice
-                ? formatCurrency(Number(s.salePrice) - Number(vehicle.purchasePrice || 0))
-                : "Não disponível"}
-            </dd>
-          </div>
-        </dl>
-      </div>
-      
-      {s.notes && (
-        <div>
-          <h3 className="text-lg font-semibold">Observações</h3>
-          <Separator className="my-2" />
-          <p className="text-sm whitespace-pre-line">{s.notes}</p>
-        </div>
-      )}
-      
-      <div>
-        <h3 className="text-lg font-semibold">Informações de Registro</h3>
-        <Separator className="my-2" />
-        <dl className="grid grid-cols-[140px_1fr] gap-2 text-sm">
-          <dt className="font-medium">Criado em:</dt>
-          <dd>{s.createdAt ? new Date(s.createdAt).toLocaleString('pt-BR') : "-"}</dd>
-        </dl>
-      </div>
-    </div>
-  );
+  const vehicleFullName = vehicle ? `${vehicle.make} ${vehicle.model} (${vehicle.year})` : `Veículo #${sale.vehicleId}`;
 
   return (
-    <ViewModal
-      title={`Venda #${sale.id}`}
-      item={sale}
-      renderContent={renderSaleDetails}
-    />
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Detalhes da Venda</DialogTitle>
+          <DialogDescription>
+            Venda #{sale.id} • {formatDate(sale.createdAt)}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h3 className="text-lg font-medium mb-4">Informações da Venda</h3>
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm text-muted-foreground">Data da Venda</p>
+                <p className="font-medium">{formatDate(sale.saleDate)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Valor de Venda</p>
+                <p className="font-medium">{formatCurrency(Number(sale.salePrice))}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Método de Pagamento</p>
+                <p className="font-medium">{getPaymentMethodLabel(sale.paymentMethod)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Comissão</p>
+                <p className="font-medium">{formatCurrency(Number(sale.commission))}</p>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-medium mb-4">Informações do Veículo</h3>
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm text-muted-foreground">Veículo</p>
+                <p className="font-medium">{vehicleFullName}</p>
+              </div>
+              {vehicle && (
+                <>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Quilometragem</p>
+                    <p className="font-medium">{vehicle.km} km</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Preço de Compra</p>
+                    <p className="font-medium">{formatCurrency(Number(vehicle.purchaseCost))}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Despesas</p>
+                    <p className="font-medium">
+                      {vehicle.expenses 
+                        ? formatCurrency(Number(vehicle.expenses)) 
+                        : "Sem despesas registradas"}
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <h3 className="text-lg font-medium mb-2">Informações do Cliente</h3>
+          <div className="space-y-2">
+            <p className="font-medium">{sale.customerName || "Cliente não especificado"}</p>
+          </div>
+        </div>
+
+        {sale.notes && (
+          <div className="mt-4">
+            <h3 className="text-lg font-medium mb-2">Observações</h3>
+            <p className="text-sm whitespace-pre-wrap">{sale.notes}</p>
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Fechar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

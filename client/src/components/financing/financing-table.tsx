@@ -5,7 +5,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Pencil, Eye, Trash2 } from "lucide-react";
+import { Eye, Trash2 } from "lucide-react";
 import { Link } from "wouter";
 import { formatCurrency } from "@/lib/utils";
 import {
@@ -22,6 +22,7 @@ import {
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { FinancingViewModal } from "./financing-view-modal";
 
 interface FinancingWithDetails extends Financing {
   customerName?: string;
@@ -32,6 +33,7 @@ export function FinancingTable() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [financingToDelete, setFinancingToDelete] = useState<number | null>(null);
+  const [selectedFinancing, setSelectedFinancing] = useState<Financing | null>(null);
   
   const { data: financings, isLoading } = useQuery<FinancingWithDetails[]>({
     queryKey: ["/api/financings"],
@@ -140,16 +142,13 @@ export function FinancingTable() {
         
         return (
           <div className="flex items-center justify-end space-x-2">
-            <Button variant="ghost" size="icon" asChild>
-              <Link href={`/finances/${financing.id}/view`}>
-                <Eye className="h-4 w-4" />
-                <span className="sr-only">Ver</span>
-              </Link>
-            </Button>
-            <Button variant="ghost" size="sm" asChild>
-              <Link href={`/finances/${financing.id}/edit`}>
-                <span>Editar</span>
-              </Link>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSelectedFinancing(financing)}
+            >
+              <Eye className="h-4 w-4" />
+              <span className="sr-only">Ver</span>
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -196,11 +195,23 @@ export function FinancingTable() {
   }
 
   return (
-    <DataTable 
-      columns={columns} 
-      data={financings || []} 
-      searchKey="customerName"
-      searchPlaceholder="Buscar financiamentos..."
-    />
+    <>
+      <DataTable 
+        columns={columns} 
+        data={financings || []} 
+        searchKey="customerName"
+        searchPlaceholder="Buscar financiamentos..."
+      />
+      
+      {selectedFinancing && (
+        <FinancingViewModal
+          financing={selectedFinancing as any}
+          open={!!selectedFinancing}
+          onOpenChange={(open) => {
+            if (!open) setSelectedFinancing(null);
+          }}
+        />
+      )}
+    </>
   );
 }
