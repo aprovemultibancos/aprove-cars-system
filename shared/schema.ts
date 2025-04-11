@@ -173,7 +173,13 @@ export const insertExpenseSchema = z.object({
   category: z.string(),
   type: z.enum(["fixed", "variable"]),
   payeeId: z.coerce.number().nullable().optional(),
-  notes: z.string().optional()
+  notes: z.string().optional(),
+  status: z.enum(["pending", "paid"]).optional()
+});
+
+// Schema para atualizar status
+export const updateExpenseStatusSchema = z.object({
+  status: z.enum(["pending", "paid"])
 });
 
 // Personnel schema

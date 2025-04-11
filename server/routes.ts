@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
-import { insertVehicleSchema, insertCustomerSchema, insertSaleSchema, insertFinancingSchema, insertExpenseSchema, insertPersonnelSchema, insertUserSchema, users as usersTable, InsertPayment } from "@shared/schema";
+import { insertVehicleSchema, insertCustomerSchema, insertSaleSchema, insertFinancingSchema, insertExpenseSchema, updateExpenseStatusSchema, insertPersonnelSchema, insertUserSchema, users as usersTable, InsertPayment } from "@shared/schema";
 import { db } from "./db";
 import { z } from "zod";
 import { 
@@ -351,6 +351,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (error.stack) console.error("Stack:", error.stack);
       }
       res.status(400).json({ message: "Dados inválidos", error: String(error) });
+    }
+  });
+
+  // Rota específica para atualizar o status da despesa
+  app.patch("/api/expenses/:id/status", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const expense = await storage.getExpense(id);
+      
+      if (!expense) {
+        return res.status(404).json({ message: "Despesa não encontrada" });
+      }
+      
+      // Validar o status usando schema específico
+      const { status } = updateExpenseStatusSchema.parse(req.body);
+      
+      console.log(`Atualizando status da despesa ${id} para: ${status}`);
+      
+      // Atualizar apenas o campo status
+      const updatedExpense = await storage.updateExpense(id, { status });
+      
+      if (!updatedExpense) {
+        return res.status(500).json({ message: "Erro ao atualizar status da despesa" });
+      }
+      
+      res.json(updatedExpense);
+    } catch (error) {
+      console.error("Erro ao atualizar status da despesa:", error);
+      res.status(400).json({ message: "Dados inválidos", error });
     }
   });
 
