@@ -5,7 +5,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, Trash2 } from "lucide-react";
+import { Eye, Trash2, Check, FileQuestion } from "lucide-react";
 import { Link } from "wouter";
 import { formatCurrency } from "@/lib/utils";
 import {
@@ -24,9 +24,24 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { FinancingViewModal } from "./financing-view-modal";
 
-interface FinancingWithDetails extends Financing {
-  customerName?: string;
+interface FinancingWithDetails {
+  id: number;
+  customerId: number | null;
+  customerName: string;
+  bank: string;
+  assetValue: string;
+  returnType: "R0" | "R1" | "R2" | "R3" | "R4" | "R6" | "RF";
+  accessoriesPercentage: string | null;
+  feeAmount: string | null;
+  releasedAmount: string | null;
+  expectedReturn: string | null;
+  agentCommission: string;
+  sellerCommission: string;
+  status: string;
+  agentId: number;
   agentName?: string;
+  notes: string | null;
+  createdAt: Date;
 }
 
 export function FinancingTable() {
@@ -34,6 +49,7 @@ export function FinancingTable() {
   const queryClient = useQueryClient();
   const [financingToDelete, setFinancingToDelete] = useState<number | null>(null);
   const [selectedFinancing, setSelectedFinancing] = useState<Financing | null>(null);
+  const [financingStatuses, setFinancingStatuses] = useState<Record<number, "paid" | "analysis">>({});
   
   const { data: financings, isLoading } = useQuery<FinancingWithDetails[]>({
     queryKey: ["/api/financings"],
@@ -85,18 +101,47 @@ export function FinancingTable() {
     return banks[bankId || ""] || bankId;
   };
 
-  const getStatusBadge = (status?: string) => {
-    switch (status) {
-      case "approved":
-        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Aprovado</Badge>;
-      case "analysis":
-        return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Em análise</Badge>;
-      case "paid":
-        return <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100">Pago</Badge>;
-      case "rejected":
-        return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Negado</Badge>;
-      default:
-        return <Badge variant="outline">Desconhecido</Badge>;
+  // Função para alternar o status de um financiamento
+  const toggleFinancingStatus = (financingId: number) => {
+    setFinancingStatuses(prev => {
+      const currentStatus = prev[financingId] || getFinancingStatus(financingId);
+      const newStatus = currentStatus === 'paid' ? 'analysis' : 'paid';
+      
+      return {
+        ...prev,
+        [financingId]: newStatus
+      };
+    });
+    
+    // Aqui você também poderia implementar uma chamada à API para salvar o status no servidor
+  };
+  
+  // Obtém o status atual do financiamento (do estado local ou do valor original)
+  const getFinancingStatus = (financingId: number): "paid" | "analysis" => {
+    // Se temos um status personalizado definido, usamos ele
+    if (financingStatuses[financingId]) {
+      return financingStatuses[financingId];
+    }
+    
+    // Caso contrário, verificamos o status original do financiamento
+    const financing = financings?.find(f => f.id === financingId);
+    if (financing) {
+      // Convertemos outros status para apenas 'paid' ou 'analysis'
+      return financing.status === 'paid' ? 'paid' : 'analysis';
+    }
+    
+    // Padrão é 'Em Análise'
+    return 'analysis';
+  };
+
+  // Exibe o badge de status correspondente
+  const getStatusBadge = (financingId: number) => {
+    const status = getFinancingStatus(financingId);
+    
+    if (status === 'paid') {
+      return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Pago</Badge>;
+    } else {
+      return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Em Análise</Badge>;
     }
   };
 
@@ -123,7 +168,39 @@ export function FinancingTable() {
     {
       accessorKey: "status",
       header: "Status",
-      cell: ({ row }) => getStatusBadge(row.original.status),
+      cell: ({ row }) => getStatusBadge(row.original.id),
+    },
+    {
+      id: "changeStatus",
+      header: "Mudar Status",
+      cell: ({ row }) => {
+        const financing = row.original;
+        const currentStatus = getFinancingStatus(financing.id);
+        
+        return (
+          <Button
+            variant="outline"
+            size="sm"
+            className={currentStatus === 'paid' 
+              ? "bg-blue-100 border-blue-200 text-blue-800 hover:bg-blue-200" 
+              : "bg-green-100 border-green-200 text-green-800 hover:bg-green-200"
+            }
+            onClick={() => toggleFinancingStatus(financing.id)}
+          >
+            {currentStatus === 'paid' ? (
+              <>
+                <FileQuestion className="h-4 w-4 mr-1" />
+                Em Análise
+              </>
+            ) : (
+              <>
+                <Check className="h-4 w-4 mr-1" />
+                Pago
+              </>
+            )}
+          </Button>
+        );
+      },
     },
     {
       accessorKey: "expectedReturn",
