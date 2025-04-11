@@ -45,6 +45,28 @@ export interface AsaasPayment {
   customerDocumentNumber?: string;
 }
 
+export interface AsaasAccount {
+  balance: number;
+  availableBalance: number;
+}
+
+// Status de pagamento
+export const PAYMENT_STATUS = {
+  PENDING: "PENDING",        // Aguardando pagamento
+  RECEIVED: "RECEIVED",      // Recebido (pago)
+  CONFIRMED: "CONFIRMED",    // Pagamento confirmado (saldo já creditado)
+  OVERDUE: "OVERDUE",        // Vencido
+  REFUNDED: "REFUNDED",      // Estornado
+  RECEIVED_IN_CASH: "RECEIVED_IN_CASH", // Recebido em dinheiro
+  REFUND_REQUESTED: "REFUND_REQUESTED", // Estorno solicitado
+  CHARGEBACK_REQUESTED: "CHARGEBACK_REQUESTED", // Recebido com chargeback solicitado
+  CHARGEBACK_DISPUTE: "CHARGEBACK_DISPUTE", // Em disputa de chargeback
+  AWAITING_CHARGEBACK_REVERSAL: "AWAITING_CHARGEBACK_REVERSAL", // Aguardando cancelamento de chargeback
+  DUNNING_REQUESTED: "DUNNING_REQUESTED", // Em processo de recuperação
+  DUNNING_RECEIVED: "DUNNING_RECEIVED", // Recuperado
+  AWAITING_RISK_ANALYSIS: "AWAITING_RISK_ANALYSIS", // Pagamento em análise
+};
+
 export interface CreatePaymentRequest {
   customer: string;
   billingType: "BOLETO" | "CREDIT_CARD" | "PIX" | "UNDEFINED";
@@ -263,6 +285,82 @@ export async function getPixQrCode(paymentId: string): Promise<any> {
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(`Erro ao obter QR Code PIX: ${JSON.stringify(errorData)}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Erro no serviço Asaas:", error);
+    throw error;
+  }
+}
+
+// Obter saldo da conta
+export async function getAccountBalance(): Promise<AsaasAccount> {
+  try {
+    const response = await fetch(`${ASAAS_BASE_URL}/finance/balance`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'access_token': ASAAS_API_KEY || ''
+      }
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Erro ao obter saldo da conta: ${JSON.stringify(errorData)}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Erro no serviço Asaas:", error);
+    throw error;
+  }
+}
+
+// Atualizar status de um pagamento
+export async function updatePaymentStatus(paymentId: string, status: string): Promise<AsaasPayment> {
+  try {
+    const response = await fetch(`${ASAAS_BASE_URL}/payments/${paymentId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'access_token': ASAAS_API_KEY || ''
+      },
+      body: JSON.stringify({ status })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Erro ao atualizar status do pagamento: ${JSON.stringify(errorData)}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Erro no serviço Asaas:", error);
+    throw error;
+  }
+}
+
+// Fazer transferência PIX para outra conta
+export async function makePixTransfer(pixKey: string, value: number, description: string): Promise<any> {
+  try {
+    const response = await fetch(`${ASAAS_BASE_URL}/transfers`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'access_token': ASAAS_API_KEY || ''
+      },
+      body: JSON.stringify({
+        pixKey,
+        value,
+        description,
+        pixKeyType: 'EMAIL' // Pode ser EMAIL, CPF, CNPJ, PHONE, EVP
+      })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Erro ao realizar transferência PIX: ${JSON.stringify(errorData)}`);
     }
     
     return await response.json();

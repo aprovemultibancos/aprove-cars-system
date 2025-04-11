@@ -60,7 +60,6 @@ interface PaymentFormProps {
 export function PaymentForm({ customers, sales }: PaymentFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [isCreditCard, setIsCreditCard] = useState(false);
   const [originalValue, setOriginalValue] = useState<number>(0);
   const [finalValue, setFinalValue] = useState<number>(0);
   
@@ -138,10 +137,8 @@ export function PaymentForm({ customers, sales }: PaymentFormProps) {
   });
   
   function onSubmit(data: PaymentFormValues) {
-    // Se for cartão de crédito, ajustar o valor para incluir a taxa
-    if (data.billingType === "CREDIT_CARD") {
-      data.value = finalValue;
-    }
+    // Ajustar o valor para incluir a taxa de 2.49%
+    data.value = finalValue;
     
     mutation.mutate(data);
   }
@@ -203,11 +200,9 @@ export function PaymentForm({ customers, sales }: PaymentFormProps) {
                     onChange={(e) => handleValueChange(e.target.value)}
                   />
                 </FormControl>
-                {isCreditCard && (
-                  <FormDescription className="text-amber-500">
-                    Taxa de 1% para cartão: {formatCurrency(finalValue)}
-                  </FormDescription>
-                )}
+                <FormDescription className="text-amber-500">
+                  Taxa de 2.49%: {formatCurrency(finalValue)}
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -291,7 +286,7 @@ export function PaymentForm({ customers, sales }: PaymentFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Forma de Pagamento</FormLabel>
-                  <div className="grid grid-cols-3 gap-4 mt-2">
+                  <div className="grid grid-cols-2 gap-4 mt-2">
                     <Card
                       className={cn(
                         "cursor-pointer hover:border-primary transition-colors relative overflow-hidden",
@@ -323,22 +318,6 @@ export function PaymentForm({ customers, sales }: PaymentFormProps) {
                         <div className="absolute inset-x-0 bottom-0 h-1 bg-primary" />
                       )}
                     </Card>
-                    
-                    <Card
-                      className={cn(
-                        "cursor-pointer hover:border-primary transition-colors relative overflow-hidden",
-                        field.value === "CREDIT_CARD" && "border-primary"
-                      )}
-                      onClick={() => handleBillingTypeChange("CREDIT_CARD")}
-                    >
-                      <CardContent className="p-4 flex flex-col items-center">
-                        <CreditCard className="h-6 w-6 mb-2" />
-                        <span className="text-sm font-medium">Cartão de Crédito</span>
-                      </CardContent>
-                      {field.value === "CREDIT_CARD" && (
-                        <div className="absolute inset-x-0 bottom-0 h-1 bg-primary" />
-                      )}
-                    </Card>
                   </div>
                   <FormMessage />
                 </FormItem>
@@ -346,19 +325,17 @@ export function PaymentForm({ customers, sales }: PaymentFormProps) {
             />
           </div>
           
-          {isCreditCard && (
-            <div className="md:col-span-2">
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Taxa de serviço</AlertTitle>
-                <AlertDescription>
-                  O pagamento por cartão de crédito tem uma taxa adicional de 1%. 
-                  Valor original: {formatCurrency(originalValue)} | 
-                  Valor com taxa: {formatCurrency(finalValue)}
-                </AlertDescription>
-              </Alert>
-            </div>
-          )}
+          <div className="md:col-span-2">
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Taxa de serviço</AlertTitle>
+              <AlertDescription>
+                O pagamento tem uma taxa de serviço de 2.49%. 
+                Valor original: {formatCurrency(originalValue)} | 
+                Valor com taxa: {formatCurrency(finalValue)}
+              </AlertDescription>
+            </Alert>
+          </div>
           
           <div className="md:col-span-2">
             <FormField
