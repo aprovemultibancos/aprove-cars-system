@@ -1,13 +1,18 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Expense, Personnel } from "@shared/schema";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, Trash2 } from "lucide-react";
+import { Eye, Trash2, ArrowUpDown, CalendarClock, Check, Clock } from "lucide-react";
 import { Link } from "wouter";
 import { formatCurrency } from "@/lib/utils";
+
+// Definição do tipo estendido para Expense com status
+type ExpenseWithStatus = Expense & {
+  status: 'paid' | 'today' | 'due';
+};
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +24,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -33,6 +44,8 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
   const queryClient = useQueryClient();
   const [expenseToDelete, setExpenseToDelete] = useState<number | null>(null);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'due'>('all');
   
   const { data: expenses, isLoading: expensesLoading } = useQuery<Expense[]>({
     queryKey: ["/api/expenses"],
@@ -42,12 +55,60 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
     queryKey: ["/api/personnel"],
   });
 
-  // Apply filter if provided
-  const filteredExpenses = expenses 
-    ? filter 
-      ? expenses.filter(expense => expense.type === filter) 
-      : expenses
-    : [];
+  // Processa despesas para classificá-las como pagas ou a vencer
+  const processedExpenses = useMemo(() => {
+    if (!expenses) return [];
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return expenses.map(expense => {
+      const expenseDate = new Date(expense.date);
+      expenseDate.setHours(0, 0, 0, 0);
+      
+      // Considera pago se a data da despesa for anterior à data atual
+      const isPaid = expenseDate < today;
+      // Considera vencendo hoje se a data for igual à data atual
+      const isDueToday = expenseDate.getTime() === today.getTime();
+      // Considera a vencer se a data for posterior à data atual
+      const isDue = expenseDate > today;
+      
+      return {
+        ...expense,
+        status: isPaid ? 'paid' : (isDueToday ? 'today' : 'due')
+      };
+    });
+  }, [expenses]);
+
+  // Apply filter if provided and sort expenses by date
+  const filteredExpenses = useMemo(() => {
+    if (!processedExpenses.length) return [];
+    
+    let result = processedExpenses;
+    
+    // Filtrar por tipo (fixo ou variável) se solicitado
+    if (filter) {
+      result = result.filter(expense => expense.type === filter);
+    }
+    
+    // Filtrar por status (pago ou a vencer)
+    if (statusFilter !== 'all') {
+      result = result.filter(expense => {
+        if (statusFilter === 'paid') return expense.status === 'paid';
+        if (statusFilter === 'due') return expense.status === 'due' || expense.status === 'today';
+        return true;
+      });
+    }
+    
+    // Ordenar por data
+    result = [...result].sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+    });
+    
+    return result;
+  }, [processedExpenses, filter, statusFilter, sortOrder]);
 
   const isLoading = expensesLoading || personnelLoading;
 
@@ -90,7 +151,7 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
     return payee ? payee.name : "—";
   };
 
-  const columns: ColumnDef<Expense>[] = [
+  const columns: ColumnDef<ExpenseWithStatus>[] = [
     {
       accessorKey: "id",
       header: "ID",
@@ -106,8 +167,71 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
     },
     {
       accessorKey: "date",
-      header: "Data",
-      cell: ({ row }) => formatDate(row.original.date),
+      header: ({ column }) => {
+        return (
+          <div className="flex items-center space-x-1">
+            <span>Data</span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="ml-2 h-8 data-[state=open]:bg-accent">
+                  <ArrowUpDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setSortOrder('asc')}>
+                  Data (crescente)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSortOrder('desc')}>
+                  Data (decrescente)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )
+      },
+      cell: ({ row }) => {
+        const date = new Date(row.original.date);
+        const formattedDate = formatDate(date);
+        
+        // Adiciona classe e estilo baseado no status
+        const status = row.original.status;
+        let rowClass = "font-normal";
+        let icon = null;
+        
+        if (status === 'paid') {
+          rowClass = "text-green-600 font-medium";
+          icon = <Check className="h-4 w-4 text-green-600 mr-1" />;
+        } else if (status === 'today') {
+          rowClass = "text-amber-600 font-bold";
+          icon = <Clock className="h-4 w-4 text-amber-600 mr-1" />;
+        } else if (status === 'due') {
+          rowClass = "text-blue-600 font-medium";
+          icon = <CalendarClock className="h-4 w-4 text-blue-600 mr-1" />;
+        }
+        
+        return (
+          <div className={`flex items-center ${rowClass}`}>
+            {icon}
+            {formattedDate}
+          </div>
+        );
+      },
+      
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => {
+        const status = row.original.status;
+        
+        if (status === 'paid') {
+          return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Pago</Badge>;
+        } else if (status === 'today') {
+          return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Vence hoje</Badge>;
+        } else {
+          return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">A vencer</Badge>;
+        }
+      },
     },
     {
       accessorKey: "category",
@@ -189,9 +313,56 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
 
   return (
     <>
+      <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button 
+            variant={statusFilter === 'all' ? 'default' : 'outline'} 
+            size="sm"
+            onClick={() => setStatusFilter('all')}
+          >
+            Todas
+          </Button>
+          <Button 
+            variant={statusFilter === 'paid' ? 'default' : 'outline'} 
+            size="sm"
+            className="bg-green-100 text-green-800 hover:bg-green-200 border-green-200"
+            onClick={() => setStatusFilter('paid')}
+          >
+            <Check className="h-4 w-4 mr-1" />
+            Pagas
+          </Button>
+          <Button 
+            variant={statusFilter === 'due' ? 'default' : 'outline'} 
+            size="sm"
+            className="bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-200"
+            onClick={() => setStatusFilter('due')}
+          >
+            <CalendarClock className="h-4 w-4 mr-1" />
+            A Vencer
+          </Button>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Button 
+            variant={sortOrder === 'asc' ? 'default' : 'outline'} 
+            size="sm"
+            onClick={() => setSortOrder('asc')}
+          >
+            Data ↑
+          </Button>
+          <Button 
+            variant={sortOrder === 'desc' ? 'default' : 'outline'} 
+            size="sm"
+            onClick={() => setSortOrder('desc')}
+          >
+            Data ↓
+          </Button>
+        </div>
+      </div>
+
       <DataTable 
         columns={columns} 
-        data={filteredExpenses} 
+        data={filteredExpenses as ExpenseWithStatus[]} 
         searchKey="description"
         searchPlaceholder="Buscar despesas..."
       />
