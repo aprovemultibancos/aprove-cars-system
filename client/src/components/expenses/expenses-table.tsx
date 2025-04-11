@@ -64,17 +64,40 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
     return 'pending';
   };
   
+  // Mutation para atualizar status de despesa
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: number; status: ExpenseStatus }) => {
+      return await apiRequest("PATCH", `/api/expenses/${id}/status`, { status });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Status atualizado",
+        description: "O status da despesa foi atualizado com sucesso",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro",
+        description: error.message || "Ocorreu um erro ao atualizar o status da despesa",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Função para alternar o status de uma despesa
   const toggleExpenseStatus = (expenseId: number) => {
-    setExpenseStatuses(prev => {
-      const currentStatus = prev[expenseId] || 'pending';
-      const newStatus = currentStatus === 'paid' ? 'pending' : 'paid';
-      
-      return {
-        ...prev,
-        [expenseId]: newStatus
-      };
-    });
+    const currentStatus = expenseStatuses[expenseId] || 'pending';
+    const newStatus = currentStatus === 'paid' ? 'pending' : 'paid';
+    
+    // Atualizar UI imediatamente
+    setExpenseStatuses(prev => ({
+      ...prev,
+      [expenseId]: newStatus
+    }));
+    
+    // Enviar mudança para o backend
+    updateStatusMutation.mutate({ id: expenseId, status: newStatus });
   };
 
   // Filtra e ordena as despesas
