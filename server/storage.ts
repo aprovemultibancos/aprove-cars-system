@@ -661,14 +661,11 @@ export class DatabaseStorage implements IStorage {
       if ('status' in expense) {
         console.log(`Atualizando status para: ${expense.status}`);
         
-        // Construir manualmente a consulta SQL para evitar problemas de tipagem
-        const result = await db.execute(
-          `UPDATE expenses 
-           SET status = $1 
-           WHERE id = $2 
-           RETURNING *`,
-          [expense.status, id]
-        );
+        // Usar método mais simples para atualizar apenas o status
+        const query = `UPDATE expenses SET status = '${expense.status}' WHERE id = ${id} RETURNING *`;
+        console.log("Executando SQL:", query);
+        
+        const result = await db.execute(query);
         
         if (result.rowCount === 0) {
           return undefined;
