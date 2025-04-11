@@ -43,7 +43,7 @@ const paymentFormSchema = z.object({
   dueDate: z.date({
     required_error: "Data de vencimento é obrigatória",
   }),
-  billingType: z.enum(["BOLETO", "PIX", "CREDIT_CARD"], {
+  billingType: z.enum(["BOLETO", "PIX"], {
     required_error: "Forma de pagamento é obrigatória",
   }),
   relatedSaleId: z.string().optional(),
@@ -78,7 +78,7 @@ export function PaymentForm({ customers, sales }: PaymentFormProps) {
     },
   });
   
-  // Mostrar taxa adicional de 1% para cartão de crédito
+  // Acompanhar taxa do pagamento - 2.49% para boleto e PIX
   const watchBillingType = form.watch("billingType");
   const watchValue = form.watch("value");
   
@@ -86,30 +86,21 @@ export function PaymentForm({ customers, sales }: PaymentFormProps) {
   useEffect(() => {
     setOriginalValue(watchValue || 0);
     
-    if (watchBillingType === "CREDIT_CARD") {
-      setIsCreditCard(true);
-      // Adicionar 1% ao valor para cartão de crédito
-      const calculatedValue = (watchValue || 0) * 1.01;
-      setFinalValue(calculatedValue);
-    } else {
-      setIsCreditCard(false);
-      setFinalValue(watchValue || 0);
-    }
+    // Taxa de 2.49% para qualquer método de pagamento
+    const fee = 0.0249; // 2.49%
+    const calculatedValue = (watchValue || 0) * (1 + fee);
+    setFinalValue(calculatedValue);
+    
   }, [watchBillingType, watchValue]);
   
   // Quando o modo de pagamento mudar
   const handleBillingTypeChange = (type: string) => {
-    form.setValue("billingType", type as "BOLETO" | "PIX" | "CREDIT_CARD");
+    form.setValue("billingType", type as "BOLETO" | "PIX");
     
-    if (type === "CREDIT_CARD") {
-      setIsCreditCard(true);
-      // Adicionar 1% ao valor para cartão de crédito
-      const calculatedValue = (watchValue || 0) * 1.01;
-      setFinalValue(calculatedValue);
-    } else {
-      setIsCreditCard(false);
-      setFinalValue(watchValue || 0);
-    }
+    // Taxa de 2.49% para qualquer método de pagamento
+    const fee = 0.0249; // 2.49%
+    const calculatedValue = (watchValue || 0) * (1 + fee);
+    setFinalValue(calculatedValue);
   };
   
   // Quando o valor mudar
@@ -118,13 +109,10 @@ export function PaymentForm({ customers, sales }: PaymentFormProps) {
     form.setValue("value", numValue);
     setOriginalValue(numValue);
     
-    if (watchBillingType === "CREDIT_CARD") {
-      // Adicionar 1% ao valor para cartão de crédito
-      const calculatedValue = numValue * 1.01;
-      setFinalValue(calculatedValue);
-    } else {
-      setFinalValue(numValue);
-    }
+    // Taxa de 2.49% para qualquer método de pagamento
+    const fee = 0.0249; // 2.49%
+    const calculatedValue = numValue * (1 + fee);
+    setFinalValue(calculatedValue);
   };
   
   // Mutação para criar pagamento
