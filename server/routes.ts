@@ -302,6 +302,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rota específica para atualização de status do financiamento
+  app.patch("/api/financings/:id/status", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status } = req.body;
+      
+      console.log(`Atualizando status do financiamento ${id} para: ${status}`);
+      
+      if (!status || !["paid", "analysis"].includes(status)) {
+        return res.status(400).json({ message: "Status inválido. Use 'paid' ou 'analysis'" });
+      }
+      
+      const updatedFinancing = await storage.updateFinancing(id, { status });
+      
+      if (!updatedFinancing) {
+        return res.status(500).json({ message: "Erro ao atualizar status do financiamento" });
+      }
+      
+      res.json(updatedFinancing);
+    } catch (error) {
+      console.error("Erro ao atualizar status do financiamento:", error);
+      res.status(400).json({ message: "Dados inválidos", error });
+    }
+  });
+
   app.delete("/api/financings/:id", async (req, res) => {
     const id = parseInt(req.params.id);
     const success = await storage.deleteFinancing(id);

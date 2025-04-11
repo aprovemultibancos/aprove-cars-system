@@ -105,19 +105,41 @@ export function FinancingTable({ filter = 'all' }: FinancingTableProps) {
     return banks[bankId || ""] || bankId;
   };
 
+  // Mutação para atualizar o status do financiamento
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: number; status: "paid" | "analysis" }) => {
+      console.log(`Alterando status do financiamento ${id} para: ${status}`);
+      return await apiRequest("PATCH", `/api/financings/${id}/status`, { status });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Status atualizado",
+        description: "O status do financiamento foi atualizado com sucesso",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/financings"] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao atualizar status",
+        description: error.message || "Não foi possível atualizar o status do financiamento",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Função para alternar o status de um financiamento
   const toggleFinancingStatus = (financingId: number) => {
-    setFinancingStatuses(prev => {
-      const currentStatus = prev[financingId] || getFinancingStatus(financingId);
-      const newStatus = currentStatus === 'paid' ? 'analysis' : 'paid';
-      
-      return {
-        ...prev,
-        [financingId]: newStatus
-      };
-    });
+    const currentStatus = financingStatuses[financingId] || getFinancingStatus(financingId);
+    const newStatus = currentStatus === 'paid' ? 'analysis' : 'paid';
     
-    // Aqui você também poderia implementar uma chamada à API para salvar o status no servidor
+    // Atualizar o estado local para feedback visual imediato
+    setFinancingStatuses(prev => ({
+      ...prev,
+      [financingId]: newStatus
+    }));
+    
+    // Enviar a atualização para o servidor
+    updateStatusMutation.mutate({ id: financingId, status: newStatus });
   };
   
   // Obtém o status atual do financiamento (do estado local ou do valor original)
