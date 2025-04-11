@@ -53,14 +53,19 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
     queryKey: ["/api/personnel"],
   });
 
-  // Determina o status da despesa (padrão: A Vencer)
+  // Determina o status da despesa
   const getExpenseStatus = (expense: Expense): ExpenseStatus => {
-    // Se o status já foi definido pelo usuário, retorna esse status
+    // Se o status já foi definido pelo usuário na sessão atual, usa esse valor
     if (expenseStatuses[expense.id]) {
       return expenseStatuses[expense.id];
     }
     
-    // Status padrão para qualquer nova despesa é 'A Vencer'
+    // Se o status existe no banco de dados, usa esse valor
+    if (expense.status && ['paid', 'pending'].includes(expense.status)) {
+      return expense.status as ExpenseStatus;
+    }
+    
+    // Caso contrário, o padrão é 'A Vencer'
     return 'pending';
   };
   
@@ -87,8 +92,15 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
 
   // Função para alternar o status de uma despesa
   const toggleExpenseStatus = (expenseId: number) => {
-    const currentStatus = expenseStatuses[expenseId] || 'pending';
+    // Encontrar a despesa atual
+    const expense = expenses?.find(exp => exp.id === expenseId);
+    if (!expense) return;
+    
+    // Determinar o status atual da despesa (usando o banco ou o estado do componente)
+    const currentStatus = expenseStatuses[expenseId] || expense.status as ExpenseStatus || 'pending';
     const newStatus = currentStatus === 'paid' ? 'pending' : 'paid';
+    
+    console.log(`Alterando status da despesa ${expenseId} de ${currentStatus} para ${newStatus}`);
     
     // Atualizar UI imediatamente
     setExpenseStatuses(prev => ({

@@ -162,6 +162,7 @@ export const expenses = pgTable("expenses", {
   type: text("type", { enum: ["fixed", "variable"] }).notNull(),
   payeeId: integer("payee_id"),
   notes: text("notes"),
+  status: text("status", { enum: ["pending", "paid"] }).default("pending"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
