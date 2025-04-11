@@ -6,13 +6,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Eye, Trash2, ArrowUpDown, CalendarClock, Check, Clock } from "lucide-react";
-import { Link } from "wouter";
 import { formatCurrency } from "@/lib/utils";
-
-// Definição do tipo estendido para Expense com status
-type ExpenseWithStatus = Expense & {
-  status: 'paid' | 'today' | 'due';
-};
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,6 +33,9 @@ interface ExpensesTableProps {
   filter?: "fixed" | "variable";
 }
 
+// Tipo interno para processamento
+type ExpenseStatus = 'paid' | 'today' | 'due';
+
 export function ExpensesTable({ filter }: ExpensesTableProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -55,36 +52,28 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
     queryKey: ["/api/personnel"],
   });
 
-  // Processa despesas para classificá-las como pagas ou a vencer
-  const processedExpenses = useMemo(() => {
-    if (!expenses) return [];
+  // Determina o status da despesa baseado na data
+  const getExpenseStatus = (date: string | Date): ExpenseStatus => {
+    const expenseDate = new Date(date);
+    expenseDate.setHours(0, 0, 0, 0);
     
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
-    return expenses.map(expense => {
-      const expenseDate = new Date(expense.date);
-      expenseDate.setHours(0, 0, 0, 0);
-      
-      // Considera pago se a data da despesa for anterior à data atual
-      const isPaid = expenseDate < today;
-      // Considera vencendo hoje se a data for igual à data atual
-      const isDueToday = expenseDate.getTime() === today.getTime();
-      // Considera a vencer se a data for posterior à data atual
-      const isDue = expenseDate > today;
-      
-      return {
-        ...expense,
-        status: isPaid ? 'paid' : (isDueToday ? 'today' : 'due')
-      };
-    });
-  }, [expenses]);
-
-  // Apply filter if provided and sort expenses by date
-  const filteredExpenses = useMemo(() => {
-    if (!processedExpenses.length) return [];
     
-    let result = processedExpenses;
+    if (expenseDate < today) {
+      return 'paid';
+    } else if (expenseDate.getTime() === today.getTime()) {
+      return 'today';
+    } else {
+      return 'due';
+    }
+  };
+
+  // Filtra e ordena as despesas
+  const filteredExpenses = useMemo(() => {
+    if (!expenses) return [];
+    
+    let result = [...expenses];
     
     // Filtrar por tipo (fixo ou variável) se solicitado
     if (filter) {
@@ -94,21 +83,22 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
     // Filtrar por status (pago ou a vencer)
     if (statusFilter !== 'all') {
       result = result.filter(expense => {
-        if (statusFilter === 'paid') return expense.status === 'paid';
-        if (statusFilter === 'due') return expense.status === 'due' || expense.status === 'today';
+        const status = getExpenseStatus(expense.date);
+        if (statusFilter === 'paid') return status === 'paid';
+        if (statusFilter === 'due') return status === 'due' || status === 'today';
         return true;
       });
     }
     
     // Ordenar por data
-    result = [...result].sort((a, b) => {
+    result = result.sort((a, b) => {
       const dateA = new Date(a.date).getTime();
       const dateB = new Date(b.date).getTime();
       return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
     });
     
     return result;
-  }, [processedExpenses, filter, statusFilter, sortOrder]);
+  }, [expenses, filter, statusFilter, sortOrder]);
 
   const isLoading = expensesLoading || personnelLoading;
 
@@ -151,7 +141,7 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
     return payee ? payee.name : "—";
   };
 
-  const columns: ColumnDef<ExpenseWithStatus>[] = [
+  const columns: ColumnDef<Expense>[] = [
     {
       accessorKey: "id",
       header: "ID",
@@ -194,7 +184,7 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
         const formattedDate = formatDate(date);
         
         // Adiciona classe e estilo baseado no status
-        const status = row.original.status;
+        const status = getExpenseStatus(row.original.date);
         let rowClass = "font-normal";
         let icon = null;
         
@@ -216,13 +206,12 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
           </div>
         );
       },
-      
     },
     {
-      accessorKey: "status",
+      id: "status",
       header: "Status",
       cell: ({ row }) => {
-        const status = row.original.status;
+        const status = getExpenseStatus(row.original.date);
         
         if (status === 'paid') {
           return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Pago</Badge>;
@@ -362,7 +351,7 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
 
       <DataTable 
         columns={columns} 
-        data={filteredExpenses as ExpenseWithStatus[]} 
+        data={filteredExpenses} 
         searchKey="description"
         searchPlaceholder="Buscar despesas..."
       />
