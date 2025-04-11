@@ -24,7 +24,7 @@ function Router() {
       <ProtectedRoute path="/vehicles" component={() => <Layout><VehiclesPage /></Layout>} />
       <ProtectedRoute path="/vehicles/:id" component={() => <Layout><VehiclesPage /></Layout>} />
       <ProtectedRoute path="/vehicles/:id/:action" component={() => <Layout><VehiclesPage /></Layout>} />
-      <ProtectedRoute path="/vehicles/edit/:id" component={() => <Layout><VehiclesPage isEditing={true} /></Layout>} />
+      <ProtectedRoute path="/vehicles/edit/:id" component={() => <Layout><VehiclesPage /></Layout>} />
       <ProtectedRoute path="/sales" component={() => <Layout><SalesPage /></Layout>} />
       <ProtectedRoute path="/sales/:id" component={() => <Layout><SalesPage /></Layout>} />
       <ProtectedRoute path="/sales/:id/:action" component={() => <Layout><SalesPage /></Layout>} />

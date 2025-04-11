@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Vehicle } from "@shared/schema";
-import { useRoute, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Plus, ArrowLeft } from "lucide-react";
@@ -12,10 +12,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 
-export default function VehiclesPage({ isEditing: forceEditing }: { isEditing?: boolean } = {}) {
+export default function VehiclesPage() {
   const [isAddingVehicle, setIsAddingVehicle] = useState(false);
-  const [matchVehicleId] = useRoute<{ id: string }>("/vehicles/:id");
-  const [matchVehicleAction] = useRoute<{ id: string, action: string }>("/vehicles/:id/:action");
+  const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
+  const [viewingVehicle, setViewingVehicle] = useState<Vehicle | null>(null);
   const [, navigate] = useLocation();
   const { toast } = useToast();
   
@@ -23,55 +23,29 @@ export default function VehiclesPage({ isEditing: forceEditing }: { isEditing?: 
     queryKey: ["/api/vehicles"],
   });
   
-  // Get vehicle ID from the URL if available
-  const vehicleId = matchVehicleId?.params?.id || matchVehicleAction?.params?.id || null;
-  const action = matchVehicleAction?.params?.action || null;
-  
-  // Caso o botão de editar for clicado, precisaremos verificar o localStorage
+  // Verifica se a URL contém um comando para editar um veículo
   useEffect(() => {
-    if (action === 'edit' && vehicleId) {
-      const storedVehicle = localStorage.getItem('vehicle_edit');
-      if (storedVehicle) {
-        console.log("Encontrou veículo no localStorage:", storedVehicle);
-        // Limpa o localStorage após usar
-        localStorage.removeItem('vehicle_edit');
+    const path = window.location.pathname;
+    const editMatch = /\/vehicles\/edit\/(\d+)/.exec(path);
+    
+    if (editMatch && editMatch[1] && vehicles) {
+      const vehicleId = parseInt(editMatch[1]);
+      const vehicle = vehicles.find(v => v.id === vehicleId);
+      if (vehicle) {
+        setEditingVehicle(vehicle);
+        console.log("Editando veículo:", vehicle);
       }
     }
-  }, [action, vehicleId]);
-  
-  console.log("URL Params:", { vehicleId, action });
-  console.log("Match Objects:", { matchVehicleId, matchVehicleAction });
-  
-  // If we have a vehicle ID in the URL, get that vehicle's data
-  const vehicle = vehicleId && vehicles ? vehicles.find(v => v.id.toString() === vehicleId.toString()) : undefined;
-  
-  // Check if we're viewing vehicle details
-  const isViewing = action === "view" && Boolean(vehicle);
-  
-  // Check if we're editing a vehicle
-  const isEditing = action === "edit" && Boolean(vehicle);
-  
-  useEffect(() => {
-    console.log("Action detected:", action, "Vehicle ID:", vehicleId, "Vehicle found:", !!vehicle);
-  }, [action, vehicleId, vehicle]);
-  
-  // Show form if adding a new vehicle or editing an existing one
-  const showForm = isAddingVehicle || isEditing || forceEditing;
-  
-  // Se tivermos forceEditing, precisamos buscar o veiculoId de uma rota especial
-  useEffect(() => {
-    if (forceEditing) {
-      // Verifica se estamos na rota "/vehicles/edit/:id"
-      const match = /\/vehicles\/edit\/(\d+)/.exec(window.location.pathname);
-      if (match && match[1]) {
-        const editId = match[1];
-        console.log("Forcing edit mode for vehicle ID:", editId);
+    
+    const viewMatch = /\/vehicles\/view\/(\d+)/.exec(path);
+    if (viewMatch && viewMatch[1] && vehicles) {
+      const vehicleId = parseInt(viewMatch[1]);
+      const vehicle = vehicles.find(v => v.id === vehicleId);
+      if (vehicle) {
+        setViewingVehicle(vehicle);
       }
     }
-  }, [forceEditing, vehicles]);
-  
-  // Show vehicle details if viewing a vehicle
-  const showDetails = isViewing;
+  }, [vehicles]);
   
   // Count vehicles by status
   const availableCount = vehicles?.filter(v => v.status === "available").length || 0;
@@ -80,8 +54,8 @@ export default function VehiclesPage({ isEditing: forceEditing }: { isEditing?: 
   
   return (
     <div>
-      <PageHeader title={isEditing ? "Editar Veículo" : isAddingVehicle ? "Adicionar Veículo" : isViewing ? "Detalhes do Veículo" : "Inventário de Veículos"}>
-        {!showForm && !showDetails && (
+      <PageHeader title={editingVehicle ? "Editar Veículo" : isAddingVehicle ? "Adicionar Veículo" : viewingVehicle ? "Detalhes do Veículo" : "Inventário de Veículos"}>
+        {!isAddingVehicle && !editingVehicle && !viewingVehicle && (
           <PageHeader.Action>
             <Button onClick={() => setIsAddingVehicle(true)}>
               <Plus className="h-4 w-4 mr-2" />
@@ -91,7 +65,7 @@ export default function VehiclesPage({ isEditing: forceEditing }: { isEditing?: 
         )}
       </PageHeader>
       
-      {!showForm && !showDetails && (
+      {!isAddingVehicle && !editingVehicle && !viewingVehicle && (
         <>
           {/* Status Cards */}
           <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-3">
@@ -175,7 +149,7 @@ export default function VehiclesPage({ isEditing: forceEditing }: { isEditing?: 
         </>
       )}
       
-      {showForm && (
+      {(isAddingVehicle || editingVehicle) && (
         <Card className="mt-6">
           <CardContent className="pt-6">
             <div className="mb-4 flex justify-end">
@@ -183,6 +157,7 @@ export default function VehiclesPage({ isEditing: forceEditing }: { isEditing?: 
                 variant="outline" 
                 onClick={() => {
                   setIsAddingVehicle(false);
+                  setEditingVehicle(null);
                   navigate("/vehicles");
                 }}
               >
@@ -191,9 +166,10 @@ export default function VehiclesPage({ isEditing: forceEditing }: { isEditing?: 
               </Button>
             </div>
             <VehicleForm 
-              editVehicle={isEditing ? vehicle : undefined}
+              editVehicle={editingVehicle || undefined}
               onSaveSuccess={() => {
                 setIsAddingVehicle(false);
+                setEditingVehicle(null);
                 navigate("/vehicles");
               }} 
             />
@@ -202,19 +178,22 @@ export default function VehiclesPage({ isEditing: forceEditing }: { isEditing?: 
       )}
       
       {/* Detalhes do veículo */}
-      {showDetails && vehicle && (
+      {viewingVehicle && (
         <Card className="mt-6">
           <CardContent className="pt-6">
             <div className="mb-4 flex justify-end">
               <Button 
                 variant="outline" 
-                onClick={() => navigate("/vehicles")}
+                onClick={() => {
+                  setViewingVehicle(null);
+                  navigate("/vehicles");
+                }}
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Voltar para Inventário
               </Button>
             </div>
-            <VehicleDetails vehicle={vehicle} />
+            <VehicleDetails vehicle={viewingVehicle} />
           </CardContent>
         </Card>
       )}
