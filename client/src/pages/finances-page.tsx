@@ -35,11 +35,11 @@ export default function FinancesPage() {
   // Show form if adding, editing, or viewing a financing
   const showForm = isAddingFinancing || isEditing || isViewing;
   
-  // Count financings by status
-  const analysisCount = financings?.filter(f => f.status === "analysis").length || 0;
-  const approvedCount = financings?.filter(f => f.status === "approved").length || 0;
+  // Count financings by status - agora apenas 'analysis' e 'paid'
+  const analysisCount = financings?.filter(f => 
+    f.status === "analysis" || f.status === "approved" || f.status === "rejected"
+  ).length || 0;
   const paidCount = financings?.filter(f => f.status === "paid").length || 0;
-  const rejectedCount = financings?.filter(f => f.status === "rejected").length || 0;
   
   // Calculate financing stats
   const calculateTotalValue = () => {
@@ -117,7 +117,7 @@ export default function FinancesPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{analysisCount + approvedCount}</div>
+                <div className="text-2xl font-bold">{analysisCount}</div>
               </CardContent>
             </Card>
           </div>
@@ -128,9 +128,7 @@ export default function FinancesPage() {
               <TabsList>
                 <TabsTrigger value="all">Todos</TabsTrigger>
                 <TabsTrigger value="analysis">Em Análise ({analysisCount})</TabsTrigger>
-                <TabsTrigger value="approved">Aprovados ({approvedCount})</TabsTrigger>
                 <TabsTrigger value="paid">Pagos ({paidCount})</TabsTrigger>
-                <TabsTrigger value="rejected">Negados ({rejectedCount})</TabsTrigger>
               </TabsList>
               
               <TabsContent value="all" className="mt-4">
@@ -149,23 +147,7 @@ export default function FinancesPage() {
                 </Card>
               </TabsContent>
               
-              <TabsContent value="approved" className="mt-4">
-                <Card>
-                  <CardContent className="pt-6">
-                    <FinancingTable />
-                  </CardContent>
-                </Card>
-              </TabsContent>
-              
               <TabsContent value="paid" className="mt-4">
-                <Card>
-                  <CardContent className="pt-6">
-                    <FinancingTable />
-                  </CardContent>
-                </Card>
-              </TabsContent>
-              
-              <TabsContent value="rejected" className="mt-4">
                 <Card>
                   <CardContent className="pt-6">
                     <FinancingTable />

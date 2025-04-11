@@ -44,7 +44,11 @@ interface FinancingWithDetails {
   createdAt: Date;
 }
 
-export function FinancingTable() {
+interface FinancingTableProps {
+  filter?: 'analysis' | 'paid' | 'all';
+}
+
+export function FinancingTable({ filter = 'all' }: FinancingTableProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [financingToDelete, setFinancingToDelete] = useState<number | null>(null);
@@ -279,11 +283,19 @@ export function FinancingTable() {
     </div>;
   }
 
+  // Filtra os financiamentos de acordo com o filtro selecionado
+  const filteredFinancings = financings?.filter(financing => {
+    if (filter === 'all') return true;
+    
+    const currentStatus = getFinancingStatus(financing.id);
+    return currentStatus === filter;
+  }) || [];
+
   return (
     <>
       <DataTable 
         columns={columns} 
-        data={financings || []} 
+        data={filteredFinancings} 
         searchKey="customerName"
         searchPlaceholder="Buscar financiamentos..."
       />
