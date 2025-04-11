@@ -5,7 +5,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, Trash2, ArrowUpDown, CalendarClock, Check, Clock } from "lucide-react";
+import { Eye, Trash2, ArrowUpDown, FileEdit, Check, FileQuestion } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import {
   AlertDialog,
@@ -33,8 +33,8 @@ interface ExpensesTableProps {
   filter?: "fixed" | "variable";
 }
 
-// Tipo interno para processamento
-type ExpenseStatus = 'paid' | 'today' | 'due';
+// Tipo de status das despesas
+type ExpenseStatus = 'paid' | 'analysis';
 
 export function ExpensesTable({ filter }: ExpensesTableProps) {
   const { toast } = useToast();
@@ -42,7 +42,8 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
   const [expenseToDelete, setExpenseToDelete] = useState<number | null>(null);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'due'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'analysis'>('all');
+  const [expenseStatuses, setExpenseStatuses] = useState<Record<number, ExpenseStatus>>({});
   
   const { data: expenses, isLoading: expensesLoading } = useQuery<Expense[]>({
     queryKey: ["/api/expenses"],
@@ -52,21 +53,28 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
     queryKey: ["/api/personnel"],
   });
 
-  // Determina o status da despesa baseado na data
-  const getExpenseStatus = (date: string | Date): ExpenseStatus => {
-    const expenseDate = new Date(date);
-    expenseDate.setHours(0, 0, 0, 0);
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    if (expenseDate < today) {
-      return 'paid';
-    } else if (expenseDate.getTime() === today.getTime()) {
-      return 'today';
-    } else {
-      return 'due';
+  // Determina o status da despesa (padrão: Em Análise)
+  const getExpenseStatus = (expense: Expense): ExpenseStatus => {
+    // Se o status já foi definido pelo usuário, retorna esse status
+    if (expenseStatuses[expense.id]) {
+      return expenseStatuses[expense.id];
     }
+    
+    // Status padrão para qualquer nova despesa é 'Em Análise'
+    return 'analysis';
+  };
+  
+  // Função para alternar o status de uma despesa
+  const toggleExpenseStatus = (expenseId: number) => {
+    setExpenseStatuses(prev => {
+      const currentStatus = prev[expenseId] || 'analysis';
+      const newStatus = currentStatus === 'paid' ? 'analysis' : 'paid';
+      
+      return {
+        ...prev,
+        [expenseId]: newStatus
+      };
+    });
   };
 
   // Filtra e ordena as despesas
@@ -80,13 +88,10 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
       result = result.filter(expense => expense.type === filter);
     }
     
-    // Filtrar por status (pago ou a vencer)
+    // Filtrar por status
     if (statusFilter !== 'all') {
       result = result.filter(expense => {
-        const status = getExpenseStatus(expense.date);
-        if (statusFilter === 'paid') return status === 'paid';
-        if (statusFilter === 'due') return status === 'due' || status === 'today';
-        return true;
+        return getExpenseStatus(expense) === statusFilter;
       });
     }
     
@@ -98,7 +103,7 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
     });
     
     return result;
-  }, [expenses, filter, statusFilter, sortOrder]);
+  }, [expenses, filter, statusFilter, sortOrder, expenseStatuses]);
 
   const isLoading = expensesLoading || personnelLoading;
 
@@ -179,46 +184,18 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
           </div>
         )
       },
-      cell: ({ row }) => {
-        const date = new Date(row.original.date);
-        const formattedDate = formatDate(date);
-        
-        // Adiciona classe e estilo baseado no status
-        const status = getExpenseStatus(row.original.date);
-        let rowClass = "font-normal";
-        let icon = null;
-        
-        if (status === 'paid') {
-          rowClass = "text-green-600 font-medium";
-          icon = <Check className="h-4 w-4 text-green-600 mr-1" />;
-        } else if (status === 'today') {
-          rowClass = "text-amber-600 font-bold";
-          icon = <Clock className="h-4 w-4 text-amber-600 mr-1" />;
-        } else if (status === 'due') {
-          rowClass = "text-blue-600 font-medium";
-          icon = <CalendarClock className="h-4 w-4 text-blue-600 mr-1" />;
-        }
-        
-        return (
-          <div className={`flex items-center ${rowClass}`}>
-            {icon}
-            {formattedDate}
-          </div>
-        );
-      },
+      cell: ({ row }) => formatDate(row.original.date),
     },
     {
       id: "status",
       header: "Status",
       cell: ({ row }) => {
-        const status = getExpenseStatus(row.original.date);
+        const status = getExpenseStatus(row.original);
         
         if (status === 'paid') {
           return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Pago</Badge>;
-        } else if (status === 'today') {
-          return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Vence hoje</Badge>;
         } else {
-          return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">A vencer</Badge>;
+          return <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100">Em Análise</Badge>;
         }
       },
     },
@@ -242,7 +219,40 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
       cell: ({ row }) => getPayeeName(row.original.payeeId ? row.original.payeeId : undefined),
     },
     {
+      id: "changeStatus",
+      header: "Mudar Status",
+      cell: ({ row }) => {
+        const expense = row.original;
+        const currentStatus = getExpenseStatus(expense);
+        
+        return (
+          <Button
+            variant="outline"
+            size="sm"
+            className={currentStatus === 'paid' 
+              ? "bg-purple-100 border-purple-200 text-purple-800 hover:bg-purple-200" 
+              : "bg-green-100 border-green-200 text-green-800 hover:bg-green-200"
+            }
+            onClick={() => toggleExpenseStatus(expense.id)}
+          >
+            {currentStatus === 'paid' ? (
+              <>
+                <FileQuestion className="h-4 w-4 mr-1" />
+                Em Análise
+              </>
+            ) : (
+              <>
+                <Check className="h-4 w-4 mr-1" />
+                Pago
+              </>
+            )}
+          </Button>
+        );
+      },
+    },
+    {
       id: "actions",
+      header: "Ações",
       cell: ({ row }) => {
         const expense = row.original;
         
@@ -321,13 +331,13 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
             Pagas
           </Button>
           <Button 
-            variant={statusFilter === 'due' ? 'default' : 'outline'} 
+            variant={statusFilter === 'analysis' ? 'default' : 'outline'} 
             size="sm"
-            className="bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-200"
-            onClick={() => setStatusFilter('due')}
+            className="bg-purple-100 text-purple-800 hover:bg-purple-200 border-purple-200"
+            onClick={() => setStatusFilter('analysis')}
           >
-            <CalendarClock className="h-4 w-4 mr-1" />
-            A Vencer
+            <FileQuestion className="h-4 w-4 mr-1" />
+            Em Análise
           </Button>
         </div>
         
