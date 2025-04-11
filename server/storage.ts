@@ -623,11 +623,36 @@ export class DatabaseStorage implements IStorage {
   }
   
   async updateFinancing(id: number, financing: Partial<Financing>): Promise<Financing | undefined> {
-    const [updatedFinancing] = await db.update(financings)
-      .set(financing)
-      .where(eq(financings.id, id))
-      .returning();
-    return updatedFinancing;
+    try {
+      console.log("Atualizando financiamento:", id, "com dados:", JSON.stringify(financing));
+      
+      // Se financing contém um campo status, verificar e validar
+      if ('status' in financing) {
+        console.log(`Atualizando status do financiamento para: ${financing.status}`);
+        
+        // Usar método mais simples para atualizar apenas o status
+        const query = `UPDATE financings SET status = '${financing.status}' WHERE id = ${id} RETURNING *`;
+        console.log("Executando SQL:", query);
+        
+        const result = await db.execute(query);
+        
+        if (result.rowCount === 0) {
+          return undefined;
+        }
+        
+        return result.rows[0] as Financing;
+      } else {
+        // Para outros campos, usar o builder do Drizzle
+        const [updatedFinancing] = await db.update(financings)
+          .set(financing)
+          .where(eq(financings.id, id))
+          .returning();
+        return updatedFinancing;
+      }
+    } catch (error) {
+      console.error("Erro ao atualizar financiamento:", error);
+      throw error;
+    }
   }
   
   async deleteFinancing(id: number): Promise<boolean> {
