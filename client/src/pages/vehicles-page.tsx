@@ -33,8 +33,11 @@ export default function VehiclesPage() {
   // Check if we're viewing vehicle details
   const isViewing = action === "view" && Boolean(vehicle);
   
-  // Show form if adding a new vehicle
-  const showForm = isAddingVehicle;
+  // Check if we're editing a vehicle
+  const isEditing = action === "edit" && Boolean(vehicle);
+  
+  // Show form if adding a new vehicle or editing an existing one
+  const showForm = isAddingVehicle || isEditing;
   
   // Show vehicle details if viewing a vehicle
   const showDetails = isViewing;
@@ -46,7 +49,7 @@ export default function VehiclesPage() {
   
   return (
     <div>
-      <PageHeader title={showForm ? "Adicionar Veículo" : isViewing ? "Detalhes do Veículo" : "Inventário de Veículos"}>
+      <PageHeader title={isEditing ? "Editar Veículo" : isAddingVehicle ? "Adicionar Veículo" : isViewing ? "Detalhes do Veículo" : "Inventário de Veículos"}>
         {!showForm && !showDetails && (
           <PageHeader.Action>
             <Button onClick={() => setIsAddingVehicle(true)}>
@@ -157,7 +160,11 @@ export default function VehiclesPage() {
               </Button>
             </div>
             <VehicleForm 
-              onSaveSuccess={() => setIsAddingVehicle(false)} 
+              editVehicle={isEditing ? vehicle : undefined}
+              onSaveSuccess={() => {
+                setIsAddingVehicle(false);
+                navigate("/vehicles");
+              }} 
             />
           </CardContent>
         </Card>

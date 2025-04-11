@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Pencil, Eye, Trash2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { formatCurrency } from "@/lib/utils";
 import {
   AlertDialog,
@@ -28,6 +28,7 @@ import { VehicleViewModal } from "./vehicle-view-modal";
 export function VehicleTable() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
   const [vehicleToDelete, setVehicleToDelete] = useState<number | null>(null);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   
@@ -130,6 +131,16 @@ export function VehicleTable() {
             >
               <Eye className="h-4 w-4" />
               <span className="sr-only">Visualizar</span>
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-blue-500 hover:text-blue-700"
+              onClick={() => navigate(`/vehicles/edit/${vehicle.id}`)}
+            >
+              <Pencil className="h-4 w-4" />
+              <span className="sr-only">Editar</span>
             </Button>
 
             <AlertDialog>
