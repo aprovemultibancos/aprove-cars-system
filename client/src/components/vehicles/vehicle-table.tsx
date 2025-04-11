@@ -138,8 +138,9 @@ export function VehicleTable() {
               size="icon"
               className="text-blue-500 hover:text-blue-700"
               onClick={() => {
-                console.log(`Navigating to: /vehicles/${vehicle.id}/edit`);
-                navigate(`/vehicles/${vehicle.id}/edit`);
+                console.log(`Editar veículo: ${vehicle.id}`);
+                // Vamos navegar para uma URL mais simples
+                navigate(`/vehicles/edit/${vehicle.id}`);
               }}
             >
               <Pencil className="h-4 w-4" />

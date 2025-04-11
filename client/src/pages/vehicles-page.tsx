@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Vehicle } from "@shared/schema";
 import { useRoute, useLocation } from "wouter";
@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 
-export default function VehiclesPage() {
+export default function VehiclesPage({ isEditing: forceEditing }: { isEditing?: boolean } = {}) {
   const [isAddingVehicle, setIsAddingVehicle] = useState(false);
   const [matchVehicleId] = useRoute<{ id: string }>("/vehicles/:id");
   const [matchVehicleAction] = useRoute<{ id: string, action: string }>("/vehicles/:id/:action");
@@ -27,6 +27,18 @@ export default function VehiclesPage() {
   const vehicleId = matchVehicleId?.params?.id || matchVehicleAction?.params?.id || null;
   const action = matchVehicleAction?.params?.action || null;
   
+  // Caso o botão de editar for clicado, precisaremos verificar o localStorage
+  useEffect(() => {
+    if (action === 'edit' && vehicleId) {
+      const storedVehicle = localStorage.getItem('vehicle_edit');
+      if (storedVehicle) {
+        console.log("Encontrou veículo no localStorage:", storedVehicle);
+        // Limpa o localStorage após usar
+        localStorage.removeItem('vehicle_edit');
+      }
+    }
+  }, [action, vehicleId]);
+  
   console.log("URL Params:", { vehicleId, action });
   console.log("Match Objects:", { matchVehicleId, matchVehicleAction });
   
@@ -39,8 +51,24 @@ export default function VehiclesPage() {
   // Check if we're editing a vehicle
   const isEditing = action === "edit" && Boolean(vehicle);
   
+  useEffect(() => {
+    console.log("Action detected:", action, "Vehicle ID:", vehicleId, "Vehicle found:", !!vehicle);
+  }, [action, vehicleId, vehicle]);
+  
   // Show form if adding a new vehicle or editing an existing one
-  const showForm = isAddingVehicle || isEditing;
+  const showForm = isAddingVehicle || isEditing || forceEditing;
+  
+  // Se tivermos forceEditing, precisamos buscar o veiculoId de uma rota especial
+  useEffect(() => {
+    if (forceEditing) {
+      // Verifica se estamos na rota "/vehicles/edit/:id"
+      const match = /\/vehicles\/edit\/(\d+)/.exec(window.location.pathname);
+      if (match && match[1]) {
+        const editId = match[1];
+        console.log("Forcing edit mode for vehicle ID:", editId);
+      }
+    }
+  }, [forceEditing, vehicles]);
   
   // Show vehicle details if viewing a vehicle
   const showDetails = isViewing;
