@@ -137,7 +137,10 @@ export function VehicleTable() {
               variant="ghost"
               size="icon"
               className="text-blue-500 hover:text-blue-700"
-              onClick={() => navigate(`/vehicles/edit/${vehicle.id}`)}
+              onClick={() => {
+                console.log(`Navigating to: /vehicles/${vehicle.id}/edit`);
+                navigate(`/vehicles/${vehicle.id}/edit`);
+              }}
             >
               <Pencil className="h-4 w-4" />
               <span className="sr-only">Editar</span>

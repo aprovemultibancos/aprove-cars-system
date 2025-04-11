@@ -27,6 +27,9 @@ export default function VehiclesPage() {
   const vehicleId = matchVehicleId?.params?.id || matchVehicleAction?.params?.id || null;
   const action = matchVehicleAction?.params?.action || null;
   
+  console.log("URL Params:", { vehicleId, action });
+  console.log("Match Objects:", { matchVehicleId, matchVehicleAction });
+  
   // If we have a vehicle ID in the URL, get that vehicle's data
   const vehicle = vehicleId && vehicles ? vehicles.find(v => v.id.toString() === vehicleId.toString()) : undefined;
   
