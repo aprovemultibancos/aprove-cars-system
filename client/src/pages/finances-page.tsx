@@ -134,7 +134,7 @@ export default function FinancesPage() {
               <TabsContent value="all" className="mt-4">
                 <Card>
                   <CardContent className="pt-6">
-                    <FinancingTable />
+                    <FinancingTable filter="all" />
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -142,7 +142,7 @@ export default function FinancesPage() {
               <TabsContent value="analysis" className="mt-4">
                 <Card>
                   <CardContent className="pt-6">
-                    <FinancingTable />
+                    <FinancingTable filter="analysis" />
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -150,7 +150,7 @@ export default function FinancesPage() {
               <TabsContent value="paid" className="mt-4">
                 <Card>
                   <CardContent className="pt-6">
-                    <FinancingTable />
+                    <FinancingTable filter="paid" />
                   </CardContent>
                 </Card>
               </TabsContent>

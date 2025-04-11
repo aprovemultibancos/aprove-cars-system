@@ -52,7 +52,7 @@ export function FinancingTable({ filter = 'all' }: FinancingTableProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [financingToDelete, setFinancingToDelete] = useState<number | null>(null);
-  const [selectedFinancing, setSelectedFinancing] = useState<Financing | null>(null);
+  const [selectedFinancing, setSelectedFinancing] = useState<FinancingWithDetails | null>(null);
   const [financingStatuses, setFinancingStatuses] = useState<Record<number, "paid" | "analysis">>({});
   
   const { data: financings, isLoading } = useQuery<FinancingWithDetails[]>({
