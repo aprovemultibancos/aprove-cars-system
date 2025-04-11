@@ -34,7 +34,7 @@ interface ExpensesTableProps {
 }
 
 // Tipo de status das despesas
-type ExpenseStatus = 'paid' | 'analysis';
+type ExpenseStatus = 'paid' | 'pending';
 
 export function ExpensesTable({ filter }: ExpensesTableProps) {
   const { toast } = useToast();
@@ -42,7 +42,7 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
   const [expenseToDelete, setExpenseToDelete] = useState<number | null>(null);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'analysis'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'pending'>('all');
   const [expenseStatuses, setExpenseStatuses] = useState<Record<number, ExpenseStatus>>({});
   
   const { data: expenses, isLoading: expensesLoading } = useQuery<Expense[]>({
@@ -53,22 +53,22 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
     queryKey: ["/api/personnel"],
   });
 
-  // Determina o status da despesa (padrão: Em Análise)
+  // Determina o status da despesa (padrão: A Vencer)
   const getExpenseStatus = (expense: Expense): ExpenseStatus => {
     // Se o status já foi definido pelo usuário, retorna esse status
     if (expenseStatuses[expense.id]) {
       return expenseStatuses[expense.id];
     }
     
-    // Status padrão para qualquer nova despesa é 'Em Análise'
-    return 'analysis';
+    // Status padrão para qualquer nova despesa é 'A Vencer'
+    return 'pending';
   };
   
   // Função para alternar o status de uma despesa
   const toggleExpenseStatus = (expenseId: number) => {
     setExpenseStatuses(prev => {
-      const currentStatus = prev[expenseId] || 'analysis';
-      const newStatus = currentStatus === 'paid' ? 'analysis' : 'paid';
+      const currentStatus = prev[expenseId] || 'pending';
+      const newStatus = currentStatus === 'paid' ? 'pending' : 'paid';
       
       return {
         ...prev,
@@ -195,7 +195,7 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
         if (status === 'paid') {
           return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Pago</Badge>;
         } else {
-          return <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100">Em Análise</Badge>;
+          return <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100">A Vencer</Badge>;
         }
       },
     },
@@ -238,7 +238,7 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
             {currentStatus === 'paid' ? (
               <>
                 <FileQuestion className="h-4 w-4 mr-1" />
-                Em Análise
+                A Vencer
               </>
             ) : (
               <>
@@ -331,13 +331,13 @@ export function ExpensesTable({ filter }: ExpensesTableProps) {
             Pagas
           </Button>
           <Button 
-            variant={statusFilter === 'analysis' ? 'default' : 'outline'} 
+            variant={statusFilter === 'pending' ? 'default' : 'outline'} 
             size="sm"
             className="bg-purple-100 text-purple-800 hover:bg-purple-200 border-purple-200"
-            onClick={() => setStatusFilter('analysis')}
+            onClick={() => setStatusFilter('pending')}
           >
             <FileQuestion className="h-4 w-4 mr-1" />
-            Em Análise
+            A Vencer
           </Button>
         </div>
         
