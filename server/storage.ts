@@ -654,11 +654,39 @@ export class DatabaseStorage implements IStorage {
   }
   
   async updateExpense(id: number, expense: Partial<Expense>): Promise<Expense | undefined> {
-    const [updatedExpense] = await db.update(expenses)
-      .set(expense)
-      .where(eq(expenses.id, id))
-      .returning();
-    return updatedExpense;
+    try {
+      console.log("Atualizando despesa:", id, "com dados:", JSON.stringify(expense));
+      
+      // Se expense contém um campo status, verificar e validar
+      if ('status' in expense) {
+        console.log(`Atualizando status para: ${expense.status}`);
+        
+        // Construir manualmente a consulta SQL para evitar problemas de tipagem
+        const result = await db.execute(
+          `UPDATE expenses 
+           SET status = $1 
+           WHERE id = $2 
+           RETURNING *`,
+          [expense.status, id]
+        );
+        
+        if (result.rowCount === 0) {
+          return undefined;
+        }
+        
+        return result.rows[0] as Expense;
+      } else {
+        // Para outros campos, usar o builder do Drizzle
+        const [updatedExpense] = await db.update(expenses)
+          .set(expense)
+          .where(eq(expenses.id, id))
+          .returning();
+        return updatedExpense;
+      }
+    } catch (error) {
+      console.error("Erro ao atualizar despesa:", error);
+      throw error;
+    }
   }
   
   async deleteExpense(id: number): Promise<boolean> {
