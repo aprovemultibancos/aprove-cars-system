@@ -15,7 +15,6 @@ import ExpensesPage from "@/pages/expenses-page";
 import PersonnelPage from "@/pages/personnel-page";
 import ReportsPage from "@/pages/reports-page";
 import UserManagementPage from "@/pages/user-management-page";
-import PaymentsPage from "@/pages/payments-page";
 
 function Router() {
   return (
@@ -37,8 +36,7 @@ function Router() {
       <ProtectedRoute path="/personnel" component={() => <Layout><PersonnelPage /></Layout>} />
       <ProtectedRoute path="/personnel/:id" component={() => <Layout><PersonnelPage /></Layout>} />
       <ProtectedRoute path="/personnel/:id/:action" component={() => <Layout><PersonnelPage /></Layout>} />
-      <ProtectedRoute path="/payments" component={() => <Layout><PaymentsPage /></Layout>} />
-      <ProtectedRoute path="/payments/:id" component={() => <Layout><PaymentsPage /></Layout>} />
+
       <ProtectedRoute path="/reports" component={() => <Layout><ReportsPage /></Layout>} />
       <ProtectedRoute path="/users" component={() => <Layout><UserManagementPage /></Layout>} />
       <Route path="/auth" component={AuthPage} />

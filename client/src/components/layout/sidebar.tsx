@@ -98,9 +98,6 @@ export function Sidebar() {
                   <SidebarLink href="/expenses" icon={CircleDollarSign} currentPath={location}>
                     Despesas
                   </SidebarLink>
-                  <SidebarLink href="/payments" icon={Receipt} currentPath={location}>
-                    Pagamentos
-                  </SidebarLink>
                   <SidebarLink href="/personnel" icon={Users} currentPath={location}>
                     Pessoal
                   </SidebarLink>
