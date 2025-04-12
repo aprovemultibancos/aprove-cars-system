@@ -641,17 +641,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Schema de validação para pagamentos com coerção de tipos
-  const paymentSchema = z.object({
-    customerId: z.string(),
-    customerName: z.string().optional(),
-    description: z.string(),
-    value: z.coerce.number().min(0.01),
-    dueDate: z.coerce.date(),
-    billingType: z.enum(["BOLETO", "PIX", "CREDIT_CARD"]),
-    relatedSaleId: z.string().optional(),
-    notes: z.string().optional(),
-  });
+
 
   // Rotas de pagamento removidas conforme solicitado
 
