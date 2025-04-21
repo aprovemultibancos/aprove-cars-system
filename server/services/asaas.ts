@@ -1,7 +1,8 @@
 import fetch from 'node-fetch';
 
 // Constantes da API Asaas
-const ASAAS_BASE_URL = 'https://sandbox.asaas.com/api/v3';
+const ASAAS_SANDBOX_URL = 'https://sandbox.asaas.com/api/v3';
+const ASAAS_PRODUCTION_URL = 'https://api.asaas.com/v3'; 
 const ASAAS_API_KEY = process.env.ASAAS_API_KEY;
 
 // Tipos para a API do Asaas
@@ -103,12 +104,20 @@ export class AsaasService {
       // Não lançar erro para permitir que o sistema funcione no modo de demonstração
       this.apiKey = 'demo-key';
       this.inDemoMode = true;
+      this.baseUrl = ASAAS_SANDBOX_URL; // Usar sandbox por padrão para modo de demonstração
     } else {
       this.apiKey = ASAAS_API_KEY;
       this.inDemoMode = false;
+      
+      // Determinar o ambiente correto com base na chave API
+      if (ASAAS_API_KEY.startsWith('$aact_') || ASAAS_API_KEY.includes('prod_')) {
+        console.log('📊 Utilizando ambiente de PRODUÇÃO do Asaas');
+        this.baseUrl = ASAAS_PRODUCTION_URL;
+      } else {
+        console.log('📋 Utilizando ambiente de SANDBOX do Asaas');
+        this.baseUrl = ASAAS_SANDBOX_URL;
+      }
     }
-    
-    this.baseUrl = ASAAS_BASE_URL;
     
     // Iniciar teste de conexão em background
     setTimeout(() => this.testConnection(), 1000);
@@ -117,9 +126,19 @@ export class AsaasService {
   // Método para atualizar a chave da API
   async updateApiKey(newApiKey: string): Promise<boolean> {
     try {
+      // Determinar primeiro o ambiente correto para a nova chave
+      let url = '';
+      
+      if (newApiKey.startsWith('$aact_') || newApiKey.includes('prod_')) {
+        console.log('📊 Configurando ambiente de PRODUÇÃO do Asaas');
+        url = `${ASAAS_PRODUCTION_URL}/finance/balance`;
+      } else {
+        console.log('📋 Configurando ambiente de SANDBOX do Asaas');
+        url = `${ASAAS_SANDBOX_URL}/finance/balance`;
+      }
+      
       // Testar a nova chave antes de atualizar
-      const testUrl = `${this.baseUrl}/finance/balance`;
-      const response = await fetch(testUrl, {
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -131,6 +150,13 @@ export class AsaasService {
         // A chave é válida, então vamos atualizá-la
         this.apiKey = newApiKey;
         this.inDemoMode = false;
+        
+        // Atualizar também a URL base
+        if (newApiKey.startsWith('$aact_') || newApiKey.includes('prod_')) {
+          this.baseUrl = ASAAS_PRODUCTION_URL;
+        } else {
+          this.baseUrl = ASAAS_SANDBOX_URL;
+        }
         
         // Em um ambiente de produção, você salvaria esta chave em um local seguro
         // como uma variável de ambiente ou um serviço de gerenciamento de segredos

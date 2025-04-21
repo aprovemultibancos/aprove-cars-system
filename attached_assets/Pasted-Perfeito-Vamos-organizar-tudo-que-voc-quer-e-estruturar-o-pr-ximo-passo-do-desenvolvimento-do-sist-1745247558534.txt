@@ -1,0 +1,116 @@
+Perfeito! Vamos organizar tudo que você quer e estruturar o próximo passo do desenvolvimento do sistema **Aprove CRM** com foco comercial e financeiro. Abaixo vou te apresentar um plano baseado no que você já tem implementado e o que deseja incluir, além de identificar possíveis pontos de melhoria com base no erro de integração do Asaas e novas funcionalidades como o envio em massa via WhatsApp.
+
+---
+
+## ✅ **1. Situação atual da integração com Asaas**
+
+Pelo print do erro `Erro 400: "Não foi possível configurar a API"`, sabemos que a API Key está sendo lida corretamente (pois chega a ser enviada), mas a resposta da API é um erro de validação. Isso geralmente indica:
+
+- **A chave informada pode estar expirada ou incorreta.**
+- **Pode haver problemas no formato ou rota da requisição de validação da chave.**
+- **Você ainda está no modo "sandbox", mas está usando uma chave de produção (ou vice-versa).**
+
+### Ações sugeridas:
+- Verifique se a chave começa com `prod_` (produção) ou `test_` (sandbox) e se está compatível com o ambiente.
+- Certifique-se de que o endpoint de verificação (`https://asaas.com/api/v3/`) está sendo corretamente ajustado conforme o tipo de chave (você já faz isso com `includes('prod')`).
+- Testar diretamente no Postman ou Insomnia para ver a resposta crua da API (isso pode revelar detalhes do erro).
+
+---
+
+## 🚀 **2. Inclusão do Split e estrutura multi-loja**
+
+Sua implementação já está preparada para **split automático de 1% para a conta master**, e isso vai permitir monetizar transações de subcontas (excelente!). Para escalar isso com outras lojas, você precisa:
+
+### Estrutura proposta:
+
+- **Admin (conta master)**: recebe 1% de todas as transações das subcontas.
+- **Subcontas (clientes do CRM)**: terão seu próprio painel de vendas, clientes, cobranças.
+- Cada subconta usa sua **própria chave Asaas**, mas o split transfere sempre 1% para o master.
+
+### Requisitos técnicos:
+- Painel de gerenciamento das subcontas (admin visualiza todos os clientes cadastrados).
+- Suporte a múltiplas chaves Asaas, uma por loja (precisa tratar isso na `AsaasAPI`).
+- No cadastro da loja no banco, incluir:
+  - `asaasApiKey`
+  - `asaasWalletId`
+  - `porcentagemComissao` (ajustável, caso queira variar a comissão entre 1%, 2% etc.)
+
+---
+
+## 📩 **3. Envio em massa via WhatsApp (Telein)**
+
+Você quer criar uma integração direta com a interface da Telein, e já vi que você possui um painel com envios programáveis.
+
+### Funcionalidades esperadas:
+
+- **Gestão de contatos**
+  - Importar CSV
+  - Adicionar manualmente
+  - Sincronizar com clientes já cadastrados (do Asaas)
+- **Conexão WhatsApp**
+  - Status e reconexão automática
+  - Vínculo da conta ativa com campanhas
+- **Campanhas**
+  - Criar novo modelo (mensagem com tags como nome, CPF, vencimento etc.)
+  - Programar envio em massa (com segurança como no print: intervalo, pausa por chip, horário)
+  - Adicionar imagem (.jpg, .png), vídeo (.mp4), PDF e áudio (.mp3)
+- **Envio**
+  - Seleção de lista/grupo de contatos
+  - Uso de chips configuráveis
+  - Logs de campanha + exportação de relatórios
+
+---
+
+## 💰 **4. Nova camada de funcionalidades do Asaas**
+
+Você quer oferecer mais do que só cobranças. Abaixo estão os novos recursos desejados:
+
+### 📌 Módulos avançados a integrar com a API do Asaas:
+
+| Funcionalidade               | Disponível na API Asaas? | Notas |
+|-----------------------------|---------------------------|-------|
+| Visualizar extrato          | ✅ `/finance/balance` ou `/transfers` |
+| Fazer transferências        | ✅ `/transfers` |
+| Pagar contas (boleto)       | ✅ `/payments/{id}/pay` (pagamento por saldo) |
+| Registro de recebíveis      | ✅ `/anticipations` |
+| Simular antecipações        | ✅ `/anticipations/simulate` |
+| Antecipação automática      | ✅ (pode ser programada com cron + simulação diária) |
+| Negativação (Protesto/Serasa) | ⚠️ Apenas via parceiros externos (verificar se sua conta Asaas tem esse módulo ativo) |
+
+> **Dica**: para negativação você pode integrar com empresas como Boa Vista, Serasa ou utilizar a API da própria Asaas (caso disponível no seu plano).
+
+---
+
+## 🔄 **Sincronização Cliente Asaas ↔ CRM**
+
+Excelente decisão em usar o cliente Asaas como referência única. Isso garante:
+
+- Cobrança sempre feita com dados corretos
+- Evita duplicidade de registros
+
+### Como garantir isso:
+- Sempre que cadastrar um cliente no sistema, já fazer:
+  - POST para `https://asaas.com/api/v3/customers`
+  - Salvar o ID retornado no banco local
+- Ao abrir tela de vendas, listar clientes a partir da API do Asaas ou localmente com cache
+
+---
+
+## ✅ Próximos passos recomendados
+
+1. **Resolver o erro de integração da API**
+2. **Criar painel multi-loja com suporte a chaves distintas**
+3. **Desenvolver módulo de campanhas WhatsApp com base nos prints do Telein**
+4. **Estender a `AsaasAPI` com os novos endpoints (extrato, transferências, antecipações, etc.)**
+5. **Implementar sincronização full entre cliente/vendas/pagamentos**
+
+---
+
+Se quiser, posso montar para você:
+
+- Os endpoints REST para os novos módulos
+- A arquitetura do painel multi-loja com split dinâmico
+- O modelo do banco de dados com tabelas `lojas`, `clientes`, `campanhas`, `pagamentos`
+- A tela do painel de controle do admin para monitorar uso das subcontas
+
+Me avisa como prefere seguir!
