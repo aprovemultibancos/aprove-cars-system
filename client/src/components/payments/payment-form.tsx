@@ -25,14 +25,14 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Search, User, AlertCircle, CreditCard, Receipt, QrCode } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, formatCpfCnpj } from "@/lib/utils";
 import { Customer, Sale } from "@shared/schema";
-import { AlertCircle, CreditCard, Receipt, QrCode } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AsaasCustomerLookup } from "../sales/asaas-customer-lookup";
 
 // Definir o schema do formulário de pagamento
 const paymentFormSchema = z.object({
@@ -62,12 +62,35 @@ export function PaymentForm({ customers, sales }: PaymentFormProps) {
   const queryClient = useQueryClient();
   const [originalValue, setOriginalValue] = useState<number>(0);
   const [finalValue, setFinalValue] = useState<number>(0);
+  const [showAsaasLookup, setShowAsaasLookup] = useState<boolean>(false);
+  const [selectedAsaasCustomer, setSelectedAsaasCustomer] = useState<{
+    id: string;
+    name: string;
+    cpfCnpj: string;
+    email?: string;
+    phone?: string;
+  } | null>(null);
+  
+  // Consulta para obter clientes do Asaas
+  const { data: asaasCustomers, isLoading: asaasCustomersLoading } = useQuery({
+    queryKey: ['/api/asaas/customers'],
+    queryFn: async () => {
+      try {
+        const response = await apiRequest('GET', '/api/asaas/customers?limit=100');
+        const data = await response.json();
+        return data.data || [];
+      } catch (error) {
+        console.error("Erro ao buscar clientes do Asaas:", error);
+        return [];
+      }
+    },
+  });
   
   // Definir valores padrão para o formulário
   const form = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentFormSchema),
     defaultValues: {
-      customerId: "manual",
+      customerId: "",
       customerName: "",
       description: "",
       value: 0,
@@ -136,9 +159,45 @@ export function PaymentForm({ customers, sales }: PaymentFormProps) {
     },
   });
   
+  // Função para lidar com a seleção de cliente do Asaas
+  const handleCustomerSelect = (customer: {
+    id: string;
+    name: string;
+    cpfCnpj: string;
+    email?: string;
+    phone?: string;
+  }) => {
+    setSelectedAsaasCustomer(customer);
+    setShowAsaasLookup(false);
+    
+    // Atualizar o formulário com os dados do cliente
+    form.setValue("customerId", customer.id);
+    form.setValue("customerName", customer.name);
+    
+    toast({
+      title: "Cliente selecionado",
+      description: `Cliente ${customer.name} selecionado para cobrança.`,
+    });
+  };
+  
   function onSubmit(data: PaymentFormValues) {
+    // Verificar se foi selecionado um cliente
+    if (!selectedAsaasCustomer && !data.customerId) {
+      toast({
+        title: "Cliente não selecionado",
+        description: "Por favor, selecione um cliente para a cobrança.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     // Ajustar o valor para incluir a taxa de 2.49%
     data.value = finalValue;
+    
+    // Adicionar o ID do cliente Asaas se foi selecionado
+    if (selectedAsaasCustomer) {
+      data.customerId = selectedAsaasCustomer.id;
+    }
     
     mutation.mutate(data);
   }
@@ -148,27 +207,92 @@ export function PaymentForm({ customers, sales }: PaymentFormProps) {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="md:col-span-2">
-            <input type="hidden" name="customerId" value="manual" />
+            <input type="hidden" name="customerId" value={selectedAsaasCustomer?.id || ""} />
             
-            <FormField
-              control={form.control}
-              name="customerName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nome do Cliente Manual</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="Digite o nome do cliente" 
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Digite o nome do cliente que receberá a cobrança
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {selectedAsaasCustomer ? (
+              <div className="border rounded-md p-4 mb-4 bg-green-50">
+                <h3 className="text-lg font-medium mb-2">Cliente Selecionado</h3>
+                <div className="space-y-1">
+                  <p className="font-semibold">{selectedAsaasCustomer.name}</p>
+                  <p className="text-sm text-gray-600">{formatCpfCnpj(selectedAsaasCustomer.cpfCnpj)}</p>
+                  {selectedAsaasCustomer.email && <p className="text-sm text-gray-600">{selectedAsaasCustomer.email}</p>}
+                  {selectedAsaasCustomer.phone && <p className="text-sm text-gray-600">{selectedAsaasCustomer.phone}</p>}
+                </div>
+                <div className="mt-3">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setSelectedAsaasCustomer(null)}
+                  >
+                    Alterar Cliente
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium">Selecione um Cliente</h3>
+                  <Button
+                    type="button"
+                    variant={showAsaasLookup ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowAsaasLookup(!showAsaasLookup)}
+                  >
+                    {showAsaasLookup ? "Fechar Busca" : "Buscar Cliente por CPF/CNPJ"}
+                  </Button>
+                </div>
+                
+                {showAsaasLookup ? (
+                  <AsaasCustomerLookup onCustomerSelect={handleCustomerSelect} />
+                ) : (
+                  <div className="border rounded-md p-4 mb-4">
+                    <h4 className="font-medium mb-3">Clientes Cadastrados</h4>
+                    {asaasCustomersLoading ? (
+                      <div className="flex justify-center p-4">
+                        <span className="animate-spin mr-2"><Search className="h-5 w-5" /></span>
+                        <span>Carregando clientes...</span>
+                      </div>
+                    ) : asaasCustomers && asaasCustomers.length > 0 ? (
+                      <div className="max-h-[300px] overflow-y-auto">
+                        <div className="space-y-2">
+                          {asaasCustomers.map((customer: any) => (
+                            <div 
+                              key={customer.id}
+                              className="border rounded-md p-3 hover:bg-green-50 cursor-pointer transition-colors"
+                              onClick={() => handleCustomerSelect({
+                                id: customer.id,
+                                name: customer.name,
+                                cpfCnpj: customer.cpfCnpj,
+                                email: customer.email,
+                                phone: customer.phone || customer.mobilePhone
+                              })}
+                            >
+                              <div className="flex items-start">
+                                <User className="h-5 w-5 mr-3 mt-0.5 text-gray-400" />
+                                <div>
+                                  <p className="font-medium">{customer.name}</p>
+                                  <p className="text-sm text-gray-600">{formatCpfCnpj(customer.cpfCnpj)}</p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center p-4 text-gray-500">
+                        <p>Nenhum cliente encontrado.</p>
+                        <p className="mt-1 text-sm">Clique em "Buscar Cliente por CPF/CNPJ" para pesquisar um cliente específico.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                <div className="text-sm text-amber-600 mt-2">
+                  <strong>IMPORTANTE:</strong> O cliente deve estar cadastrado no Asaas antes de criar uma cobrança.
+                  Se não encontrar o cliente, cadastre-o primeiro na página de Clientes.
+                </div>
+              </div>
+            )}
           </div>
           
           <FormField
