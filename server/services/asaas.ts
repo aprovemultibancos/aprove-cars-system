@@ -132,8 +132,16 @@ export class AsaasService {
       
       const response = await fetch(url, options);
       
-      // Usar any para evitar erros de tipagem com o responseData
-      const responseData: any = await response.json();
+      // Verificar se a resposta está vazia ou não é JSON válido
+      const text = await response.text();
+      let responseData: any;
+      
+      try {
+        responseData = text ? JSON.parse(text) : {};
+      } catch (e) {
+        console.error('Resposta não é um JSON válido:', text);
+        throw new Error('Resposta da API Asaas não é um JSON válido');
+      }
       
       if (!response.ok) {
         console.error('Erro na requisição:', responseData);

@@ -127,10 +127,10 @@ function BalanceOverview() {
 function PaymentsList() {
   const { usePaymentsQuery, translatePaymentStatus, translatePaymentMethod, formatCurrency, cancelPaymentMutation } = useAsaas();
   const [page, setPage] = useState(0);
-  const [statusFilter, setStatusFilter] = useState<string | undefined>();
+  const [statusFilter, setStatusFilter] = useState<string | undefined>("ALL");
   const limit = 10;
   
-  const { data, isLoading, error } = usePaymentsQuery(page * limit, limit, statusFilter);
+  const { data, isLoading, error } = usePaymentsQuery(page * limit, limit, statusFilter === "ALL" ? undefined : statusFilter);
   const { toast } = useToast();
   
   const handleCancel = (paymentId: string) => {
@@ -191,7 +191,7 @@ function PaymentsList() {
                 <SelectValue placeholder="Todos os status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos os status</SelectItem>
+                <SelectItem value="ALL">Todos os status</SelectItem>
                 <SelectItem value="PENDING">Pendentes</SelectItem>
                 <SelectItem value="RECEIVED">Recebidos</SelectItem>
                 <SelectItem value="CONFIRMED">Confirmados</SelectItem>
@@ -202,7 +202,7 @@ function PaymentsList() {
             </Select>
             <Button variant="outline" size="icon" onClick={() => {
               setPage(0);
-              setStatusFilter(undefined);
+              setStatusFilter("ALL");
             }}>
               <RefreshCcw className="h-4 w-4" />
             </Button>

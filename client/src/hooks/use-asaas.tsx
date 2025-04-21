@@ -66,13 +66,19 @@ export function useAsaas() {
   const balanceQuery = useQuery({
     queryKey: ['/api/asaas/balance'],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/asaas/balance');
-      const data = await response.json();
-      return data as AsaasBalance;
+      try {
+        const response = await apiRequest('GET', '/api/asaas/balance');
+        const data = await response.json();
+        return data as AsaasBalance;
+      } catch (error) {
+        console.error("Erro ao buscar saldo:", error);
+        // Retornamos um objeto com saldo zero para evitar erros na interface
+        return { balance: 0 } as AsaasBalance;
+      }
     },
-    enabled: true, // Por padrão, a consulta não está ativada, deve ser habilitada explicitamente
+    enabled: true,
     staleTime: 1000 * 60 * 5, // 5 minutos
-    retry: 1,
+    retry: 2,
   });
   
   // Query para listar os pagamentos
@@ -80,15 +86,21 @@ export function useAsaas() {
     return useQuery({
       queryKey: ['/api/asaas/payments', offset, limit, status],
       queryFn: async () => {
-        let url = `/api/asaas/payments?offset=${offset}&limit=${limit}`;
-        if (status) url += `&status=${status}`;
-        
-        const response = await apiRequest('GET', url);
-        const data = await response.json();
-        return data as { data: AsaasPayment[], totalCount: number };
+        try {
+          let url = `/api/asaas/payments?offset=${offset}&limit=${limit}`;
+          if (status) url += `&status=${status}`;
+          
+          const response = await apiRequest('GET', url);
+          const data = await response.json();
+          return data as { data: AsaasPayment[], totalCount: number };
+        } catch (error) {
+          console.error("Erro ao buscar pagamentos:", error);
+          // Retornamos um objeto vazio para evitar erros na interface
+          return { data: [], totalCount: 0 } as { data: AsaasPayment[], totalCount: number };
+        }
       },
       staleTime: 1000 * 60, // 1 minuto
-      retry: 1,
+      retry: 2,
     });
   };
   
