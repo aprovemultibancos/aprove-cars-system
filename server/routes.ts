@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { WebSocketServer } from 'ws';
 import { storage } from "./storage";
 import { setupAuth, hashPassword } from "./auth";
+import { eq, and, sql, desc, asc, or, not, inArray } from "drizzle-orm";
 import { 
   insertVehicleSchema, 
   insertCustomerSchema, 
@@ -1158,7 +1159,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const id = parseInt(req.params.id);
-      const [connection] = await db.select().from(whatsappConnections).where(({ id: connectionId }) => connectionId.equals(id));
+      const [connection] = await db.select().from(whatsappConnections).where(eq(whatsappConnections.id, id));
       
       if (!connection) {
         return res.status(404).json({ message: "Conexão não encontrada" });
@@ -1168,7 +1169,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const handler = whatsappService.getConnection(id);
       if (handler) {
         // Atualizar os dados com informações em tempo real
-        connection.status = handler.getStatus();
+        connection.status = handler.getStatus() as any; // Cast para lidar com o tipo
         connection.qrCode = handler.getQrCode();
       }
       
@@ -1213,7 +1214,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       whatsappService.removeConnection(id);
       
       // Remover do banco de dados
-      await db.delete(whatsappConnections).where(({ id: connectionId }) => connectionId.equals(id));
+      await db.delete(whatsappConnections).where(eq(whatsappConnections.id, id));
       
       res.status(204).end();
     } catch (error) {
@@ -1229,7 +1230,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const id = parseInt(req.params.id);
-      const [connection] = await db.select().from(whatsappConnections).where(({ id: connectionId }) => connectionId.equals(id));
+      const [connection] = await db.select().from(whatsappConnections).where(eq(whatsappConnections.id, id));
       
       if (!connection) {
         return res.status(404).json({ message: "Conexão não encontrada" });
@@ -1244,7 +1245,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Atualizar status no banco de dados
       await db.update(whatsappConnections)
         .set({ status: "connecting" })
-        .where(({ id: connectionId }) => connectionId.equals(id));
+        .where(eq(whatsappConnections.id, id));
       
       res.json({ message: "Conexão iniciada", status: "connecting" });
     } catch (error) {
@@ -1273,7 +1274,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Atualizar status no banco de dados
       await db.update(whatsappConnections)
         .set({ status: "disconnected" })
-        .where(({ id: connectionId }) => connectionId.equals(id));
+        .where(eq(whatsappConnections.id, id));
       
       res.json({ message: "Desconectado com sucesso" });
     } catch (error) {

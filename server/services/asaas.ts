@@ -690,57 +690,74 @@ export class AsaasService {
         endpoint += `&status=${status}`;
       }
       
-      return await this.request<{data: AsaasPaymentResponse[], totalCount: number}>(endpoint);
+      console.log(`Buscando pagamentos reais no Asaas: ${this.baseUrl}${endpoint}`);
+      const result = await this.request<{data: AsaasPaymentResponse[], totalCount: number}>(endpoint);
+      console.log(`Encontrados ${result.data.length} pagamentos reais no Asaas`);
+      
+      // Garantir que sempre retornamos os dados reais, mesmo que seja uma lista vazia
+      return result;
     } catch (error) {
-      console.error('Erro ao obter pagamentos reais. Usando dados de demonstração.', error);
+      console.error('Erro ao obter pagamentos reais. Verificando modo de demonstração...', error);
       
-      // Dados de demonstração para a interface
-      const demoPayments: AsaasPaymentResponse[] = [
-        {
-          id: "demo1",
-          dateCreated: new Date().toISOString(),
-          customer: "demo-customer",
-          value: 150.00,
-          netValue: 147.52,
-          billingType: "BOLETO",
-          status: "PENDING",
-          dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          description: "Pagamento de serviços (demonstração)",
-          invoiceUrl: "",
-          bankSlipUrl: "",
-          invoiceNumber: "001",
-          externalReference: "",
-          deleted: false
-        },
-        {
-          id: "demo2",
-          dateCreated: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-          customer: "demo-customer",
-          value: 299.99,
-          netValue: 297.00,
-          billingType: "PIX",
-          status: "RECEIVED",
-          dueDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          description: "Pagamento de produtos (demonstração)",
-          invoiceUrl: "",
-          bankSlipUrl: "",
-          invoiceNumber: "002",
-          externalReference: "",
-          deleted: false,
-          pixQrCodeImage: ""
+      // Somente usar demonstração se estiver explicitamente no modo de demonstração
+      if (this.inDemoMode) {
+        console.log('Usando dados de demonstração para pagamentos');
+        // Dados de demonstração para a interface
+        const demoPayments: AsaasPaymentResponse[] = [
+          {
+            id: "demo1",
+            dateCreated: new Date().toISOString(),
+            customer: "demo-customer",
+            value: 150.00,
+            netValue: 147.52,
+            billingType: "BOLETO",
+            status: "PENDING",
+            dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            description: "Pagamento de serviços (demonstração)",
+            invoiceUrl: "",
+            bankSlipUrl: "",
+            invoiceNumber: "001",
+            externalReference: "",
+            deleted: false
+          },
+          {
+            id: "demo2",
+            dateCreated: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+            customer: "demo-customer",
+            value: 299.99,
+            netValue: 297.00,
+            billingType: "PIX",
+            status: "RECEIVED",
+            dueDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            description: "Pagamento de produtos (demonstração)",
+            invoiceUrl: "",
+            bankSlipUrl: "",
+            invoiceNumber: "002",
+            externalReference: "",
+            deleted: false,
+            pixQrCodeImage: ""
+          }
+        ];
+        
+        // Filtrar por status se necessário
+        let filteredPayments = demoPayments;
+        if (status) {
+          filteredPayments = demoPayments.filter(p => p.status === status);
         }
-      ];
-      
-      // Filtrar por status se necessário
-      let filteredPayments = demoPayments;
-      if (status) {
-        filteredPayments = demoPayments.filter(p => p.status === status);
+        
+        return {
+          data: filteredPayments,
+          totalCount: filteredPayments.length
+        };
+      } else {
+        console.log('API Asaas indisponível, mas não estamos em modo de demonstração. Retornando lista vazia.');
+        // Se não estiver no modo de demonstração e ocorrer um erro, retornar uma lista vazia
+        // mas mantendo a estrutura adequada para a interface
+        return {
+          data: [],
+          totalCount: 0
+        };
       }
-      
-      return {
-        data: filteredPayments,
-        totalCount: filteredPayments.length
-      };
     }
   }
   
