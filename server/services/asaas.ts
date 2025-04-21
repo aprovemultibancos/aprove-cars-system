@@ -136,24 +136,19 @@ export class AsaasService {
   // Método para selecionar a empresa atual
   async setCompany(companyId: number): Promise<boolean> {
     try {
-      // Buscar a integração da empresa no banco de dados
-      const [integration] = await db
+      // Buscar a configuração da empresa no banco de dados
+      const [config] = await db
         .select()
-        .from(companyIntegrations)
-        .where(
-          and(
-            eq(companyIntegrations.companyId, companyId),
-            eq(companyIntegrations.integrationType, 'asaas')
-          )
-        );
+        .from(asaasConfig)
+        .where(eq(asaasConfig.companyId, companyId));
       
-      if (integration) {
-        this.apiKey = integration.apiKey;
+      if (config) {
+        this.apiKey = config.apiKey;
         this.inDemoMode = false;
         this.currentCompanyId = companyId;
         
-        // Definir a URL base com base na chave da API
-        if (this.apiKey.startsWith('$aact_') || this.apiKey.includes('prod_')) {
+        // Definir a URL base com base no modo configurado
+        if (config.mode === 'production') {
           this.baseUrl = ASAAS_PRODUCTION_URL;
         } else {
           this.baseUrl = ASAAS_SANDBOX_URL;
@@ -161,20 +156,56 @@ export class AsaasService {
         
         return true;
       } else {
-        // Se não encontrar integração, usar a chave padrão do ambiente
-        this.apiKey = ASAAS_API_KEY || 'demo-key';
-        this.inDemoMode = !ASAAS_API_KEY;
-        this.currentCompanyId = null;
+        // Tentar buscar na tabela antiga de integrações (compatibilidade)
+        const [integration] = await db
+          .select()
+          .from(companyIntegrations)
+          .where(
+            and(
+              eq(companyIntegrations.companyId, companyId),
+              eq(companyIntegrations.integrationType, 'asaas')
+            )
+          );
         
-        // Definir URL base com base na chave padrão
-        if (this.apiKey.startsWith('$aact_') || this.apiKey.includes('prod_')) {
-          this.baseUrl = ASAAS_PRODUCTION_URL;
+        if (integration) {
+          // Migrar da tabela antiga para a nova
+          const mode = integration.apiKey.startsWith('$aact_') || integration.apiKey.includes('prod_') 
+            ? 'production' 
+            : 'sandbox';
+          
+          await db
+            .insert(asaasConfig)
+            .values({
+              companyId,
+              apiKey: integration.apiKey,
+              mode,
+              walletId: null,
+            });
+          
+          this.apiKey = integration.apiKey;
+          this.inDemoMode = false;
+          this.currentCompanyId = companyId;
+          
+          this.baseUrl = mode === 'production' ? ASAAS_PRODUCTION_URL : ASAAS_SANDBOX_URL;
+          
+          console.log(`Migrada configuração Asaas da empresa ${companyId} para o novo formato`);
+          return true;
         } else {
-          this.baseUrl = ASAAS_SANDBOX_URL;
+          // Se não encontrar configuração, usar a chave padrão do ambiente
+          this.apiKey = ASAAS_API_KEY || 'demo-key';
+          this.inDemoMode = !ASAAS_API_KEY;
+          this.currentCompanyId = null;
+          
+          // Definir URL base com base na chave padrão
+          if (this.apiKey?.startsWith('$aact_') || this.apiKey?.includes('prod_')) {
+            this.baseUrl = ASAAS_PRODUCTION_URL;
+          } else {
+            this.baseUrl = ASAAS_SANDBOX_URL;
+          }
+          
+          console.warn(`Empresa ${companyId} não possui configuração Asaas. Usando chave padrão.`);
+          return false;
         }
-        
-        console.warn(`Empresa ${companyId} não possui integração com Asaas. Usando chave padrão.`);
-        return false;
       }
     } catch (error) {
       console.error('Erro ao definir empresa para o serviço Asaas:', error);
@@ -184,13 +215,13 @@ export class AsaasService {
   }
   
   // Método para atualizar a chave da API e associá-la a uma empresa
-  async updateApiKey(newApiKey: string, companyId?: number): Promise<boolean> {
+  async updateApiKey(newApiKey: string, companyId?: number, walletId?: string): Promise<boolean> {
     try {
       // Determinar primeiro o ambiente correto para a nova chave
       let url = '';
-      const isSandbox = !(newApiKey.startsWith('$aact_') || newApiKey.includes('prod_'));
+      const mode = newApiKey.startsWith('$aact_') || newApiKey.includes('prod_') ? 'production' : 'sandbox';
       
-      if (!isSandbox) {
+      if (mode === 'production') {
         console.log('📊 Configurando ambiente de PRODUÇÃO do Asaas');
         url = `${ASAAS_PRODUCTION_URL}/finance/balance`;
       } else {
@@ -213,52 +244,48 @@ export class AsaasService {
         this.inDemoMode = false;
         
         // Atualizar também a URL base
-        this.baseUrl = isSandbox ? ASAAS_SANDBOX_URL : ASAAS_PRODUCTION_URL;
+        this.baseUrl = mode === 'sandbox' ? ASAAS_SANDBOX_URL : ASAAS_PRODUCTION_URL;
         
-        // Se temos um companyId, salvar a integração no banco de dados
+        // Se temos um companyId, salvar a configuração no banco de dados
         if (companyId) {
           try {
-            // Verificar se já existe uma integração
-            const [existingIntegration] = await db
+            // Verificar se já existe uma configuração
+            const [existingConfig] = await db
               .select()
-              .from(companyIntegrations)
-              .where(
-                and(
-                  eq(companyIntegrations.companyId, companyId), 
-                  eq(companyIntegrations.integrationType, 'asaas')
-                )
-              );
+              .from(asaasConfig)
+              .where(eq(asaasConfig.companyId, companyId));
             
-            if (existingIntegration) {
-              // Atualizar integração existente
+            if (existingConfig) {
+              // Atualizar configuração existente
               await db
-                .update(companyIntegrations)
+                .update(asaasConfig)
                 .set({ 
                   apiKey: newApiKey,
-                  isSandbox,
+                  mode,
+                  walletId,
                   updatedAt: new Date()
                 })
-                .where(eq(companyIntegrations.id, existingIntegration.id));
+                .where(eq(asaasConfig.id, existingConfig.id));
               
-              console.log(`Integração Asaas atualizada para empresa ${companyId}`);
+              console.log(`Configuração Asaas atualizada para empresa ${companyId}`);
             } else {
-              // Criar nova integração
+              // Criar nova configuração
               await db
-                .insert(companyIntegrations)
+                .insert(asaasConfig)
                 .values({
                   companyId,
-                  integrationType: 'asaas',
                   apiKey: newApiKey,
-                  isSandbox,
+                  mode,
+                  walletId,
                 });
               
-              console.log(`Nova integração Asaas criada para empresa ${companyId}`);
+              console.log(`Nova configuração Asaas criada para empresa ${companyId}`);
             }
             
             // Definir a empresa atual
             this.currentCompanyId = companyId;
           } catch (dbError) {
-            console.error('Erro ao salvar integração no banco de dados:', dbError);
+            console.error('Erro ao salvar configuração Asaas no banco de dados:', dbError);
             // Mesmo com erro no banco, a chave foi atualizada na memória
           }
         }
@@ -272,6 +299,21 @@ export class AsaasService {
     } catch (error) {
       console.error('Erro ao testar nova chave API:', error);
       return false;
+    }
+  }
+  
+  // Método para obter a configuração do Asaas de uma empresa
+  async getAsaasConfig(companyId: number) {
+    try {
+      const [config] = await db
+        .select()
+        .from(asaasConfig)
+        .where(eq(asaasConfig.companyId, companyId));
+      
+      return config;
+    } catch (error) {
+      console.error('Erro ao buscar configuração Asaas:', error);
+      return null;
     }
   }
   
@@ -567,19 +609,14 @@ export class AsaasService {
                 )
               );
             
-            // Buscar a integração da empresa master
-            const [masterIntegration] = await db
+            // Buscar a configuração Asaas da empresa master
+            const [masterConfig] = await db
               .select()
-              .from(companyIntegrations)
-              .where(
-                and(
-                  eq(companyIntegrations.companyId, company.masterCompanyId),
-                  eq(companyIntegrations.integrationType, 'asaas')
-                )
-              );
+              .from(asaasConfig)
+              .where(eq(asaasConfig.companyId, company.masterCompanyId));
             
-            // Se temos a configuração de split e a integração da master
-            if (splitConfig && masterIntegration && masterIntegration.walletId) {
+            // Se temos a configuração de split e a configuração da master
+            if (splitConfig && masterConfig && masterConfig.walletId) {
               const masterPercentage = parseFloat(splitConfig.masterPercentage.toString());
               
               // Calcular o valor para a empresa master (porcentagem do valor total)
@@ -590,7 +627,7 @@ export class AsaasService {
                 ...paymentData,
                 split: [
                   {
-                    walletId: masterIntegration.walletId,
+                    walletId: masterConfig.walletId!,
                     fixedValue: parseFloat(masterAmount.toFixed(2))
                   }
                 ]
@@ -598,7 +635,7 @@ export class AsaasService {
               
               console.log(`Split configurado: ${masterPercentage}% (R$ ${masterAmount.toFixed(2)}) para empresa master ${company.masterCompanyId}`);
             } else {
-              console.log('Configuração de split ou integração da empresa master não encontrada');
+              console.log('Configuração de split ou configuração Asaas da empresa master não encontrada');
             }
           }
         } catch (splitError) {
