@@ -1265,6 +1265,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Erro ao buscar conexão WhatsApp", error: String(error) });
     }
   });
+  
+  // Rotas específicas para o WPPConnect Server
+  app.get("/api/whatsapp/connections/:id/qrcode", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const id = parseInt(req.params.id);
+      const [connection] = await db.select().from(whatsappConnections).where(eq(whatsappConnections.id, id));
+      
+      if (!connection) {
+        return res.status(404).json({ message: "Conexão não encontrada" });
+      }
+      
+      // Obtenção do QR code usando o WPPConnect Server
+      const sessionName = `session-${connection.id}`;
+      const qrCode = await wppConnectServerService.getQrCode(sessionName);
+      
+      if (!qrCode) {
+        // Se não houver QR code, verificar se já está conectado
+        const status = await wppConnectServerService.getSessionStatus(sessionName);
+        
+        if (status === 'CONNECTED') {
+          return res.json({ connected: true, message: "Sessão já está conectada" });
+        }
+        
+        return res.status(404).json({ message: "QR Code não disponível. Tente iniciar a sessão primeiro." });
+      }
+      
+      // Atualizar o QR code no banco de dados
+      await db.update(whatsappConnections)
+        .set({ qrCode })
+        .where(eq(whatsappConnections.id, id));
+      
+      res.json({ qrCode });
+    } catch (error) {
+      console.error("Erro ao obter QR Code:", error);
+      res.status(500).json({ message: "Erro ao obter QR Code", error: String(error) });
+    }
+  });
+  
+  app.get("/api/whatsapp/connections/:id/status", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const id = parseInt(req.params.id);
+      const [connection] = await db.select().from(whatsappConnections).where(eq(whatsappConnections.id, id));
+      
+      if (!connection) {
+        return res.status(404).json({ message: "Conexão não encontrada" });
+      }
+      
+      // Obtenção do status usando o WPPConnect Server
+      const sessionName = `session-${connection.id}`;
+      const status = await wppConnectServerService.getSessionStatus(sessionName);
+      
+      // Mapear o status do WPPConnect para o formato do nosso banco
+      let mappedStatus: "connected" | "disconnected" | "connecting" = "disconnected";
+      
+      if (status === 'CONNECTED') {
+        mappedStatus = "connected";
+      } else if (status === 'QRCODE' || status === 'STARTING') {
+        mappedStatus = "connecting";
+      }
+      
+      // Atualizar o status no banco de dados
+      await db.update(whatsappConnections)
+        .set({ status: mappedStatus })
+        .where(eq(whatsappConnections.id, id));
+      
+      res.json({ 
+        status, 
+        mappedStatus,
+        description: status === 'CONNECTED' ? 'Conectado ao WhatsApp' : 
+                    status === 'DISCONNECTED' ? 'Desconectado do WhatsApp' :
+                    status === 'QRCODE' ? 'Aguardando escaneamento do QR Code' :
+                    status === 'STARTING' ? 'Iniciando conexão' : 'Status desconhecido'
+      });
+    } catch (error) {
+      console.error("Erro ao obter status da sessão:", error);
+      res.status(500).json({ message: "Erro ao obter status da sessão", error: String(error) });
+    }
+  });
 
   app.post("/api/whatsapp/connections", async (req, res) => {
     try {
@@ -1322,18 +1408,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Conexão não encontrada" });
       }
       
-      // Obter ou criar o handler para essa conexão
-      const handler = whatsappService.registerConnection(connection);
+      // Configurar nome da sessão para o WPPConnect Server
+      const sessionName = `session-${connection.id}`;
       
-      // Conectar
-      handler.connect();
+      // Iniciar a sessão no WPPConnect Server
+      const success = await wppConnectServerService.startSession(sessionName);
+      
+      if (!success) {
+        return res.status(500).json({ message: "Erro ao iniciar sessão no WPPConnect Server" });
+      }
       
       // Atualizar status no banco de dados
       await db.update(whatsappConnections)
         .set({ status: "connecting" })
         .where(eq(whatsappConnections.id, id));
       
-      res.json({ message: "Conexão iniciada", status: "connecting" });
+      // Obter ou criar o handler para essa conexão também
+      // para compatibilidade com o código existente
+      const handler = whatsappService.registerConnection(connection);
+      handler.connect();
+      
+      res.json({ 
+        message: "Conexão iniciada", 
+        status: "connecting",
+        next: "Escaneie o QR code para conectar ao WhatsApp",
+        sessionName
+      });
     } catch (error) {
       console.error("Erro ao conectar WhatsApp:", error);
       res.status(500).json({ message: "Erro ao conectar WhatsApp", error: String(error) });
@@ -1348,14 +1448,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const id = parseInt(req.params.id);
       
-      // Obter o handler
-      const handler = whatsappService.getConnection(id);
-      if (!handler) {
-        return res.status(404).json({ message: "Conexão não encontrada ou já desconectada" });
+      // Obter a conexão do banco de dados
+      const [connection] = await db.select().from(whatsappConnections).where(eq(whatsappConnections.id, id));
+      
+      if (!connection) {
+        return res.status(404).json({ message: "Conexão não encontrada" });
       }
       
-      // Desconectar
-      handler.disconnect();
+      // Configurar nome da sessão para o WPPConnect Server
+      const sessionName = `session-${connection.id}`;
+      
+      // Fechar a sessão no WPPConnect Server
+      await wppConnectServerService.closeSession(sessionName);
+      
+      // Para compatibilidade com o código existente, também desconectar pelo handler
+      const handler = whatsappService.getConnection(id);
+      if (handler) {
+        handler.disconnect();
+      }
       
       // Atualizar status no banco de dados
       await db.update(whatsappConnections)
@@ -1648,6 +1758,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao excluir template WhatsApp:", error);
       res.status(500).json({ message: "Erro ao excluir template WhatsApp", error: String(error) });
+    }
+  });
+  
+  // Rota para enviar mensagem de texto via WPPConnect Server
+  app.post("/api/whatsapp/connections/:id/send-message", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const id = parseInt(req.params.id);
+      const { phone, message } = req.body;
+      
+      if (!phone || !message) {
+        return res.status(400).json({ message: "Número de telefone e mensagem são obrigatórios" });
+      }
+      
+      // Obter a conexão do banco de dados
+      const [connection] = await db.select().from(whatsappConnections).where(eq(whatsappConnections.id, id));
+      
+      if (!connection) {
+        return res.status(404).json({ message: "Conexão não encontrada" });
+      }
+      
+      // Verificar se a conexão está ativa
+      const sessionName = `session-${connection.id}`;
+      const status = await wppConnectServerService.getSessionStatus(sessionName);
+      
+      if (status !== 'CONNECTED') {
+        return res.status(400).json({ 
+          message: "Conexão não está ativa", 
+          status,
+          suggestion: "Escaneie o QR code para se conectar ao WhatsApp Web"
+        });
+      }
+      
+      // Enviar mensagem
+      const success = await wppConnectServerService.sendMessage(sessionName, phone, message);
+      
+      if (!success) {
+        return res.status(500).json({ message: "Erro ao enviar mensagem" });
+      }
+      
+      res.json({ success: true, message: "Mensagem enviada com sucesso" });
+    } catch (error) {
+      console.error("Erro ao enviar mensagem WhatsApp:", error);
+      res.status(500).json({ message: "Erro ao enviar mensagem WhatsApp", error: String(error) });
     }
   });
 

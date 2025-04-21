@@ -77,7 +77,7 @@ export class WPPConnectServerService {
         })
       });
       
-      const data = await response.json();
+      const data = await response.json() as { status: boolean };
       return data.status;
     } catch (error) {
       console.error('Erro ao iniciar sessão:', error);
@@ -142,7 +142,7 @@ export class WPPConnectServerService {
         body: JSON.stringify({ session })
       });
       
-      const data = await response.json();
+      const data = await response.json() as { status: boolean };
       return data.status;
     } catch (error) {
       console.error('Erro ao fechar sessão:', error);
@@ -168,7 +168,7 @@ export class WPPConnectServerService {
         } as SendMessageRequest)
       });
       
-      const data = await response.json();
+      const data = await response.json() as { status: boolean };
       return data.status;
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
