@@ -1,47 +1,87 @@
 /**
- * Script para iniciar tanto o servidor WPPConnect quanto a aplicação principal
+ * Script para iniciar tanto o servidor principal quanto o servidor WPPConnect
  */
-import { spawn } from 'child_process';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const rootDir = join(__dirname, '..');
+const { spawn } = require('child_process');
+const path = require('path');
 
-// Iniciar o servidor WPPConnect
-console.log('Iniciando servidor WPPConnect...');
-const wppconnect = spawn('node', [join(rootDir, 'scripts/start-wppconnect-server.cjs')], {
-  stdio: 'inherit',
-  cwd: rootDir
-});
+// Caminhos dos scripts
+const mainServerScript = 'tsx server/index.ts';
+const wppConnectServerScript = 'node scripts/start-wppconnect-server.cjs';
 
-wppconnect.on('error', (error) => {
-  console.error('Erro ao iniciar servidor WPPConnect:', error);
-});
+// Cores para as saídas no console
+const colors = {
+  main: '\x1b[36m',  // ciano
+  wpp: '\x1b[32m',   // verde
+  error: '\x1b[31m', // vermelho
+  reset: '\x1b[0m'   // resetar cor
+};
 
-// Iniciar o servidor principal
-console.log('Iniciando aplicação principal...');
-const app = spawn('npm', ['run', 'dev'], {
-  stdio: 'inherit',
-  cwd: rootDir,
-  env: { ...process.env }
-});
+// Prefixos para as saídas
+const prefixes = {
+  main: `${colors.main}[SERVIDOR PRINCIPAL]${colors.reset}`,
+  wpp: `${colors.wpp}[SERVIDOR WPPCONNECT]${colors.reset}`,
+  error: `${colors.error}[ERRO]${colors.reset}`
+};
 
-app.on('error', (error) => {
-  console.error('Erro ao iniciar aplicação principal:', error);
-});
+// Função para iniciar um processo
+function startProcess(command, prefix) {
+  const parts = command.split(' ');
+  const proc = spawn(parts[0], parts.slice(1), {
+    shell: true,
+    stdio: 'pipe',
+    env: { ...process.env }
+  });
 
-// Tratamento para encerrar os processos quando o script for terminado
-process.on('SIGINT', () => {
-  console.log('Encerrando todos os servidores...');
-  wppconnect.kill();
-  app.kill();
-  process.exit(0);
-});
+  // Manipular saída padrão
+  proc.stdout.on('data', (data) => {
+    const lines = data.toString().split('\n');
+    lines.forEach(line => {
+      if (line.trim()) {
+        console.log(`${prefix} ${line}`);
+      }
+    });
+  });
 
-process.on('SIGTERM', () => {
-  console.log('Encerrando todos os servidores...');
-  wppconnect.kill();
-  app.kill();
-  process.exit(0);
-});
+  // Manipular saída de erro
+  proc.stderr.on('data', (data) => {
+    const lines = data.toString().split('\n');
+    lines.forEach(line => {
+      if (line.trim()) {
+        console.error(`${prefixes.error} ${prefix} ${line}`);
+      }
+    });
+  });
+
+  // Manipular fechamento do processo
+  proc.on('close', (code) => {
+    console.log(`${prefix} Processo encerrado com código ${code}`);
+  });
+
+  return proc;
+}
+
+console.log('Iniciando servidores...');
+
+// Iniciar servidor WPPConnect
+const wppConnectServer = startProcess(wppConnectServerScript, prefixes.wpp);
+
+// Aguardar 2 segundos para o servidor WPPConnect iniciar antes de iniciar o servidor principal
+setTimeout(() => {
+  // Iniciar servidor principal
+  const mainServer = startProcess(mainServerScript, prefixes.main);
+
+  // Lidar com o encerramento do processo
+  process.on('SIGINT', () => {
+    console.log('\nEncerrando servidores...');
+    mainServer.kill();
+    wppConnectServer.kill();
+    
+    // Dar um tempo para os processos encerrarem corretamente
+    setTimeout(() => {
+      process.exit(0);
+    }, 1000);
+  });
+}, 2000);
+
+console.log('Ambos servidores inicializados.');

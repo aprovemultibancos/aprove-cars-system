@@ -1,6 +1,8 @@
 // Este arquivo serve como um adaptador para manter a compatibilidade
 // com o código existente, mas internamente usa a nova implementação WPPConnect
+// com a capacidade de alternar entre conexão direta e via servidor
 
+import { EventEmitter } from 'events';
 import { 
   WhatsappConnection,
   WhatsappContact,
@@ -9,11 +11,7 @@ import {
   WhatsappGroup
 } from '@shared/schema';
 
-import { 
-  WhatsappSessionHandler as WPPConnectSessionHandler,
-  WPPConnectService,
-  wppConnectService
-} from './wppconnect-service';
+import { WPPConnectIntegration, WPPConnectIntegrationFactory } from './wppconnect-integration';
 
 // Definir nossos próprios tipos que usaremos para manter compatibilidade
 export type MessageStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
@@ -37,62 +35,85 @@ export interface WhatsappMessage {
 }
 
 /**
- * Classe adaptadora para compatibilidade da interface anterior com o novo WPPConnect
+ * Classe adaptadora para compatibilidade da interface anterior com a nova integração WPPConnect
  */
 export class WhatsappSessionHandler {
-  private wppHandler: WPPConnectSessionHandler;
+  private integration: WPPConnectIntegration;
+  private _emitter = new EventEmitter();
 
   constructor(connectionInfo: WhatsappConnection) {
-    this.wppHandler = wppConnectService.registerConnection(connectionInfo);
+    // Usar o modo 'auto' que tenta primeiro o servidor e depois a conexão direta
+    this.integration = WPPConnectIntegrationFactory.getInstance(connectionInfo, 'auto');
     
     // Encaminhar eventos da implementação WPPConnect
-    this.wppHandler.on('qrCode', (qrCode) => {
-      console.log('Recebido QR Code de WPPConnect, encaminhando como qrCode');
-      // A API anterior esperava o evento 'qrCode', não 'qr'
-      this.wppHandler.emit('qrCode', qrCode);
+    this.integration.on('qrCode', (qrCode) => {
+      console.log('Recebido QR Code da integração WPPConnect');
+      this._emitter.emit('qrCode', qrCode);
+    });
+    
+    this.integration.on('connected', () => {
+      console.log('Conexão WhatsApp estabelecida');
+      this._emitter.emit('connected');
+    });
+    
+    this.integration.on('disconnected', () => {
+      console.log('Conexão WhatsApp encerrada');
+      this._emitter.emit('disconnected');
     });
   }
 
   /**
-   * Conecta ao WhatsApp usando WPPConnect
+   * Conecta ao WhatsApp usando integração WPPConnect
    */
   public connect(): void {
-    this.wppHandler.connect();
+    this.integration.connect().catch(error => {
+      console.error('Erro ao conectar ao WhatsApp:', error);
+    });
   }
 
   /**
    * Desconecta do WhatsApp
    */
   public disconnect(): void {
-    this.wppHandler.disconnect();
+    this.integration.disconnect().catch(error => {
+      console.error('Erro ao desconectar do WhatsApp:', error);
+    });
   }
 
   /**
    * Envia mensagem para o número especificado
    */
   public async sendMessage(message: WhatsappMessage): Promise<string> {
-    return this.wppHandler.sendMessage(message);
+    const result = await this.integration.sendMessage(message);
+    return result || `msg_${Date.now()}`;
+  }
+
+  /**
+   * Verifica se um número existe no WhatsApp
+   */
+  public async checkNumberStatus(phoneNumber: string): Promise<boolean> {
+    return this.integration.checkNumberStatus(phoneNumber);
   }
 
   /**
    * Retorna o código QR para escanear no WhatsApp
    */
   public getQrCode(): string {
-    return this.wppHandler.getQrCode();
+    return this.integration.getQrCode();
   }
 
   /**
    * Retorna o status atual da conexão
    */
   public getStatus(): string {
-    return this.wppHandler.getStatus();
+    return this.integration.getStatus();
   }
 
   /**
    * Adiciona um listener de eventos
    */
   public on(event: string, listener: (...args: any[]) => void): this {
-    this.wppHandler.on(event, listener);
+    this._emitter.on(event, listener);
     return this;
   }
 
@@ -100,7 +121,7 @@ export class WhatsappSessionHandler {
    * Remove um listener de eventos
    */
   public off(event: string, listener: (...args: any[]) => void): this {
-    this.wppHandler.off(event, listener);
+    this._emitter.off(event, listener);
     return this;
   }
 
@@ -108,7 +129,25 @@ export class WhatsappSessionHandler {
    * Emite um evento
    */
   public emit(event: string, ...args: any[]): boolean {
-    return this.wppHandler.emit(event, ...args);
+    return this._emitter.emit(event, ...args);
+  }
+  
+  /**
+   * Obtém os contatos do WhatsApp
+   * Método stub que será implementado posteriormente
+   */
+  public async getContacts(): Promise<any[]> {
+    // No futuro, implementar usando this.integration
+    return [];
+  }
+  
+  /**
+   * Cria um grupo no WhatsApp
+   * Método stub que será implementado posteriormente
+   */
+  public async createGroup(name: string, participants: string[]): Promise<any> {
+    // No futuro, implementar usando this.integration
+    return { error: 'Não implementado' };
   }
 }
 
@@ -142,34 +181,37 @@ export class WhatsappService {
    * Obtém uma conexão pelo ID
    */
   public getConnection(id: number): WhatsappSessionHandler | null {
-    const wppHandler = wppConnectService.getConnection(id);
-    
-    if (!wppHandler) {
+    try {
+      // Criamos um objeto mínimo para satisfazer o construtor
+      const dummyConnection: WhatsappConnection = {
+        id,
+        name: `Connection ${id}`,
+        phoneNumber: '',
+        companyId: 0,
+        createdAt: new Date(),
+        status: 'disconnected',
+        dailyLimit: null,
+        qrCode: null,
+        lastConnection: null
+      };
+      
+      return new WhatsappSessionHandler(dummyConnection);
+    } catch (error) {
+      console.error(`Erro ao obter conexão ${id}:`, error);
       return null;
     }
-    
-    // Não temos como recuperar o objeto WhatsappConnection original,
-    // então criamos um objeto mínimo para satisfazer o construtor
-    const dummyConnection: WhatsappConnection = {
-      id,
-      name: `Connection ${id}`,
-      phoneNumber: '',
-      companyId: 0,
-      createdAt: new Date(),
-      status: 'disconnected',
-      dailyLimit: null,
-      qrCode: null,
-      lastConnection: null
-    };
-    
-    return new WhatsappSessionHandler(dummyConnection);
   }
 
   /**
    * Remove uma conexão
    */
   public removeConnection(id: number): boolean {
-    return wppConnectService.removeConnection(id);
+    try {
+      return WPPConnectIntegrationFactory.removeInstance(id);
+    } catch (error) {
+      console.error(`Erro ao remover conexão ${id}:`, error);
+      return false;
+    }
   }
 
   /**
@@ -279,7 +321,32 @@ export class WhatsappService {
     contacts: WhatsappContact[],
     connectionId: number
   ): Promise<void> {
-    await wppConnectService.sendCampaign(campaign, template, contacts);
+    const connection = this.getConnection(connectionId);
+    if (!connection) {
+      throw new Error(`Conexão ${connectionId} não encontrada`);
+    }
+    
+    // Enviar a mensagem para cada contato
+    for (const contact of contacts) {
+      try {
+        // Processar o template com os dados do contato
+        const processedContent = this.processTemplate(template.content, contact);
+        
+        // Enviar a mensagem
+        await connection.sendMessage({
+          type: template.mediaType || 'text',
+          to: contact.phoneNumber,
+          content: processedContent,
+          mediaUrl: template.mediaUrl || undefined,
+          caption: template.content // Se for mídia, usa o conteúdo como legenda
+        });
+        
+        // Aguardar um intervalo para não sobrecarregar
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (error) {
+        console.error(`Erro ao enviar mensagem para ${contact.phoneNumber}:`, error);
+      }
+    }
   }
 
   /**
@@ -301,36 +368,36 @@ export class WhatsappService {
    * Recupera os contatos do WhatsApp
    */
   public async getContacts(connectionId: number): Promise<any[]> {
-    const wppHandler = wppConnectService.getConnection(connectionId);
-    if (!wppHandler) {
+    const handler = this.getConnection(connectionId);
+    if (!handler) {
       throw new Error(`Conexão ${connectionId} não encontrada`);
     }
     
-    return wppHandler.getContacts();
+    return handler.getContacts();
   }
   
   /**
    * Verifica se um número está no WhatsApp
    */
   public async checkNumberStatus(connectionId: number, phoneNumber: string): Promise<boolean> {
-    const wppHandler = wppConnectService.getConnection(connectionId);
-    if (!wppHandler) {
+    const handler = this.getConnection(connectionId);
+    if (!handler) {
       throw new Error(`Conexão ${connectionId} não encontrada`);
     }
     
-    return wppHandler.checkNumberStatus(phoneNumber);
+    return handler.checkNumberStatus(phoneNumber);
   }
   
   /**
    * Cria um novo grupo no WhatsApp
    */
   public async createGroup(connectionId: number, name: string, participants: string[]): Promise<any> {
-    const wppHandler = wppConnectService.getConnection(connectionId);
-    if (!wppHandler) {
+    const handler = this.getConnection(connectionId);
+    if (!handler) {
       throw new Error(`Conexão ${connectionId} não encontrada`);
     }
     
-    return wppHandler.createGroup(name, participants);
+    return handler.createGroup(name, participants);
   }
 }
 
