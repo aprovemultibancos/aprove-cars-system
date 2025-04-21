@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAsaas } from "@/hooks/use-asaas";
 import { useToast } from "@/hooks/use-toast";
 import { useParams } from "wouter";
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { 
   CreditCard, 
   Banknote, 
@@ -21,7 +22,8 @@ import {
   Eye, 
   XCircle, 
   Plus,
-  Calendar
+  Calendar,
+  AlertCircle
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -60,6 +62,14 @@ export default function PaymentsPage() {
 function BalanceOverview() {
   const { balanceQuery, formatCurrency } = useAsaas();
   const { isLoading, error, data } = balanceQuery;
+  const [isDemoMode, setIsDemoMode] = useState(false);
+  
+  useEffect(() => {
+    if (data) {
+      // Se o saldo for exatamente 1550.75, é provavelmente o valor de demonstração
+      setIsDemoMode(data.balance === 1550.75);
+    }
+  }, [data]);
   
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -80,9 +90,21 @@ function BalanceOverview() {
           )}
           
           {data && (
-            <div className="text-3xl font-bold text-green-600">
-              {formatCurrency(data.balance)}
-            </div>
+            <>
+              <div className="text-3xl font-bold text-green-600">
+                {formatCurrency(data.balance)}
+              </div>
+              
+              {isDemoMode && (
+                <Alert className="mt-4 border-amber-300 bg-amber-50 text-amber-800">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Modo de demonstração</AlertTitle>
+                  <AlertDescription className="text-xs">
+                    O valor exibido é simulado. Para utilizar dados reais, configure uma chave de API válida.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
@@ -128,10 +150,19 @@ function PaymentsList() {
   const { usePaymentsQuery, translatePaymentStatus, translatePaymentMethod, formatCurrency, cancelPaymentMutation } = useAsaas();
   const [page, setPage] = useState(0);
   const [statusFilter, setStatusFilter] = useState<string | undefined>("ALL");
+  const [isDemoMode, setIsDemoMode] = useState(false);
   const limit = 10;
   
   const { data, isLoading, error } = usePaymentsQuery(page * limit, limit, statusFilter === "ALL" ? undefined : statusFilter);
   const { toast } = useToast();
+  
+  useEffect(() => {
+    if (data && data.data.length > 0) {
+      // Verificar se algum dos pagamentos tem ID começando com "demo"
+      const hasDemo = data.data.some(payment => payment.id.startsWith('demo'));
+      setIsDemoMode(hasDemo);
+    }
+  }, [data]);
   
   const handleCancel = (paymentId: string) => {
     if (window.confirm("Tem certeza que deseja cancelar esta cobrança?")) {
