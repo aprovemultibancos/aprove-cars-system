@@ -8,7 +8,10 @@
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "wppconnect": "node server/wppconnect-server.cjs",
+    "dev:wppconnect": "node scripts/start-wppconnect-server.cjs",
+    "start:all": "node scripts/start-all.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
