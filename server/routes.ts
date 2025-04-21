@@ -865,24 +865,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const name = req.query.name as string;
       const cpfCnpj = req.query.cpfCnpj as string;
       
+      console.log("Recebida solicitação para listar clientes do Asaas:");
+      console.log(`- offset: ${offset}, limit: ${limit}`);
+      console.log(`- name: ${name || 'não especificado'}`);
+      console.log(`- cpfCnpj: ${cpfCnpj || 'não especificado'}`);
+      
+      // Verificar se há uma empresa selecionada no serviço
+      if (!asaasService.currentCompanyId) {
+        console.warn("Tentativa de buscar clientes sem uma empresa selecionada");
+        // Tentar selecionar a empresa 1 por padrão
+        const success = await asaasService.setCompany(1);
+        if (!success) {
+          console.error("Não foi possível selecionar a empresa padrão");
+          return res.status(400).json({ 
+            message: "Não há empresa selecionada. Configure uma empresa primeiro.", 
+            data: [], 
+            totalCount: 0 
+          });
+        }
+      }
+      
       // Se tiver um CPF/CNPJ específico, buscar esse cliente
       if (cpfCnpj) {
+        console.log(`Buscando cliente por CPF/CNPJ: ${cpfCnpj}`);
+        
         const customer = await asaasService.findCustomerByCpfCnpj(cpfCnpj);
         if (customer) {
+          console.log(`Cliente encontrado: ${customer.name} (ID: ${customer.id})`);
           return res.json({ data: [customer], totalCount: 1 });
         } else {
+          console.log("Nenhum cliente encontrado com este CPF/CNPJ");
           return res.json({ data: [], totalCount: 0 });
         }
       }
       
       // Caso contrário, listar todos os clientes
+      console.log("Buscando lista de clientes");
       const customers = await asaasService.getCustomers(offset, limit, name);
+      console.log(`${customers.data.length} cliente(s) encontrado(s)`);
+      
       res.json(customers);
     } catch (error) {
       console.error("Erro ao listar clientes:", error);
-      // Criar dados de demonstração
-      const demoCustomers = createDemoCustomers(parseInt(req.query.limit as string) || 10);
-      res.json({ data: demoCustomers, totalCount: 15 });
+      if (error instanceof Error) {
+        console.error("Detalhes do erro:", error.message);
+        if (error.stack) console.error("Stack:", error.stack);
+      }
+      
+      // Retornamos uma resposta vazia em vez de dados de demonstração para garantir integridade
+      res.json({ 
+        data: [], 
+        totalCount: 0, 
+        error: "Erro ao listar clientes. Verifique a configuração da API Asaas." 
+      });
     }
   });
   

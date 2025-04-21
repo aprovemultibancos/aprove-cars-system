@@ -141,6 +141,8 @@ export class AsaasService {
   // Método para selecionar a empresa atual
   async setCompany(companyId: number): Promise<boolean> {
     try {
+      console.log(`Tentando selecionar empresa ID ${companyId} para o Asaas`);
+      
       // Buscar a configuração da empresa no banco de dados
       const [config] = await db
         .select()
@@ -148,19 +150,54 @@ export class AsaasService {
         .where(eq(asaasConfig.companyId, companyId));
       
       if (config) {
-        this.apiKey = config.apiKey;
-        this.inDemoMode = false;
-        this.currentCompanyId = companyId;
+        console.log(`Configuração encontrada para empresa ${companyId}`);
+        console.log(`Chave API: ${config.apiKey ? config.apiKey.substring(0, 5) + '...' : 'não definida'}`);
+        console.log(`Modo: ${config.mode}`);
         
-        // Definir a URL base com base no modo configurado
-        if (config.mode === 'production') {
-          this.baseUrl = ASAAS_PRODUCTION_URL;
+        // Verificar se temos uma chave válida
+        if (!config.apiKey || config.apiKey === 'demo-key') {
+          console.warn('⚠️ Empresa configurada com chave inválida ou vazia');
+          this.inDemoMode = true;
         } else {
-          this.baseUrl = ASAAS_SANDBOX_URL;
+          this.apiKey = config.apiKey;
+          this.inDemoMode = false;
+          this.currentCompanyId = companyId;
+          
+          // Definir a URL base com base no modo configurado
+          if (config.mode === 'production') {
+            this.baseUrl = ASAAS_PRODUCTION_URL;
+            console.log('📊 Usando ambiente de PRODUÇÃO do Asaas');
+          } else {
+            this.baseUrl = ASAAS_SANDBOX_URL;
+            console.log('📋 Usando ambiente de SANDBOX do Asaas');
+          }
+          
+          // Testar a conexão com a API usando a chave configurada
+          try {
+            const url = `${this.baseUrl}/finance/balance`;
+            const response = await fetch(url, {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'access_token': this.apiKey
+              }
+            });
+            
+            if (response.ok) {
+              console.log('✅ Conexão com a API Asaas estabelecida com sucesso!');
+            } else {
+              console.warn(`⚠️ Conexão com API falhou: ${response.status}`);
+              this.inDemoMode = true;
+            }
+          } catch (connError) {
+            console.warn('⚠️ Não foi possível testar a conexão, mas continuando com a empresa selecionada');
+          }
         }
         
         return true;
       } else {
+        console.log(`Nenhuma configuração encontrada para empresa ${companyId}. Tentando buscar em integrações antigas...`);
+        
         // Tentar buscar na tabela antiga de integrações (compatibilidade)
         const [integration] = await db
           .select()
@@ -173,28 +210,38 @@ export class AsaasService {
           );
         
         if (integration) {
+          console.log('Encontrada integração na tabela antiga. Migrando para a nova estrutura...');
+          
           // Migrar da tabela antiga para a nova
           const mode = integration.apiKey.startsWith('$aact_') || integration.apiKey.includes('prod_') 
             ? 'production' 
             : 'sandbox';
           
-          await db
-            .insert(asaasConfig)
-            .values({
-              companyId,
-              apiKey: integration.apiKey,
-              mode,
-              walletId: null,
-            });
-          
-          this.apiKey = integration.apiKey;
-          this.inDemoMode = false;
-          this.currentCompanyId = companyId;
-          
-          this.baseUrl = mode === 'production' ? ASAAS_PRODUCTION_URL : ASAAS_SANDBOX_URL;
-          
-          console.log(`Migrada configuração Asaas da empresa ${companyId} para o novo formato`);
-          return true;
+          try {
+            const insertResult = await db
+              .insert(asaasConfig)
+              .values({
+                companyId,
+                apiKey: integration.apiKey,
+                mode,
+                walletId: null,
+              })
+              .returning();
+            
+            console.log('Resultado da inserção:', insertResult);
+            console.log('Configuração migrada com sucesso!');
+            
+            // Atualizar as configurações em memória
+            this.apiKey = integration.apiKey;
+            this.inDemoMode = false;
+            this.currentCompanyId = companyId;
+            
+            this.baseUrl = mode === 'production' ? ASAAS_PRODUCTION_URL : ASAAS_SANDBOX_URL;
+            
+            return true;
+          } catch (migrationError) {
+            console.error('Erro ao migrar configuração:', migrationError);
+          }
         } else {
           // Se não encontrar configuração, usar a chave padrão do ambiente
           this.apiKey = ASAAS_API_KEY || 'demo-key';
@@ -212,8 +259,14 @@ export class AsaasService {
           return false;
         }
       }
+      
+      return false;
     } catch (error) {
       console.error('Erro ao definir empresa para o serviço Asaas:', error);
+      if (error instanceof Error) {
+        console.error('Detalhes do erro:', error.message);
+        if (error.stack) console.error('Stack:', error.stack);
+      }
       this.inDemoMode = true;
       return false;
     }
@@ -560,163 +613,67 @@ export class AsaasService {
   }
   
   // Buscar um cliente pelo CPF/CNPJ
-  async findCustomerByCpfCnpj(cpfCnpj: string): Promise<AsaasCustomerResponse | null> {
-    try {
-      const response = await this.request<{data: AsaasCustomerResponse[]}>(`/customers?cpfCnpj=${cpfCnpj}`);
-      return response.data.length > 0 ? response.data[0] : null;
-    } catch (error) {
-      console.error('Erro ao buscar cliente por CPF/CNPJ:', error);
-      
-      // Se for um CPF/CNPJ de demonstração, retornar um cliente simulado
-      if (cpfCnpj === '12345678909' || cpfCnpj === '00000000000') {
-        return {
-          id: 'demo-cust-fixed',
-          name: 'Cliente Demonstração',
-          cpfCnpj: cpfCnpj,
-          email: 'demo@example.com',
-          phone: '11999999999',
-          mobilePhone: '11999999999',
-          address: 'Rua Exemplo',
-          addressNumber: '123',
-          complement: '',
-          province: 'Centro',
-          postalCode: '01234567',
-          deleted: false,
-          additionalEmails: '',
-          municipalInscription: '',
-          stateInscription: '',
-          observations: '',
-          externalReference: '',
-          notificationDisabled: false,
-          createdAt: new Date().toISOString()
-        };
-      }
-      
-      return null;
-    }
-  }
+  // Este método foi removido para evitar duplicação
+  // Use o método findCustomerByCpfCnpj implementado mais abaixo no código
   
   // Criar uma cobrança com as taxas aplicadas e splitamento para empresa master
   async createPayment(
     paymentData: AsaasPaymentRequest,
     includeCustomFees: boolean = true
   ): Promise<AsaasPaymentResponse> {
-    // Aplicar taxas personalizadas se solicitado
-    if (includeCustomFees) {
-      const originalValue = paymentData.value;
-      
-      // Aplicar taxas com base no método de pagamento
-      switch (paymentData.billingType) {
-        case 'CREDIT_CARD':
-          // Adicionar 1,50% de taxa para pagamentos com cartão de crédito
-          paymentData.value = originalValue * 1.015;
-          break;
-        case 'BOLETO':
-          // Adicionar R$ 1,99 de taxa para boletos
-          paymentData.value = originalValue + 1.99;
-          break;
-        case 'PIX':
-          // Adicionar 0,99% de taxa para PIX
-          paymentData.value = originalValue * 1.0099;
-          break;
-      }
-      
-      // Arredondar para 2 casas decimais
-      paymentData.value = Math.round(paymentData.value * 100) / 100;
-      
-      console.log(`Valor original: R$ ${originalValue.toFixed(2)}, Valor com taxa: R$ ${paymentData.value.toFixed(2)}`);
-    }
-    
-    // Verificar se precisa adicionar split para empresa master
-    let paymentDataWithSplit = { ...paymentData };
-    
-    // Só aplicar split se temos uma empresa definida e não é a master
-    if (this.currentCompanyId) {
-      try {
-        // Consultar a empresa atual
-        const [company] = await db
-          .select()
-          .from(companies)
-          .where(eq(companies.id, this.currentCompanyId));
-        
-        // Se a empresa não for master e tiver uma empresa mãe configurada
-        if (company && !company.isMaster && company.masterCompanyId) {
-          // Buscar a configuração de splitamento
-          const [splitConfig] = await db
-            .select()
-            .from(splitConfigs)
-            .where(
-              and(
-                eq(splitConfigs.companyId, this.currentCompanyId),
-                eq(splitConfigs.isActive, true)
-              )
-            );
-          
-          // Buscar a configuração Asaas da empresa master
-          const [masterConfig] = await db
-            .select()
-            .from(asaasConfig)
-            .where(eq(asaasConfig.companyId, company.masterCompanyId));
-          
-          // Se temos a configuração de split e a configuração da master
-          if (splitConfig && masterConfig && masterConfig.walletId) {
-            const masterPercentage = parseFloat(splitConfig.masterPercentage.toString());
-            
-            // Calcular o valor para a empresa master (porcentagem do valor total)
-            const masterAmount = paymentData.value * (masterPercentage / 100);
-            
-            // Adicionar configuração de split ao pagamento
-            paymentDataWithSplit = {
-              ...paymentData,
-              split: [
-                {
-                  walletId: masterConfig.walletId!,
-                  fixedValue: parseFloat(masterAmount.toFixed(2))
-                }
-              ]
-            };
-            
-            console.log(`Split configurado: ${masterPercentage}% (R$ ${masterAmount.toFixed(2)}) para empresa master ${company.masterCompanyId}`);
-          } else {
-            console.log('Configuração de split ou configuração Asaas da empresa master não encontrada');
-          }
-        }
-      } catch (splitError) {
-        console.error('Erro ao aplicar split:', splitError);
-        // Continuar com o pagamento sem split em caso de erro
-      }
-    }
-    
     try {
-      console.log('Enviando solicitação de pagamento para o Asaas...');
+      console.log('Iniciando criação de pagamento no Asaas...');
+      console.log('Estado atual do serviço:');
+      console.log(`- API Key: ${this.apiKey ? this.apiKey.substring(0, 5) + '...' : 'não definida'}`);
+      console.log(`- URL base: ${this.baseUrl}`);
+      console.log(`- Modo de demonstração: ${this.inDemoMode ? 'Sim' : 'Não'}`);
+      console.log(`- Empresa atual: ${this.currentCompanyId || 'não definida'}`);
       
-      // Verificação mais rigorosa do modo de demonstração
-      if (this.inDemoMode || this.apiKey === 'demo-key' || !this.apiKey) {
-        console.warn('⚠️ Tentativa de criar pagamento real, mas o sistema está em modo de demonstração');
-        console.warn('⚠️ Verifique se a chave API do Asaas está configurada corretamente');
-        throw new Error('Serviço está em modo de demonstração, configure a API key');
+      // Validar os dados básicos do pagamento
+      if (!paymentData.customer) {
+        throw new Error('ID do cliente não fornecido para o pagamento');
       }
       
-      // Log detalhado dos dados enviados
-      console.log('Dados de pagamento sendo enviados:', JSON.stringify(paymentDataWithSplit, null, 2));
+      if (!paymentData.value || paymentData.value <= 0) {
+        throw new Error('Valor do pagamento inválido');
+      }
       
-      // Tentativa de criar o pagamento real
-      const result = await this.request<AsaasPaymentResponse>('/payments', 'POST', paymentDataWithSplit);
-      console.log('✅ Pagamento criado com sucesso no Asaas:', result.id);
+      if (!paymentData.dueDate) {
+        throw new Error('Data de vencimento não fornecida');
+      }
       
-      // Detalhes do pagamento criado para debug
-      console.log('Detalhes do pagamento:', JSON.stringify(result, null, 2));
+      // Aplicar taxas personalizadas se solicitado
+      let originalValue = paymentData.value;
+      if (includeCustomFees) {
+        // Aplicar taxas com base no método de pagamento
+        switch (paymentData.billingType) {
+          case 'CREDIT_CARD':
+            // Adicionar 1,50% de taxa para pagamentos com cartão de crédito
+            paymentData.value = originalValue * 1.015;
+            break;
+          case 'BOLETO':
+            // Adicionar R$ 1,99 de taxa para boletos
+            paymentData.value = originalValue + 1.99;
+            break;
+          case 'PIX':
+            // Adicionar 0,99% de taxa para PIX
+            paymentData.value = originalValue * 1.0099;
+            break;
+        }
+        
+        // Arredondar para 2 casas decimais
+        paymentData.value = Math.round(paymentData.value * 100) / 100;
+        
+        console.log(`Valor original: R$ ${originalValue.toFixed(2)}, Valor com taxa: R$ ${paymentData.value.toFixed(2)}`);
+      }
       
-      return result;
-    } catch (error) {
-      // Verificar se há erro de chave API ou de configuração
-      console.error('❌ Erro ao criar pagamento:', error);
-      
-      if (this.apiKey === 'demo-key' || this.inDemoMode) {
-        console.warn('ATENÇÃO: Usando modo de demonstração pois não há chave API válida configurada');
+      // Verificar se API key está configurada
+      if (this.inDemoMode || this.apiKey === 'demo-key' || !this.apiKey) {
+        console.warn('⚠️ Sistema em modo de demonstração. Impossível criar pagamento real.');
+        console.warn('⚠️ É necessário configurar a chave API do Asaas.');
+        
         // Gerar um ID único para a cobrança simulada
         const demoId = `demo-${Date.now()}`;
-        
         console.warn('Gerando pagamento de demonstração:', demoId);
         
         // Retornar um objeto simulado com os dados da requisição
@@ -729,7 +686,7 @@ export class AsaasService {
           billingType: paymentData.billingType,
           status: 'PENDING',
           dueDate: paymentData.dueDate,
-          description: paymentData.description,
+          description: paymentData.description || 'Pagamento (simulado)',
           invoiceUrl: "",
           bankSlipUrl: paymentData.billingType === 'BOLETO' ? "https://example.com/boleto" : "",
           invoiceNumber: demoId.substring(0, 6),
@@ -737,11 +694,118 @@ export class AsaasService {
           deleted: false,
           pixQrCodeImage: paymentData.billingType === 'PIX' ? "https://example.com/pix" : undefined
         };
-      } else {
-        // Se há chave API válida mas ocorreu erro, propagar o erro para tratamento adequado
-        console.error('❌ Erro ao criar pagamento com chave API válida:', error);
-        throw error;
       }
+      
+      // Verificar se precisa adicionar split para empresa master
+      let paymentDataWithSplit = { ...paymentData };
+      
+      // Só aplicar split se temos uma empresa definida e não é a master
+      if (this.currentCompanyId) {
+        try {
+          // Consultar a empresa atual
+          const [company] = await db
+            .select()
+            .from(companies)
+            .where(eq(companies.id, this.currentCompanyId));
+          
+          // Se a empresa não for master e tiver uma empresa mãe configurada
+          if (company && !company.isMaster && company.masterCompanyId) {
+            // Buscar a configuração de splitamento
+            const [splitConfig] = await db
+              .select()
+              .from(splitConfigs)
+              .where(
+                and(
+                  eq(splitConfigs.companyId, this.currentCompanyId),
+                  eq(splitConfigs.isActive, true)
+                )
+              );
+            
+            // Buscar a configuração Asaas da empresa master
+            const [masterConfig] = await db
+              .select()
+              .from(asaasConfig)
+              .where(eq(asaasConfig.companyId, company.masterCompanyId));
+            
+            // Se temos a configuração de split e a configuração da master
+            if (splitConfig && masterConfig && masterConfig.walletId) {
+              const masterPercentage = parseFloat(splitConfig.masterPercentage.toString());
+              
+              // Calcular o valor para a empresa master (porcentagem do valor total)
+              const masterAmount = paymentData.value * (masterPercentage / 100);
+              
+              // Adicionar configuração de split ao pagamento
+              paymentDataWithSplit = {
+                ...paymentData,
+                split: [
+                  {
+                    walletId: masterConfig.walletId!,
+                    fixedValue: parseFloat(masterAmount.toFixed(2))
+                  }
+                ]
+              };
+              
+              console.log(`Split configurado: ${masterPercentage}% (R$ ${masterAmount.toFixed(2)}) para empresa master ${company.masterCompanyId}`);
+            } else {
+              console.log('Configuração de split ou configuração Asaas da empresa master não encontrada');
+              console.log('Continuando sem split de pagamento');
+            }
+          }
+        } catch (splitError) {
+          console.error('Erro ao aplicar split:', splitError);
+          if (splitError instanceof Error) {
+            console.error('Detalhes do erro:', splitError.message);
+          }
+          // Continuar com o pagamento sem split em caso de erro
+          console.log('Continuando sem split de pagamento devido ao erro');
+        }
+      }
+      
+      // Log detalhado dos dados enviados
+      console.log('Dados de pagamento sendo enviados para o Asaas:');
+      console.log(JSON.stringify(paymentDataWithSplit, null, 2));
+      
+      // Criar o pagamento real
+      const result = await this.request<AsaasPaymentResponse>('/payments', 'POST', paymentDataWithSplit);
+      
+      console.log('✅ Pagamento criado com sucesso no Asaas!');
+      console.log(`- ID do pagamento: ${result.id}`);
+      console.log(`- Valor: R$ ${result.value.toFixed(2)}`);
+      console.log(`- Status: ${result.status}`);
+      
+      return result;
+    } catch (error) {
+      console.error('❌ Erro ao criar pagamento no Asaas:', error);
+      if (error instanceof Error) {
+        console.error('Detalhes do erro:', error.message);
+        if (error.stack) console.error('Stack:', error.stack);
+      }
+      
+      // Se for um erro com a API e estiver em produção, retornar dados de demonstração
+      if (this.apiKey === 'demo-key' || this.inDemoMode || !this.apiKey) {
+        console.warn('Criando pagamento de demonstração como fallback...');
+        const demoId = `demo-${Date.now()}`;
+        
+        return {
+          id: demoId,
+          dateCreated: new Date().toISOString(),
+          customer: paymentData.customer,
+          value: paymentData.value,
+          netValue: paymentData.value * 0.97,
+          billingType: paymentData.billingType,
+          status: 'PENDING',
+          dueDate: paymentData.dueDate,
+          description: paymentData.description || 'Pagamento (simulado)',
+          invoiceUrl: "",
+          bankSlipUrl: "",
+          invoiceNumber: demoId.substring(0, 6),
+          externalReference: paymentData.externalReference || "",
+          deleted: false
+        };
+      }
+      
+      // Se temos API key válida mas ocorreu erro, propagar o erro
+      throw error;
     }
   }
   
@@ -885,7 +949,15 @@ export class AsaasService {
   // Método para buscar clientes por CPF/CNPJ
   async findCustomerByCpfCnpj(cpfCnpj: string): Promise<AsaasCustomerResponse | null> {
     try {
-      if (this.inDemoMode) {
+      // Validar se recebemos o CPF/CNPJ
+      if (!cpfCnpj) {
+        console.error('CPF/CNPJ não fornecido');
+        return null;
+      }
+      
+      // Verificar estado da conexão com Asaas
+      if (this.inDemoMode || !this.apiKey || this.apiKey === 'demo-key') {
+        console.warn('Serviço Asaas em modo demo. Impossível buscar clientes reais.');
         // Retornar dados de demonstração no modo de demonstração
         return {
           id: 'cus_000000000001',
@@ -893,21 +965,48 @@ export class AsaasService {
           cpfCnpj: cpfCnpj,
           email: 'cliente@exemplo.com',
           phone: '11999999999',
-          deleted: false
+          mobilePhone: '11999999999',
+          address: 'Rua Exemplo',
+          addressNumber: '123',
+          complement: '',
+          province: 'Centro',
+          postalCode: '01234567',
+          deleted: false,
+          additionalEmails: '',
+          municipalInscription: '',
+          stateInscription: '',
+          observations: '',
+          externalReference: '',
+          notificationDisabled: false,
+          createdAt: new Date().toISOString()
         };
       }
       
       // Remover caracteres não numéricos do CPF/CNPJ
       const cleanCpfCnpj = cpfCnpj.replace(/\D/g, '');
+      console.log(`Buscando cliente com CPF/CNPJ: ${cleanCpfCnpj}`);
       
       // Fazer requisição para API
       const response = await this.request<{ data: AsaasCustomerResponse[] }>(
         `/customers?cpfCnpj=${cleanCpfCnpj}`
       );
       
-      return response.data.length > 0 ? response.data[0] : null;
+      console.log(`Resposta da API: ${response.data.length} cliente(s) encontrado(s)`);
+      
+      if (response.data.length > 0) {
+        console.log(`Cliente encontrado: ${response.data[0].name} (ID: ${response.data[0].id})`);
+        return response.data[0];
+      } else {
+        console.log('Nenhum cliente encontrado com este CPF/CNPJ');
+        return null;
+      }
     } catch (error) {
       console.error('Erro ao buscar cliente por CPF/CNPJ:', error);
+      if (error instanceof Error) {
+        console.error('Detalhes do erro:', error.message);
+        if (error.stack) console.error('Stack:', error.stack);
+      }
+      
       return null;
     }
   }
