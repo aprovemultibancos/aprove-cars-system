@@ -111,7 +111,7 @@ export class AsaasService {
   public currentCompanyId: number | null;
   
   constructor() {
-    // Verificar se temos uma API KEY válida no ambiente
+    // Sempre usar a API KEY definida no ambiente
     const hasValidApiKey = ASAAS_API_KEY && ASAAS_API_KEY.trim() !== '';
     
     if (hasValidApiKey) {
@@ -128,16 +128,17 @@ export class AsaasService {
         console.log('📋 Utilizando ambiente de SANDBOX do Asaas');
       }
     } else {
-      // Sem chave de API no ambiente, começar sem configuração
-      console.warn('ATENÇÃO: ASAAS_API_KEY não está configurada. O sistema buscará a configuração no banco de dados.');
-      this.apiKey = 'not-configured';
+      // Sem chave de API no ambiente, usar valor de demonstração 
+      console.warn('ATENÇÃO: ASAAS_API_KEY não está configurada. O sistema funcionará em modo de demonstração.');
+      this.apiKey = 'demo-key';
       this.baseUrl = ASAAS_SANDBOX_URL;
-      this.inDemoMode = true; // Começar em modo de demonstração até configurarmos
+      this.inDemoMode = true; // Usar modo de demonstração
     }
     
-    this.currentCompanyId = null;
+    // Sempre definir empresa 1 como padrão
+    this.currentCompanyId = 1;
     
-    // Iniciar teste de conexão em background se tivermos chave
+    // Iniciar teste de conexão em background
     if (hasValidApiKey) {
       setTimeout(() => this.testConnection(), 1000);
     }
@@ -146,139 +147,55 @@ export class AsaasService {
   // Método para selecionar a empresa atual
   async setCompany(companyId: number): Promise<boolean> {
     try {
-      console.log(`Tentando selecionar empresa ID ${companyId} para o Asaas`);
+      console.log(`Selecionando empresa ID ${companyId} para o Asaas`);
       
-      // Buscar a configuração da empresa no banco de dados
-      const [config] = await db
-        .select()
-        .from(asaasConfig)
-        .where(eq(asaasConfig.companyId, companyId));
-      
-      if (config) {
-        console.log(`Configuração encontrada para empresa ${companyId}`);
-        console.log(`Chave API: ${config.apiKey ? config.apiKey.substring(0, 5) + '...' : 'não definida'}`);
-        console.log(`Modo: ${config.mode}`);
+      // Sempre usar a chave de API do ambiente
+      if (ASAAS_API_KEY && ASAAS_API_KEY.trim() !== '') {
+        this.apiKey = ASAAS_API_KEY;
+        this.inDemoMode = false;
+        this.currentCompanyId = companyId;
         
-        // Verificar se temos uma chave válida
-        if (!config.apiKey || config.apiKey === 'demo-key') {
-          console.warn('⚠️ Empresa configurada com chave inválida ou vazia');
-          this.inDemoMode = true;
+        // Definir URL base com base na chave do ambiente
+        if (this.apiKey.startsWith('$aact_') || this.apiKey.includes('prod_')) {
+          this.baseUrl = ASAAS_PRODUCTION_URL;
+          console.log(`📊 Usando ambiente de PRODUÇÃO do Asaas para empresa ${companyId}`);
         } else {
-          this.apiKey = config.apiKey;
-          this.inDemoMode = false;
-          this.currentCompanyId = companyId;
-          
-          // Definir a URL base com base no modo configurado
-          if (config.mode === 'production') {
-            this.baseUrl = ASAAS_PRODUCTION_URL;
-            console.log('📊 Usando ambiente de PRODUÇÃO do Asaas');
-          } else {
-            this.baseUrl = ASAAS_SANDBOX_URL;
-            console.log('📋 Usando ambiente de SANDBOX do Asaas');
-          }
-          
-          // Testar a conexão com a API usando a chave configurada
-          try {
-            const url = `${this.baseUrl}/finance/balance`;
-            const response = await fetch(url, {
-              method: 'GET',
-              headers: {
-                'Content-Type': 'application/json',
-                'access_token': this.apiKey
-              }
-            });
-            
-            if (response.ok) {
-              console.log('✅ Conexão com a API Asaas estabelecida com sucesso!');
-            } else {
-              console.warn(`⚠️ Conexão com API falhou: ${response.status}`);
-              this.inDemoMode = true;
+          this.baseUrl = ASAAS_SANDBOX_URL;
+          console.log(`📋 Usando ambiente de SANDBOX do Asaas para empresa ${companyId}`);
+        }
+        
+        // Testar a conexão com a API
+        try {
+          const url = `${this.baseUrl}/finance/balance`;
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'access_token': this.apiKey
             }
-          } catch (connError) {
-            console.warn('⚠️ Não foi possível testar a conexão, mas continuando com a empresa selecionada');
+          });
+          
+          if (response.ok) {
+            console.log('✅ Conexão com a API Asaas estabelecida com sucesso!');
+          } else {
+            console.warn(`⚠️ Conexão com API falhou: ${response.status}`);
+            this.inDemoMode = true;
           }
+        } catch (connError) {
+          console.warn('⚠️ Não foi possível testar a conexão, mas continuando com a empresa selecionada');
         }
         
         return true;
       } else {
-        console.log(`Nenhuma configuração encontrada para empresa ${companyId}. Tentando buscar em integrações antigas...`);
+        // Sem chave de API válida no ambiente
+        console.warn('ATENÇÃO: ASAAS_API_KEY não está configurada. O sistema funcionará em modo de demonstração.');
+        this.apiKey = 'demo-key';
+        this.baseUrl = ASAAS_SANDBOX_URL;
+        this.inDemoMode = true;
+        this.currentCompanyId = companyId;
         
-        // Tentar buscar na tabela antiga de integrações (compatibilidade)
-        const [integration] = await db
-          .select()
-          .from(companyIntegrations)
-          .where(
-            and(
-              eq(companyIntegrations.companyId, companyId),
-              eq(companyIntegrations.integrationType, 'asaas')
-            )
-          );
-        
-        if (integration) {
-          console.log('Encontrada integração na tabela antiga. Migrando para a nova estrutura...');
-          
-          // Migrar da tabela antiga para a nova
-          const mode = integration.apiKey.startsWith('$aact_') || integration.apiKey.includes('prod_') 
-            ? 'production' 
-            : 'sandbox';
-          
-          try {
-            const insertResult = await db
-              .insert(asaasConfig)
-              .values({
-                companyId,
-                apiKey: integration.apiKey,
-                mode,
-                walletId: null,
-              })
-              .returning();
-            
-            console.log('Resultado da inserção:', insertResult);
-            console.log('Configuração migrada com sucesso!');
-            
-            // Atualizar as configurações em memória
-            this.apiKey = integration.apiKey;
-            this.inDemoMode = false;
-            this.currentCompanyId = companyId;
-            
-            this.baseUrl = mode === 'production' ? ASAAS_PRODUCTION_URL : ASAAS_SANDBOX_URL;
-            
-            return true;
-          } catch (migrationError) {
-            console.error('Erro ao migrar configuração:', migrationError);
-          }
-        } else {
-          // Se não encontrar configuração e tivermos uma chave válida no ambiente
-          if (ASAAS_API_KEY && ASAAS_API_KEY.trim() !== '') {
-            this.apiKey = ASAAS_API_KEY;
-            this.inDemoMode = false; // Nunca usar modo de demonstração com chave válida
-            this.currentCompanyId = companyId; // Considerar selecionada mesmo sem configuração salva
-            
-            // Definir URL base com base na chave do ambiente
-            if (this.apiKey.startsWith('$aact_') || this.apiKey.includes('prod_')) {
-              this.baseUrl = ASAAS_PRODUCTION_URL;
-              console.log(`📊 Usando ambiente de PRODUÇÃO do Asaas para empresa ${companyId} (chave do ambiente)`);
-            } else {
-              this.baseUrl = ASAAS_SANDBOX_URL;
-              console.log(`📋 Usando ambiente de SANDBOX do Asaas para empresa ${companyId} (chave do ambiente)`);
-            }
-            
-            console.log(`Empresa ${companyId} não possui configuração Asaas salva, mas usando chave válida do ambiente.`);
-            return true;
-          } else {
-            // Sem configuração e sem chave válida no ambiente
-            this.apiKey = 'not-configured';
-            this.inDemoMode = true;
-            this.currentCompanyId = null;
-            this.baseUrl = ASAAS_SANDBOX_URL;
-            
-            console.warn(`Empresa ${companyId} não possui configuração Asaas e não há chave válida no ambiente.`);
-            return false;
-          }
-        }
+        return false;
       }
-      
-      return false;
     } catch (error) {
       console.error('Erro ao definir empresa para o serviço Asaas:', error);
       if (error instanceof Error) {
@@ -419,17 +336,33 @@ export class AsaasService {
   
   // Método para obter a configuração do Asaas de uma empresa
   async getAsaasConfig(companyId: number) {
-    try {
-      const [config] = await db
-        .select()
-        .from(asaasConfig)
-        .where(eq(asaasConfig.companyId, companyId));
-      
-      return config;
-    } catch (error) {
-      console.error('Erro ao buscar configuração Asaas:', error);
-      return null;
+    // Sempre usar chave do ambiente ao invés do banco de dados
+    if (ASAAS_API_KEY && ASAAS_API_KEY.trim() !== '') {
+      const mode = this.apiKey.startsWith('$aact_') || this.apiKey.includes('prod_') 
+        ? 'production' 
+        : 'sandbox';
+        
+      return {
+        id: 0,
+        companyId,
+        apiKey: ASAAS_API_KEY,
+        mode,
+        walletId: null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
     }
+    
+    // Retornar configuração de demo se não há chave válida
+    return {
+      id: 0,
+      companyId,
+      apiKey: 'demo-key',
+      mode: 'sandbox',
+      walletId: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
   }
   
   // Teste de conexão com o Asaas
