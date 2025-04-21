@@ -1,19 +1,31 @@
-import { useState } from "react";
-import useAsaas from "@/hooks/use-asaas";
-import { Button } from "@/components/ui/button";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { FormField, FormItem, FormLabel, FormControl, FormMessage, Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Loader2, Search, Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle,
-  CardDescription,
-  CardFooter
-} from "@/components/ui/card";
-import { formatCpfCnpj } from "@/lib/utils";
+import { formatCpfCnpj, isValidCPF, isValidCNPJ } from "@/lib/utils";
+import { Search, Loader2 } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 
+// Schema para validação do formulário
+const lookupSchema = z.object({
+  cpfCnpj: z.string()
+    .min(11, "CPF/CNPJ inválido")
+    .refine((val) => {
+      const cleanVal = val.replace(/\D/g, '');
+      return cleanVal.length === 11 || cleanVal.length === 14;
+    }, "CPF ou CNPJ deve ter 11 ou 14 dígitos")
+    .refine((val) => {
+      const cleanVal = val.replace(/\D/g, '');
+      return cleanVal.length === 11 ? isValidCPF(cleanVal) : isValidCNPJ(cleanVal);
+    }, "CPF/CNPJ inválido")
+});
+
+// Interface para os parâmetros do componente
 interface AsaasCustomerLookupProps {
   onCustomerSelect: (customer: {
     id: string;
@@ -25,105 +37,161 @@ interface AsaasCustomerLookupProps {
   }) => void;
 }
 
+// Interface para a resposta do cliente
+interface AsaasCustomerResponse {
+  id: string;
+  name: string;
+  cpfCnpj: string;
+  email?: string;
+  phone?: string;
+  mobilePhone?: string;
+  address?: string;
+  addressNumber?: string;
+  complement?: string;
+  province?: string;
+  postalCode?: string;
+  deleted: boolean;
+}
+
+// Componente principal
 export function AsaasCustomerLookup({ onCustomerSelect }: AsaasCustomerLookupProps) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [customer, setCustomer] = useState<AsaasCustomerResponse | null>(null);
   const { toast } = useToast();
-  const [cpfCnpj, setCpfCnpj] = useState("");
-  const [isSearching, setIsSearching] = useState(false);
-  
-  // Usar o hook para buscar o cliente pelo CPF/CNPJ
-  const { useFindCustomerByCpfCnpj } = useAsaas();
-  
-  // Remover caracteres não-numéricos do CPF/CNPJ
-  const formatCpfCnpjForSearch = (value: string) => {
-    return value.replace(/[^\d]/g, "");
-  };
-  
-  const handleSearch = async () => {
-    const formattedCpfCnpj = formatCpfCnpjForSearch(cpfCnpj);
-    
-    if (formattedCpfCnpj.length < 11) {
-      toast({
-        title: "CPF/CNPJ inválido",
-        description: "Digite um CPF ou CNPJ válido para pesquisar",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setIsSearching(true);
-    
+
+  // Configurar o formulário
+  const form = useForm<z.infer<typeof lookupSchema>>({
+    resolver: zodResolver(lookupSchema),
+    defaultValues: {
+      cpfCnpj: "",
+    },
+  });
+
+  // Função para buscar cliente por CPF/CNPJ
+  async function searchCustomer(cpfCnpj: string) {
     try {
-      // Buscar cliente diretamente via API
-      const response = await fetch(`/api/asaas/customers?cpfCnpj=${formattedCpfCnpj}`);
+      setIsLoading(true);
+      
+      // Limpar caracteres não numéricos
+      const cleanCpfCnpj = cpfCnpj.replace(/\D/g, '');
+      
+      // Fazer requisição para a API
+      const response = await apiRequest("GET", `/api/asaas/customers?cpfCnpj=${cleanCpfCnpj}`);
       const data = await response.json();
       
       if (data.data && data.data.length > 0) {
-        const customer = data.data[0];
-        toast({
-          title: "Cliente encontrado",
-          description: `Cliente ${customer.name} encontrado no Asaas`,
-          variant: "default"
-        });
-        onCustomerSelect({
-          id: customer.id,
-          name: customer.name,
-          cpfCnpj: customer.cpfCnpj,
-          email: customer.email,
-          phone: customer.phone || customer.mobilePhone,
-          address: customer.address
-        });
+        const foundCustomer = data.data[0];
+        setCustomer(foundCustomer);
       } else {
+        setCustomer(null);
         toast({
           title: "Cliente não encontrado",
-          description: "Nenhum cliente encontrado com este CPF/CNPJ no Asaas",
-          variant: "destructive"
+          description: "Nenhum cliente encontrado com este CPF/CNPJ.",
+          variant: "destructive",
         });
       }
     } catch (error) {
       console.error("Erro ao buscar cliente:", error);
       toast({
-        title: "Erro na busca",
-        description: "Ocorreu um erro ao buscar o cliente no Asaas. Tente novamente.",
-        variant: "destructive"
+        title: "Erro ao buscar cliente",
+        description: "Ocorreu um erro ao buscar o cliente. Tente novamente.",
+        variant: "destructive",
       });
     } finally {
-      setIsSearching(false);
+      setIsLoading(false);
     }
-  };
+  }
+
+  // Handler para o submit do formulário
+  function onSubmit(values: z.infer<typeof lookupSchema>) {
+    searchCustomer(values.cpfCnpj);
+  }
+
+  // Handler para selecionar um cliente
+  function handleSelectCustomer() {
+    if (customer) {
+      onCustomerSelect({
+        id: customer.id,
+        name: customer.name,
+        cpfCnpj: customer.cpfCnpj,
+        email: customer.email,
+        phone: customer.phone || customer.mobilePhone,
+        address: customer.address
+      });
+      
+      // Limpar formulário e cliente após selecionar
+      form.reset();
+      setCustomer(null);
+      
+      toast({
+        title: "Cliente selecionado",
+        description: "Cliente do Asaas selecionado com sucesso.",
+      });
+    }
+  }
 
   return (
-    <Card className="mb-4">
-      <CardHeader>
-        <CardTitle className="text-lg">Buscar Cliente no Asaas</CardTitle>
-        <CardDescription>
-          Digite o CPF/CNPJ para buscar um cliente já cadastrado no Asaas
-        </CardDescription>
+    <Card className="border-green-200 shadow-sm">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-md font-medium">Buscar cliente no Asaas</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center space-x-2">
-          <Input
-            placeholder="CPF ou CNPJ"
-            value={cpfCnpj}
-            onChange={(e) => setCpfCnpj(e.target.value)}
-            className="flex-1"
-          />
-          <Button 
-            onClick={handleSearch} 
-            disabled={isSearching}
-            type="button"
-          >
-            {isSearching ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : (
-              <Search className="h-4 w-4 mr-2" />
-            )}
-            Buscar
-          </Button>
-        </div>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="cpfCnpj"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>CPF/CNPJ</FormLabel>
+                  <div className="flex space-x-2">
+                    <FormControl>
+                      <Input 
+                        placeholder="Digite o CPF ou CNPJ" 
+                        {...field} 
+                        onChange={(e) => {
+                          // Aplicar formatação enquanto digita
+                          field.onChange(formatCpfCnpj(e.target.value));
+                        }}
+                        className="flex-1"
+                      />
+                    </FormControl>
+                    <Button 
+                      type="submit" 
+                      disabled={isLoading}
+                      size="sm"
+                    >
+                      {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </form>
+        </Form>
+
+        {customer && (
+          <div className="mt-4 p-3 bg-green-50 rounded-md border border-green-200">
+            <h3 className="font-medium text-sm">Cliente encontrado:</h3>
+            <div className="mt-1 text-sm">
+              <p className="font-medium">{customer.name}</p>
+              <p>{formatCpfCnpj(customer.cpfCnpj)}</p>
+              {customer.email && <p>{customer.email}</p>}
+              {(customer.phone || customer.mobilePhone) && (
+                <p>{customer.phone || customer.mobilePhone}</p>
+              )}
+              <Button 
+                className="mt-2 w-full" 
+                size="sm"
+                onClick={handleSelectCustomer}
+              >
+                Selecionar este cliente
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
-      <CardFooter className="text-xs text-muted-foreground">
-        Ao encontrar um cliente já cadastrado, seus dados serão automaticamente preenchidos
-      </CardFooter>
     </Card>
   );
 }
