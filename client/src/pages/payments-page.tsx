@@ -28,6 +28,7 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ApiConfigForm } from "@/components/settings/api-config-form";
+import { AsaasCustomersList } from "@/components/customers/asaas-customers-list";
 
 export default function PaymentsPage() {
   const { id, action } = useParams();
@@ -41,6 +42,7 @@ export default function PaymentsPage() {
         <TabsList>
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
           <TabsTrigger value="payments">Cobranças</TabsTrigger>
+          <TabsTrigger value="customers">Clientes</TabsTrigger>
           <TabsTrigger value="create">Nova Cobrança</TabsTrigger>
           <TabsTrigger value="settings">Configuração</TabsTrigger>
         </TabsList>
@@ -51,6 +53,10 @@ export default function PaymentsPage() {
         
         <TabsContent value="payments" className="space-y-4">
           <PaymentsList />
+        </TabsContent>
+        
+        <TabsContent value="customers" className="space-y-4">
+          <AsaasCustomersList />
         </TabsContent>
         
         <TabsContent value="create" className="space-y-4">
