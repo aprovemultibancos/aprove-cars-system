@@ -32,6 +32,22 @@ export interface AsaasBalance {
   balance: number;
 }
 
+export interface AsaasCustomer {
+  id: string;
+  name: string;
+  cpfCnpj: string;
+  email?: string;
+  phone?: string;
+  mobilePhone?: string;
+  address?: string;
+  addressNumber?: string;
+  complement?: string;
+  province?: string;
+  postalCode?: string;
+  deleted: boolean;
+  createdAt?: string;
+}
+
 export interface CreatePaymentParams {
   customerName: string;
   customerCpfCnpj: string;
@@ -118,6 +134,29 @@ export const useAsaas = () => {
     staleTime: 1000 * 60 * 5, // 5 minutos
     retry: 2,
   });
+  
+  // Query para listar os clientes
+  const useCustomersQuery = (offset = 0, limit = 10, name?: string) => {
+    return useQuery({
+      queryKey: ['/api/asaas/customers', offset, limit, name],
+      queryFn: async () => {
+        try {
+          let url = `/api/asaas/customers?offset=${offset}&limit=${limit}`;
+          if (name) url += `&name=${encodeURIComponent(name)}`;
+          
+          const response = await apiRequest('GET', url);
+          const data = await response.json();
+          return data as { data: AsaasCustomer[], totalCount: number };
+        } catch (error) {
+          console.error("Erro ao buscar clientes:", error);
+          // Retornamos um objeto vazio para evitar erros na interface
+          return { data: [], totalCount: 0 } as { data: AsaasCustomer[], totalCount: number };
+        }
+      },
+      staleTime: 1000 * 60, // 1 minuto
+      retry: 2,
+    });
+  };
   
   // Query para listar os pagamentos
   const usePaymentsQuery = (offset = 0, limit = 10, status?: string) => {
@@ -258,6 +297,7 @@ export const useAsaas = () => {
   
   return {
     balanceQuery,
+    useCustomersQuery,
     usePaymentsQuery,
     usePaymentQuery,
     createPaymentMutation,

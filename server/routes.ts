@@ -667,6 +667,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rota para listar clientes do Asaas
+  app.get("/api/asaas/customers", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const offset = parseInt(req.query.offset as string) || 0;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const name = req.query.name as string;
+      
+      const customers = await asaasService.getCustomers(offset, limit, name);
+      res.json(customers);
+    } catch (error) {
+      console.error("Erro ao listar clientes:", error);
+      // Mesmo com erro, retornamos 200 com lista vazia para manter a interface funcionando
+      res.json({ data: [], totalCount: 0 });
+    }
+  });
+
   // Rota para buscar o saldo da conta Asaas
   app.get("/api/asaas/balance", async (req, res) => {
     try {
