@@ -20,7 +20,16 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Search, RefreshCcw } from "lucide-react";
+import { AlertCircle, Search, RefreshCcw, PlusCircle, Users } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { NewCustomerForm } from "./new-customer-form";
 
 export function AsaasCustomersList() {
   const { useCustomersQuery } = useAsaas();
@@ -113,6 +122,26 @@ export function AsaasCustomersList() {
             }}>
               <RefreshCcw className="h-4 w-4" />
             </Button>
+            
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button>
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Novo Cliente
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-3xl">
+                <DialogHeader>
+                  <DialogTitle>Cadastrar Novo Cliente</DialogTitle>
+                  <DialogDescription>
+                    Adicione um novo cliente para gerar cobranças no Asaas
+                  </DialogDescription>
+                </DialogHeader>
+                <NewCustomerForm onSuccess={() => {
+                  refetch();
+                }} />
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </CardHeader>
@@ -194,10 +223,33 @@ export function AsaasCustomersList() {
           </>
         ) : (
           <div className="py-20 text-center">
-            <div className="text-gray-500 mb-2">Nenhum cliente encontrado</div>
-            <div className="text-sm text-gray-400">
+            <div className="text-gray-500 mb-2">
+              <Users className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+              Nenhum cliente encontrado
+            </div>
+            <div className="text-sm text-gray-400 mb-6">
               {searchName ? "Tente uma busca diferente" : "Nenhum cliente cadastrado no Asaas"}
             </div>
+            
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button>
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Cadastrar Primeiro Cliente
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-3xl">
+                <DialogHeader>
+                  <DialogTitle>Cadastrar Novo Cliente</DialogTitle>
+                  <DialogDescription>
+                    Adicione um novo cliente para gerar cobranças no Asaas
+                  </DialogDescription>
+                </DialogHeader>
+                <NewCustomerForm onSuccess={() => {
+                  refetch();
+                }} />
+              </DialogContent>
+            </Dialog>
           </div>
         )}
       </CardContent>

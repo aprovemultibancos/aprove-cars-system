@@ -48,6 +48,19 @@ export interface AsaasCustomer {
   createdAt?: string;
 }
 
+export interface CreateCustomerParams {
+  name: string;
+  cpfCnpj: string;
+  email?: string;
+  phone?: string;
+  mobilePhone?: string;
+  address?: string;
+  addressNumber?: string;
+  complement?: string;
+  province?: string;
+  postalCode?: string;
+}
+
 export interface CreatePaymentParams {
   customerName: string;
   customerCpfCnpj: string;
@@ -223,6 +236,30 @@ export const useAsaas = () => {
     }
   });
   
+  // Mutation para criar um novo cliente
+  const createCustomerMutation = useMutation({
+    mutationFn: async (customer: CreateCustomerParams) => {
+      const response = await apiRequest('POST', '/api/asaas/customers', customer);
+      return await response.json() as AsaasCustomer;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Cliente cadastrado com sucesso",
+        description: "O cliente foi cadastrado na plataforma Asaas."
+      });
+      
+      // Invalidar as queries para recarregar os dados
+      queryClient.invalidateQueries({ queryKey: ['/api/asaas/customers'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao cadastrar cliente",
+        description: `Falha ao cadastrar cliente: ${error.message}`,
+        variant: "destructive"
+      });
+    }
+  });
+
   // Mutation para cancelar um pagamento
   const cancelPaymentMutation = useMutation({
     mutationFn: async (paymentId: string) => {
@@ -301,6 +338,7 @@ export const useAsaas = () => {
     usePaymentsQuery,
     usePaymentQuery,
     createPaymentMutation,
+    createCustomerMutation,
     cancelPaymentMutation,
     formatCurrency,
     translatePaymentStatus,

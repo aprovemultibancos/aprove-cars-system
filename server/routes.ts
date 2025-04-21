@@ -687,6 +687,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ data: demoCustomers, totalCount: 15 });
     }
   });
+  
+  // Rota para criar um novo cliente no Asaas
+  app.post("/api/asaas/customers", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      console.log("Recebido no backend (Asaas Customer):", JSON.stringify(req.body, null, 2));
+      
+      const customerData: AsaasCustomerRequest = {
+        name: req.body.name,
+        cpfCnpj: req.body.cpfCnpj,
+        email: req.body.email,
+        phone: req.body.phone,
+        mobilePhone: req.body.mobilePhone,
+        address: req.body.address,
+        addressNumber: req.body.addressNumber,
+        complement: req.body.complement,
+        province: req.body.province,
+        postalCode: req.body.postalCode
+      };
+      
+      // Verificar se já existe um cliente com este CPF/CNPJ
+      const existingCustomer = await asaasService.findCustomerByCpfCnpj(customerData.cpfCnpj);
+      
+      if (existingCustomer) {
+        return res.status(400).json({
+          message: "Já existe um cliente com este CPF/CNPJ", 
+          customer: existingCustomer
+        });
+      }
+      
+      // Criar o cliente no Asaas
+      const customer = await asaasService.createCustomer(customerData);
+      console.log("Cliente criado com sucesso:", customer.id);
+      
+      res.status(201).json(customer);
+    } catch (error) {
+      console.error("Erro ao criar cliente:", error);
+      
+      // Se estiver no modo de demonstração, criar um cliente demo
+      if (asaasService.inDemoMode) {
+        const demoId = `demo_customer_${Math.floor(Math.random() * 1000)}`;
+        const demoCustomer = {
+          id: demoId,
+          name: req.body.name,
+          cpfCnpj: req.body.cpfCnpj,
+          email: req.body.email,
+          phone: req.body.phone,
+          mobilePhone: req.body.mobilePhone,
+          address: req.body.address,
+          addressNumber: req.body.addressNumber,
+          complement: req.body.complement,
+          province: req.body.province,
+          postalCode: req.body.postalCode,
+          deleted: false,
+          createdAt: new Date().toISOString()
+        };
+        
+        res.status(201).json(demoCustomer);
+      } else {
+        res.status(500).json({ message: "Erro ao criar cliente no Asaas", error: String(error) });
+      }
+    }
+  });
 
   // Rota para buscar o saldo da conta Asaas
   app.get("/api/asaas/balance", async (req, res) => {
