@@ -15,6 +15,7 @@ import ExpensesPage from "@/pages/expenses-page";
 import PersonnelPage from "@/pages/personnel-page";
 import ReportsPage from "@/pages/reports-page";
 import UserManagementPage from "@/pages/user-management-page";
+import PaymentsPage from "@/pages/payments-page";
 
 function Router() {
   return (

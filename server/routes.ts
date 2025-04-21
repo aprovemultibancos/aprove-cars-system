@@ -635,7 +635,194 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
-  // Rotas de pagamento removidas conforme solicitado
+  // Rotas do Asaas Payment Gateway
+  
+  // Rota para buscar o saldo da conta Asaas
+  app.get("/api/asaas/balance", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const balance = await asaasService.getBalance();
+      res.json(balance);
+    } catch (error) {
+      console.error("Erro ao buscar saldo:", error);
+      res.status(500).json({ message: "Erro ao buscar saldo do Asaas", error: String(error) });
+    }
+  });
+  
+  // Rota para listar pagamentos do Asaas
+  app.get("/api/asaas/payments", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const offset = parseInt(req.query.offset as string) || 0;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const status = req.query.status as string;
+      
+      const payments = await asaasService.getPayments(offset, limit, status);
+      res.json(payments);
+    } catch (error) {
+      console.error("Erro ao listar pagamentos:", error);
+      res.status(500).json({ message: "Erro ao listar pagamentos do Asaas", error: String(error) });
+    }
+  });
+  
+  // Rota para consultar um pagamento específico
+  app.get("/api/asaas/payments/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const paymentId = req.params.id;
+      const payment = await asaasService.getPayment(paymentId);
+      res.json(payment);
+    } catch (error) {
+      console.error("Erro ao buscar pagamento:", error);
+      res.status(500).json({ message: "Erro ao buscar pagamento do Asaas", error: String(error) });
+    }
+  });
+  
+  // Criar uma nova cobrança Asaas
+  app.post("/api/asaas/payments", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      console.log("Recebido no backend (Asaas Payment):", JSON.stringify(req.body, null, 2));
+      
+      const { 
+        customerName, 
+        customerCpfCnpj, 
+        customerEmail,
+        customerPhone,
+        billingType,
+        value,
+        dueDate,
+        description,
+        externalReference,
+        creditCardData,
+        addressInfo
+      } = req.body;
+      
+      // 1. Verificar se o cliente já existe ou criar um novo
+      let customerId;
+      
+      // Buscar cliente pelo CPF/CNPJ
+      const existingCustomer = await asaasService.findCustomerByCpfCnpj(customerCpfCnpj);
+      
+      if (existingCustomer) {
+        console.log("Cliente encontrado no Asaas:", existingCustomer.id);
+        customerId = existingCustomer.id;
+      } else {
+        // Cliente não existe, criar um novo
+        const customerData: AsaasCustomerRequest = {
+          name: customerName,
+          cpfCnpj: customerCpfCnpj,
+          email: customerEmail,
+          phone: customerPhone,
+          mobilePhone: customerPhone,
+          postalCode: addressInfo?.postalCode,
+          address: addressInfo?.address,
+          addressNumber: addressInfo?.addressNumber,
+          complement: addressInfo?.complement,
+          province: addressInfo?.province  // Bairro
+        };
+        
+        console.log("Criando novo cliente no Asaas:", customerData);
+        const newCustomer = await asaasService.createCustomer(customerData);
+        customerId = newCustomer.id;
+        console.log("Novo cliente criado:", newCustomer.id);
+      }
+      
+      // 2. Criar o pagamento com as taxas customizadas
+      const paymentData: AsaasPaymentRequest = {
+        customer: customerId,
+        billingType: billingType,
+        value: parseFloat(value),
+        dueDate: dueDate,
+        description: description,
+        externalReference: externalReference
+      };
+      
+      // Adicionar dados do cartão de crédito quando for pagamento por cartão
+      if (billingType === 'CREDIT_CARD' && creditCardData) {
+        paymentData.creditCard = {
+          holderName: creditCardData.holderName,
+          number: creditCardData.number,
+          expiryMonth: creditCardData.expiryMonth,
+          expiryYear: creditCardData.expiryYear,
+          ccv: creditCardData.ccv
+        };
+        
+        paymentData.creditCardHolderInfo = {
+          name: customerName,
+          email: customerEmail || '',
+          cpfCnpj: customerCpfCnpj,
+          postalCode: addressInfo?.postalCode || '',
+          addressNumber: addressInfo?.addressNumber || '',
+          addressComplement: addressInfo?.complement,
+          phone: customerPhone || ''
+        };
+      }
+      
+      console.log("Criando pagamento no Asaas:", JSON.stringify(paymentData, null, 2));
+      const payment = await asaasService.createPayment(paymentData);
+      console.log("Pagamento criado com sucesso:", payment.id);
+      
+      // 3. Se for uma venda, atualizar o registro da venda com o ID do pagamento
+      if (externalReference && externalReference.startsWith('sale_')) {
+        const saleId = externalReference.replace('sale_', '');
+        if (saleId) {
+          try {
+            console.log(`Atualizando venda ${saleId} com ID de pagamento ${payment.id}`);
+            await storage.updateSale(parseInt(saleId), { 
+              asaasPaymentId: payment.id 
+            });
+          } catch (error) {
+            console.warn(`Erro ao atualizar venda ${saleId} com ID de pagamento:`, error);
+            // Continuar mesmo com erro na atualização da venda
+          }
+        }
+      }
+      
+      res.status(201).json(payment);
+    } catch (error) {
+      console.error("Erro ao criar cobrança:", error);
+      if (error instanceof Error) {
+        console.error("Detalhes do erro:", error.message);
+        if (error.cause) console.error("Causa:", error.cause);
+        if (error.stack) console.error("Stack:", error.stack);
+      }
+      res.status(500).json({ message: "Erro ao criar cobrança no Asaas", error: String(error) });
+    }
+  });
+  
+  // Cancelar um pagamento
+  app.delete("/api/asaas/payments/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const paymentId = req.params.id;
+      const result = await asaasService.cancelPayment(paymentId);
+      
+      if (result.deleted) {
+        res.status(200).json({ message: "Pagamento cancelado com sucesso" });
+      } else {
+        res.status(500).json({ message: "Não foi possível cancelar o pagamento" });
+      }
+    } catch (error) {
+      console.error("Erro ao cancelar pagamento:", error);
+      res.status(500).json({ message: "Erro ao cancelar pagamento no Asaas", error: String(error) });
+    }
+  });
 
   const httpServer = createServer(app);
 

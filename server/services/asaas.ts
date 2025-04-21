@@ -131,11 +131,17 @@ export class AsaasService {
       }
       
       const response = await fetch(url, options);
-      const responseData = await response.json();
+      
+      // Usar any para evitar erros de tipagem com o responseData
+      const responseData: any = await response.json();
       
       if (!response.ok) {
         console.error('Erro na requisição:', responseData);
-        throw new Error(responseData.errors?.[0]?.description || 'Erro na requisição Asaas');
+        if (responseData && responseData.errors && responseData.errors.length > 0) {
+          throw new Error(responseData.errors[0].description || 'Erro na requisição Asaas');
+        } else {
+          throw new Error('Erro na requisição Asaas');
+        }
       }
       
       return responseData as T;
