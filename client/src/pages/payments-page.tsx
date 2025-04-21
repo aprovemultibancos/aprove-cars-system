@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { ApiConfigForm } from "@/components/settings/api-config-form";
 
 export default function PaymentsPage() {
   const { id, action } = useParams();
@@ -41,6 +42,7 @@ export default function PaymentsPage() {
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
           <TabsTrigger value="payments">Cobranças</TabsTrigger>
           <TabsTrigger value="create">Nova Cobrança</TabsTrigger>
+          <TabsTrigger value="settings">Configuração</TabsTrigger>
         </TabsList>
         
         <TabsContent value="overview" className="space-y-4">
@@ -53,6 +55,10 @@ export default function PaymentsPage() {
         
         <TabsContent value="create" className="space-y-4">
           <PaymentForm />
+        </TabsContent>
+        
+        <TabsContent value="settings" className="space-y-4">
+          <ApiConfigForm />
         </TabsContent>
       </Tabs>
     </div>

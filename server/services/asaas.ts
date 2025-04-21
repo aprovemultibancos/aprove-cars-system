@@ -94,20 +94,55 @@ export interface AsaasBalanceResponse {
 export class AsaasService {
   private apiKey: string;
   private baseUrl: string;
+  private inDemoMode: boolean;
   
   constructor() {
     if (!ASAAS_API_KEY) {
       console.warn('ATENÇÃO: ASAAS_API_KEY não está configurada. O sistema funcionará em modo de demonstração com dados simulados.');
       // Não lançar erro para permitir que o sistema funcione no modo de demonstração
       this.apiKey = 'demo-key';
+      this.inDemoMode = true;
     } else {
       this.apiKey = ASAAS_API_KEY;
+      this.inDemoMode = false;
     }
     
     this.baseUrl = ASAAS_BASE_URL;
     
     // Iniciar teste de conexão em background
     setTimeout(() => this.testConnection(), 1000);
+  }
+  
+  // Método para atualizar a chave da API
+  async updateApiKey(newApiKey: string): Promise<boolean> {
+    try {
+      // Testar a nova chave antes de atualizar
+      const testUrl = `${this.baseUrl}/finance/balance`;
+      const response = await fetch(testUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'access_token': newApiKey
+        }
+      });
+      
+      if (response.ok) {
+        // A chave é válida, então vamos atualizá-la
+        this.apiKey = newApiKey;
+        this.inDemoMode = false;
+        
+        // Em um ambiente de produção, você salvaria esta chave em um local seguro
+        // como uma variável de ambiente ou um serviço de gerenciamento de segredos
+        console.log('Chave de API Asaas atualizada com sucesso');
+        return true;
+      } else {
+        console.error(`Chave de API inválida. Status: ${response.status}`);
+        return false;
+      }
+    } catch (error) {
+      console.error('Erro ao testar nova chave API:', error);
+      return false;
+    }
   }
   
   // Teste de conexão com o Asaas
