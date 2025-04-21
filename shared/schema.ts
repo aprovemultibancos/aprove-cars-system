@@ -507,3 +507,26 @@ export type WhatsappTemplate = typeof whatsappTemplates.$inferSelect;
 
 export type InsertWhatsappCampaign = z.infer<typeof insertWhatsappCampaignSchema>;
 export type WhatsappCampaign = typeof whatsappCampaigns.$inferSelect;
+
+// Tabela para configuração do Asaas
+export const asaasConfig = pgTable("asaas_config", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull().references(() => companies.id).unique(),
+  apiKey: text("api_key").notNull(),
+  mode: text("mode", { enum: ["sandbox", "production"] }).notNull().default("sandbox"),
+  walletId: text("wallet_id"), // ID da carteira no Asaas (usado para split de pagamento)
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Schema para inserção de configuração do Asaas
+export const insertAsaasConfigSchema = createInsertSchema(asaasConfig).pick({
+  companyId: true,
+  apiKey: true,
+  mode: true,
+  walletId: true,
+});
+
+// Tipos para configuração do Asaas
+export type InsertAsaasConfig = z.infer<typeof insertAsaasConfigSchema>;
+export type AsaasConfig = typeof asaasConfig.$inferSelect;

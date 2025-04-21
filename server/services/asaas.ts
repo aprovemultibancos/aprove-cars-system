@@ -100,7 +100,7 @@ export interface AsaasBalanceResponse {
 }
 
 import { db } from "../db";
-import { companyIntegrations, companies, splitConfigs } from "@shared/schema";
+import { companyIntegrations, companies, splitConfigs, asaasConfig } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 
 // Classe para interagir com a API do Asaas
