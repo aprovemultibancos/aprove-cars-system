@@ -37,13 +37,13 @@ import { AsaasCustomerLookup } from "../sales/asaas-customer-lookup";
 // Definir o schema do formulário de pagamento
 const paymentFormSchema = z.object({
   customerId: z.string().optional(),
-  customerName: z.string().min(1, "Nome do cliente é obrigatório"),
+  customerName: z.string().optional(),
   description: z.string().min(1, "Descrição é obrigatória"),
   value: z.coerce.number().min(0.01, "Valor deve ser maior que zero"),
   dueDate: z.date({
     required_error: "Data de vencimento é obrigatória",
   }),
-  billingType: z.enum(["BOLETO", "PIX"], {
+  billingType: z.enum(["BOLETO", "PIX", "CREDIT_CARD"], {
     required_error: "Forma de pagamento é obrigatória",
   }),
   relatedSaleId: z.string().optional(),
@@ -117,7 +117,7 @@ export function PaymentForm({ customers, sales }: PaymentFormProps) {
   
   // Quando o modo de pagamento mudar
   const handleBillingTypeChange = (type: string) => {
-    form.setValue("billingType", type as "BOLETO" | "PIX");
+    form.setValue("billingType", type as "BOLETO" | "PIX" | "CREDIT_CARD");
     
     // Taxa de 2.49% para qualquer método de pagamento
     const fee = 0.0249; // 2.49%
@@ -140,20 +140,36 @@ export function PaymentForm({ customers, sales }: PaymentFormProps) {
   // Mutação para criar pagamento
   const mutation = useMutation({
     mutationFn: async (data: PaymentFormValues) => {
-      return await apiRequest("POST", "/api/payments", data);
+      // Criar o objeto de pagamento para a API do Asaas
+      const paymentData = {
+        customerId: selectedAsaasCustomer?.id, // Enviar o ID do cliente selecionado
+        description: data.description,
+        value: data.value,
+        dueDate: format(data.dueDate, 'yyyy-MM-dd'),
+        billingType: data.billingType,
+        relatedSaleId: data.relatedSaleId !== "0" ? data.relatedSaleId : undefined,
+        notes: data.notes
+      };
+      
+      console.log("Enviando dados para API:", paymentData);
+      return await apiRequest("POST", "/api/asaas/payments", paymentData);
     },
     onSuccess: () => {
       toast({
-        title: "Pagamento criado",
-        description: "O pagamento foi criado com sucesso",
+        title: "Cobrança criada",
+        description: "A cobrança foi gerada com sucesso no Asaas",
       });
+      queryClient.invalidateQueries({ queryKey: ["/api/asaas/payments"] });
       queryClient.invalidateQueries({ queryKey: ["/api/payments"] });
+      
+      // Limpar o formulário e os dados do cliente selecionado
       form.reset();
+      setSelectedAsaasCustomer(null);
     },
     onError: (error) => {
       toast({
-        title: "Erro",
-        description: error.message || "Ocorreu um erro ao criar o pagamento",
+        title: "Erro ao criar cobrança",
+        description: error.message || "Ocorreu um erro ao criar a cobrança no Asaas. Verifique se o cliente foi cadastrado corretamente.",
         variant: "destructive",
       });
     },
