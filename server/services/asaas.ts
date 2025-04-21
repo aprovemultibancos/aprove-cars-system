@@ -41,6 +41,28 @@ export interface AsaasPaymentRequest {
   split?: AsaasPaymentSplit[];
 }
 
+export interface AsaasCustomerResponse {
+  id: string;
+  name: string;
+  cpfCnpj: string;
+  email?: string;
+  phone?: string;
+  mobilePhone?: string;
+  address?: string;
+  addressNumber?: string;
+  complement?: string;
+  province?: string;
+  postalCode?: string;
+  deleted: boolean;
+  additionalEmails?: string;
+  municipalInscription?: string;
+  stateInscription?: string;
+  observations?: string;
+  externalReference?: string;
+  notificationDisabled?: boolean;
+  createdAt?: string;
+}
+
 export interface AsaasCustomerRequest {
   name: string;
   cpfCnpj: string;
@@ -52,28 +74,6 @@ export interface AsaasCustomerRequest {
   complement?: string;
   province?: string;
   postalCode?: string;
-}
-
-export interface AsaasCustomerResponse {
-  id: string;
-  name: string;
-  cpfCnpj: string;
-  email: string;
-  phone: string;
-  mobilePhone: string;
-  address: string;
-  addressNumber: string;
-  complement: string;
-  province: string;
-  postalCode: string;
-  deleted: boolean;
-  additionalEmails: string;
-  municipalInscription: string;
-  stateInscription: string;
-  observations: string;
-  externalReference: string;
-  notificationDisabled: boolean;
-  createdAt: string;
 }
 
 export interface AsaasPaymentResponse {
@@ -828,6 +828,36 @@ export class AsaasService {
       console.error('Erro ao cancelar pagamento. Retornando resposta simulada.', error);
       // Simular sucesso na operação de cancelamento
       return { deleted: true };
+    }
+  }
+  
+  // Método para buscar clientes por CPF/CNPJ
+  async findCustomerByCpfCnpj(cpfCnpj: string): Promise<AsaasCustomerResponse | null> {
+    try {
+      if (this.inDemoMode) {
+        // Retornar dados de demonstração no modo de demonstração
+        return {
+          id: 'cus_000000000001',
+          name: 'Cliente de Demonstração',
+          cpfCnpj: cpfCnpj,
+          email: 'cliente@exemplo.com',
+          phone: '11999999999',
+          deleted: false
+        };
+      }
+      
+      // Remover caracteres não numéricos do CPF/CNPJ
+      const cleanCpfCnpj = cpfCnpj.replace(/\D/g, '');
+      
+      // Fazer requisição para API
+      const response = await this.request<{ data: AsaasCustomerResponse[] }>(
+        `/customers?cpfCnpj=${cleanCpfCnpj}`
+      );
+      
+      return response.data.length > 0 ? response.data[0] : null;
+    } catch (error) {
+      console.error('Erro ao buscar cliente por CPF/CNPJ:', error);
+      return null;
     }
   }
 }
