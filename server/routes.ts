@@ -701,15 +701,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Apenas administradores podem configurar a API" });
       }
       
-      const { apiKey, walletId } = req.body;
+      const { apiKey, walletId, companyId } = req.body;
       if (!apiKey) {
         return res.status(400).json({ message: "Chave de API é obrigatória" });
       }
       
-      // Atualizar a chave de API no serviço para a empresa atual
-      const success = await asaasService.updateApiKey(apiKey, undefined, walletId);
+      // Se não tem companyId, tentar usar a empresa atual do usuário
+      let targetCompanyId = companyId;
+      if (!targetCompanyId && req.user.currentCompanyId) {
+        targetCompanyId = req.user.currentCompanyId;
+      }
+      
+      console.log(`Configurando API Asaas para empresa ID ${targetCompanyId || 'indefinida'}`);
+      
+      // Atualizar a chave de API no serviço para a empresa especificada
+      const success = await asaasService.updateApiKey(apiKey, targetCompanyId, walletId);
+      
       if (success) {
-        return res.json({ success: true, message: "API configurada com sucesso" });
+        return res.json({ 
+          success: true, 
+          message: "API configurada com sucesso", 
+          companyId: targetCompanyId 
+        });
       } else {
         return res.status(400).json({ message: "Não foi possível configurar a API" });
       }

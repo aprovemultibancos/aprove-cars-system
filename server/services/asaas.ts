@@ -131,6 +131,11 @@ export class AsaasService {
     
     // Iniciar teste de conexão em background
     setTimeout(() => this.testConnection(), 1000);
+    
+    // Desativar o modo de demonstração se houver chave de API
+    if (ASAAS_API_KEY) {
+      this.inDemoMode = false;
+    }
   }
   
   // Método para selecionar a empresa atual
@@ -583,92 +588,109 @@ export class AsaasService {
       console.log(`Valor original: R$ ${originalValue.toFixed(2)}, Valor com taxa: R$ ${paymentData.value.toFixed(2)}`);
     }
     
-    try {
-      // Verificar se precisa adicionar split para empresa master
-      let paymentDataWithSplit = { ...paymentData };
-      
-      // Só aplicar split se temos uma empresa definida e não é a master
-      if (this.currentCompanyId) {
-        try {
-          // Consultar a empresa atual
-          const [company] = await db
+    // Verificar se precisa adicionar split para empresa master
+    let paymentDataWithSplit = { ...paymentData };
+    
+    // Só aplicar split se temos uma empresa definida e não é a master
+    if (this.currentCompanyId) {
+      try {
+        // Consultar a empresa atual
+        const [company] = await db
+          .select()
+          .from(companies)
+          .where(eq(companies.id, this.currentCompanyId));
+        
+        // Se a empresa não for master e tiver uma empresa mãe configurada
+        if (company && !company.isMaster && company.masterCompanyId) {
+          // Buscar a configuração de splitamento
+          const [splitConfig] = await db
             .select()
-            .from(companies)
-            .where(eq(companies.id, this.currentCompanyId));
+            .from(splitConfigs)
+            .where(
+              and(
+                eq(splitConfigs.companyId, this.currentCompanyId),
+                eq(splitConfigs.isActive, true)
+              )
+            );
           
-          // Se a empresa não for master e tiver uma empresa mãe configurada
-          if (company && !company.isMaster && company.masterCompanyId) {
-            // Buscar a configuração de splitamento
-            const [splitConfig] = await db
-              .select()
-              .from(splitConfigs)
-              .where(
-                and(
-                  eq(splitConfigs.companyId, this.currentCompanyId),
-                  eq(splitConfigs.isActive, true)
-                )
-              );
+          // Buscar a configuração Asaas da empresa master
+          const [masterConfig] = await db
+            .select()
+            .from(asaasConfig)
+            .where(eq(asaasConfig.companyId, company.masterCompanyId));
+          
+          // Se temos a configuração de split e a configuração da master
+          if (splitConfig && masterConfig && masterConfig.walletId) {
+            const masterPercentage = parseFloat(splitConfig.masterPercentage.toString());
             
-            // Buscar a configuração Asaas da empresa master
-            const [masterConfig] = await db
-              .select()
-              .from(asaasConfig)
-              .where(eq(asaasConfig.companyId, company.masterCompanyId));
+            // Calcular o valor para a empresa master (porcentagem do valor total)
+            const masterAmount = paymentData.value * (masterPercentage / 100);
             
-            // Se temos a configuração de split e a configuração da master
-            if (splitConfig && masterConfig && masterConfig.walletId) {
-              const masterPercentage = parseFloat(splitConfig.masterPercentage.toString());
-              
-              // Calcular o valor para a empresa master (porcentagem do valor total)
-              const masterAmount = paymentData.value * (masterPercentage / 100);
-              
-              // Adicionar configuração de split ao pagamento
-              paymentDataWithSplit = {
-                ...paymentData,
-                split: [
-                  {
-                    walletId: masterConfig.walletId!,
-                    fixedValue: parseFloat(masterAmount.toFixed(2))
-                  }
-                ]
-              };
-              
-              console.log(`Split configurado: ${masterPercentage}% (R$ ${masterAmount.toFixed(2)}) para empresa master ${company.masterCompanyId}`);
-            } else {
-              console.log('Configuração de split ou configuração Asaas da empresa master não encontrada');
-            }
+            // Adicionar configuração de split ao pagamento
+            paymentDataWithSplit = {
+              ...paymentData,
+              split: [
+                {
+                  walletId: masterConfig.walletId!,
+                  fixedValue: parseFloat(masterAmount.toFixed(2))
+                }
+              ]
+            };
+            
+            console.log(`Split configurado: ${masterPercentage}% (R$ ${masterAmount.toFixed(2)}) para empresa master ${company.masterCompanyId}`);
+          } else {
+            console.log('Configuração de split ou configuração Asaas da empresa master não encontrada');
           }
-        } catch (splitError) {
-          console.error('Erro ao aplicar split:', splitError);
-          // Continuar com o pagamento sem split em caso de erro
         }
+      } catch (splitError) {
+        console.error('Erro ao aplicar split:', splitError);
+        // Continuar com o pagamento sem split em caso de erro
+      }
+    }
+    
+    try {
+      console.log('Enviando solicitação de pagamento para o Asaas...');
+      
+      // Se estamos em modo demo forçado
+      if (this.inDemoMode) {
+        throw new Error('Serviço está em modo de demonstração');
       }
       
-      return await this.request<AsaasPaymentResponse>('/payments', 'POST', paymentDataWithSplit);
+      // Tentativa de criar o pagamento real
+      const result = await this.request<AsaasPaymentResponse>('/payments', 'POST', paymentDataWithSplit);
+      console.log('Pagamento criado com sucesso no Asaas:', result.id);
+      return result;
     } catch (error) {
-      console.error('Erro ao criar pagamento real. Retornando resposta simulada.', error);
+      // Verificar se há erro de chave API ou de configuração
+      console.error('Erro ao criar pagamento:', error);
       
-      // Gerar um ID único para a cobrança simulada
-      const demoId = `demo-${Date.now()}`;
-      
-      // Retornar um objeto simulado com os dados da requisição
-      return {
-        id: demoId,
-        dateCreated: new Date().toISOString(),
-        customer: paymentData.customer,
-        value: paymentData.value,
-        netValue: paymentData.value * 0.97, // Simular um desconto de 3%
-        billingType: paymentData.billingType,
-        status: 'PENDING',
-        dueDate: paymentData.dueDate,
-        description: paymentData.description,
-        invoiceUrl: "",
-        bankSlipUrl: paymentData.billingType === 'BOLETO' ? "https://example.com/boleto" : "",
-        invoiceNumber: demoId.substring(0, 6),
-        externalReference: paymentData.externalReference || "",
-        deleted: false,
-        pixQrCodeImage: paymentData.billingType === 'PIX' ? "https://example.com/pix" : undefined
-      };
+      if (this.apiKey === 'demo-key' || this.inDemoMode) {
+        console.warn('ATENÇÃO: Usando modo de demonstração pois não há chave API válida configurada');
+        // Gerar um ID único para a cobrança simulada
+        const demoId = `demo-${Date.now()}`;
+        
+        // Retornar um objeto simulado com os dados da requisição
+        return {
+          id: demoId,
+          dateCreated: new Date().toISOString(),
+          customer: paymentData.customer,
+          value: paymentData.value,
+          netValue: paymentData.value * 0.97, // Simular um desconto de 3%
+          billingType: paymentData.billingType,
+          status: 'PENDING',
+          dueDate: paymentData.dueDate,
+          description: paymentData.description,
+          invoiceUrl: "",
+          bankSlipUrl: paymentData.billingType === 'BOLETO' ? "https://example.com/boleto" : "",
+          invoiceNumber: demoId.substring(0, 6),
+          externalReference: paymentData.externalReference || "",
+          deleted: false,
+          pixQrCodeImage: paymentData.billingType === 'PIX' ? "https://example.com/pix" : undefined
+        };
+      } else {
+        // Se há chave API mas ocorreu erro, propagar o erro
+        throw error;
+      }
     }
   }
   
