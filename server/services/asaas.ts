@@ -220,7 +220,7 @@ export class AsaasService {
   }
   
   // Método para atualizar a chave da API e associá-la a uma empresa
-  async updateApiKey(newApiKey: string, companyId?: number, walletId?: string): Promise<boolean> {
+  async updateApiKey(newApiKey: string, companyId: number = 1, walletId?: string): Promise<boolean> {
     try {
       // Determinar primeiro o ambiente correto para a nova chave
       let url = '';
@@ -251,54 +251,53 @@ export class AsaasService {
         // Atualizar também a URL base
         this.baseUrl = mode === 'sandbox' ? ASAAS_SANDBOX_URL : ASAAS_PRODUCTION_URL;
         
-        // Se temos um companyId, salvar a configuração no banco de dados
-        if (companyId) {
-          try {
-            // Verificar se já existe uma configuração
-            const [existingConfig] = await db
-              .select()
-              .from(asaasConfig)
-              .where(eq(asaasConfig.companyId, companyId));
+        try {
+          // Verificar se já existe uma configuração
+          const [existingConfig] = await db
+            .select()
+            .from(asaasConfig)
+            .where(eq(asaasConfig.companyId, companyId));
+          
+          if (existingConfig) {
+            // Atualizar configuração existente
+            await db
+              .update(asaasConfig)
+              .set({ 
+                apiKey: newApiKey,
+                mode,
+                walletId,
+                updatedAt: new Date()
+              })
+              .where(eq(asaasConfig.id, existingConfig.id));
             
-            if (existingConfig) {
-              // Atualizar configuração existente
-              await db
-                .update(asaasConfig)
-                .set({ 
-                  apiKey: newApiKey,
-                  mode,
-                  walletId,
-                  updatedAt: new Date()
-                })
-                .where(eq(asaasConfig.id, existingConfig.id));
-              
-              console.log(`Configuração Asaas atualizada para empresa ${companyId}`);
-            } else {
-              // Criar nova configuração
-              await db
-                .insert(asaasConfig)
-                .values({
-                  companyId,
-                  apiKey: newApiKey,
-                  mode,
-                  walletId,
-                });
-              
-              console.log(`Nova configuração Asaas criada para empresa ${companyId}`);
-            }
+            console.log(`Configuração Asaas atualizada para empresa ${companyId}`);
+          } else {
+            // Criar nova configuração
+            await db
+              .insert(asaasConfig)
+              .values({
+                companyId,
+                apiKey: newApiKey,
+                mode,
+                walletId,
+              });
             
-            // Definir a empresa atual
-            this.currentCompanyId = companyId;
-          } catch (dbError) {
-            console.error('Erro ao salvar configuração Asaas no banco de dados:', dbError);
-            // Mesmo com erro no banco, a chave foi atualizada na memória
+            console.log(`Nova configuração Asaas criada para empresa ${companyId}`);
           }
+          
+          // Definir a empresa atual
+          this.currentCompanyId = companyId;
+        } catch (dbError) {
+          console.error('Erro ao salvar configuração Asaas no banco de dados:', dbError);
+          // Ainda retornamos true se a chave for válida, mesmo com erro de banco
+          return true;
         }
         
         console.log('Chave de API Asaas atualizada com sucesso');
         return true;
       } else {
-        console.error(`Chave de API inválida. Status: ${response.status}`);
+        const body = await response.text();
+        console.error(`Chave de API inválida. Status: ${response.status}, Resposta: ${body}`);
         return false;
       }
     } catch (error) {
@@ -651,23 +650,34 @@ export class AsaasService {
     try {
       console.log('Enviando solicitação de pagamento para o Asaas...');
       
-      // Se estamos em modo demo forçado
-      if (this.inDemoMode) {
-        throw new Error('Serviço está em modo de demonstração');
+      // Verificação mais rigorosa do modo de demonstração
+      if (this.inDemoMode || this.apiKey === 'demo-key' || !this.apiKey) {
+        console.warn('⚠️ Tentativa de criar pagamento real, mas o sistema está em modo de demonstração');
+        console.warn('⚠️ Verifique se a chave API do Asaas está configurada corretamente');
+        throw new Error('Serviço está em modo de demonstração, configure a API key');
       }
+      
+      // Log detalhado dos dados enviados
+      console.log('Dados de pagamento sendo enviados:', JSON.stringify(paymentDataWithSplit, null, 2));
       
       // Tentativa de criar o pagamento real
       const result = await this.request<AsaasPaymentResponse>('/payments', 'POST', paymentDataWithSplit);
-      console.log('Pagamento criado com sucesso no Asaas:', result.id);
+      console.log('✅ Pagamento criado com sucesso no Asaas:', result.id);
+      
+      // Detalhes do pagamento criado para debug
+      console.log('Detalhes do pagamento:', JSON.stringify(result, null, 2));
+      
       return result;
     } catch (error) {
       // Verificar se há erro de chave API ou de configuração
-      console.error('Erro ao criar pagamento:', error);
+      console.error('❌ Erro ao criar pagamento:', error);
       
       if (this.apiKey === 'demo-key' || this.inDemoMode) {
         console.warn('ATENÇÃO: Usando modo de demonstração pois não há chave API válida configurada');
         // Gerar um ID único para a cobrança simulada
         const demoId = `demo-${Date.now()}`;
+        
+        console.warn('Gerando pagamento de demonstração:', demoId);
         
         // Retornar um objeto simulado com os dados da requisição
         return {
@@ -688,7 +698,8 @@ export class AsaasService {
           pixQrCodeImage: paymentData.billingType === 'PIX' ? "https://example.com/pix" : undefined
         };
       } else {
-        // Se há chave API mas ocorreu erro, propagar o erro
+        // Se há chave API válida mas ocorreu erro, propagar o erro para tratamento adequado
+        console.error('❌ Erro ao criar pagamento com chave API válida:', error);
         throw error;
       }
     }

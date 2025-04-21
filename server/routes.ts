@@ -706,18 +706,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Chave de API é obrigatória" });
       }
       
-      // Se não tem companyId, tentar usar a empresa atual do usuário
-      let targetCompanyId = companyId;
-      if (!targetCompanyId && req.user.currentCompanyId) {
-        targetCompanyId = req.user.currentCompanyId;
-      }
+      // Usar a empresa 1 como padrão se não for especificada
+      let targetCompanyId = companyId || 1;
       
-      console.log(`Configurando API Asaas para empresa ID ${targetCompanyId || 'indefinida'}`);
+      console.log(`Configurando API Asaas para empresa ID ${targetCompanyId}`);
       
       // Atualizar a chave de API no serviço para a empresa especificada
       const success = await asaasService.updateApiKey(apiKey, targetCompanyId, walletId);
       
       if (success) {
+        // Forçar a seleção da empresa após a configuração
+        await asaasService.setCompany(targetCompanyId);
+        
         return res.json({ 
           success: true, 
           message: "API configurada com sucesso", 

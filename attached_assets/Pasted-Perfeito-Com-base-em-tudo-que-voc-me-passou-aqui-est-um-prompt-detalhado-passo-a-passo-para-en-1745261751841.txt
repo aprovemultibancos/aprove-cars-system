@@ -1,0 +1,141 @@
+Perfeito! Com base em tudo que você me passou, aqui está um **prompt detalhado passo a passo para enviar no Replit** (ou para um dev executar localmente) com todas as instruções necessárias para que o sistema funcione da forma que você precisa — **incluindo integração real com o Asaas, envio de WhatsApp e suporte multiempresa com split.**
+
+---
+
+## ✅ PROMPT DETALHADO PARA IMPLEMENTAÇÃO NO REPLIT
+
+```bash
+### 1. AJUSTES GERAIS DO SISTEMA
+
+1.1. Corrigir persistência da API Key do Asaas:
+- Verificar se a chave está sendo salva corretamente no banco de dados.
+- Implementar carregamento automático da chave ao abrir a página de configuração.
+- Evitar fallback para modo de demonstração caso a chave esteja salva.
+
+1.2. Corrigir exibição da flag `sandbox` vs `produção`:
+- Implementar verificação do token via sufixo ou validação via endpoint `/me` do Asaas.
+- Atualizar o estado da aplicação automaticamente conforme a chave salva (sem necessidade de refresh).
+
+---
+
+### 2. INTEGRAÇÃO REAL COM ASAAS
+
+2.1. Ao cadastrar um cliente no painel:
+- Criar o cliente diretamente no Asaas via API (`/customers`).
+- Salvar o retorno (ID do Asaas) no banco de dados local.
+- Permitir autocomplete do endereço via API de CEP (viacep.com.br).
+
+2.2. Ao acessar a aba "Clientes":
+- Buscar os clientes cadastrados no Asaas com paginação (`/customers?limit=50`).
+- Mostrar todos os clientes reais com opção de busca.
+
+2.3. Ao registrar nova cobrança:
+- Fazer autocomplete dos campos com base nos clientes já salvos no Asaas.
+- Permitir selecionar cliente existente para gerar cobrança (sem necessidade de novo cadastro).
+- Criar cobrança real com API `/payments`.
+
+2.4. Exibir extrato do Asaas:
+- Usar API `/financialTransactions` para mostrar:
+  - Saldo disponível.
+  - Recebimentos futuros.
+  - Antecipações.
+  - Despesas (pagamentos, tarifas, etc).
+  - Registrar recebíveis e negativação.
+
+---
+
+### 3. TAXAS E SPLIT DE PAGAMENTOS
+
+3.1. Ao exibir as taxas na aba “Visão Geral”:
+- Recuperar as taxas reais do Asaas por método (`/me` ou `/paymentTypes`).
+- Adicionar sobrecarga de 1% (lucro do sistema) e exibir como total ao lojista:
+  - Ex: Cartão (1.50% + 1%) = 2.50%
+
+3.2. Toda cobrança deve incluir `split` automático:
+```ts
+split: [
+  {
+    walletId: ADMIN_WALLET_ID, // Sua conta master
+    percentualValue: 1
+  }
+]
+```
+
+---
+
+### 4. VENDAS E SINCRONIZAÇÃO COM CLIENTES
+
+4.1. Ao registrar uma nova venda:
+- Preencher cliente a partir da lista real do Asaas (autocomplete).
+- Caso cliente não esteja no sistema local, buscar via CPF/CNPJ com `/customers?cpfCnpj=` e preencher automaticamente.
+
+4.2. Vendas com pagamento via Asaas:
+- Criar cobrança no Asaas.
+- Salvar ID da cobrança na venda (`paymentIdAsaas`).
+
+---
+
+### 5. MARKETING COM WHATSAPP (SEM TELEIN)
+
+5.1. Eliminar qualquer dependência do Telein.
+
+5.2. Integrar com **Baileys (Node.js)** ou **Venom.js** para WhatsApp Web:
+- Ao conectar número, abrir QR Code gerado no backend com Baileys.
+- Salvar sessão criptografada para manter login.
+- Mostrar status de conexão (Online / Offline / Reconectar).
+
+5.3. Implementar backend para disparo:
+```ts
+POST /whatsapp/send-mass
+{
+  "message": "texto da campanha",
+  "phones": ["554899999999", ...],
+  "templateId": "", // opcional
+  "connectionId": "session_name"
+}
+```
+
+5.4. Criar gerenciamento:
+- Conexões: iniciar, deletar, listar (com nome, número, status).
+- Contatos: importar CSV, adicionar manual, agrupar.
+- Templates: salvar mensagens pré-prontas.
+- Campanhas: selecionar mensagem + grupo de envio.
+
+---
+
+### 6. CORREÇÕES DE BUGS
+
+6.1. Erro de `Invalid Hook Call`:
+- Corrigir chamadas ao React Hook fora do corpo de componente (verificar chamada ao `useState`, `useEffect` etc dentro de função JS comum).
+
+6.2. WhatsApp travado em “Conectando…”:
+- Corrigir retorno do backend.
+- Garantir que sessão está ativa, e front está escutando evento de conexão.
+- Exibir QR code quando necessário.
+
+---
+
+### 7. SUPORTE MULTIEMPRESA
+
+7.1. Cada lojista (subconta) deve:
+- Ter sua própria chave de API do Asaas (ou ser vinculada à master com split).
+- Ter acesso isolado a seus clientes, vendas e cobranças.
+- Painel próprio com personalização de logo e nome.
+
+7.2. Administrador:
+- Pode visualizar todas as contas.
+- Recebe 1% de todas as transações automaticamente via `split`.
+
+---
+
+### 8. BONUS: SUGESTÕES FINAIS
+
+- Utilizar PostgreSQL para estrutura multiempresa.
+- Cachear clientes do Asaas localmente para melhorar performance.
+- Adicionar botão de “sincronizar” manual com Asaas.
+
+```
+
+---
+
+Se quiser, posso também montar os arquivos `server/routes`, os controladores ou JSONs de exemplo das requisições. Quer que eu monte isso pra ti agora?
