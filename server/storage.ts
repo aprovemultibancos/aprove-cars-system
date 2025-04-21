@@ -403,8 +403,11 @@ export class DatabaseStorage implements IStorage {
   sessionStore: session.Store;
   
   constructor() {
+    // Usa a conexão do Supabase se disponível, caso contrário, usa a conexão padrão
+    const connectionString = process.env.SUPABASE_DATABASE_URL || process.env.DATABASE_URL;
+    
     this.sessionStore = new PostgresSessionStore({
-      conObject: { connectionString: process.env.DATABASE_URL },
+      conObject: { connectionString },
       createTableIfMissing: true
     });
   }
