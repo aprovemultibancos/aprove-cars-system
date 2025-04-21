@@ -149,13 +149,14 @@ export const useAsaas = () => {
   });
   
   // Query para listar os clientes
-  const useCustomersQuery = (offset = 0, limit = 10, name?: string) => {
+  const useCustomersQuery = (offset = 0, limit = 10, name?: string, cpfCnpj?: string) => {
     return useQuery({
-      queryKey: ['/api/asaas/customers', offset, limit, name],
+      queryKey: ['/api/asaas/customers', offset, limit, name, cpfCnpj],
       queryFn: async () => {
         try {
           let url = `/api/asaas/customers?offset=${offset}&limit=${limit}`;
           if (name) url += `&name=${encodeURIComponent(name)}`;
+          if (cpfCnpj) url += `&cpfCnpj=${encodeURIComponent(cpfCnpj)}`;
           
           const response = await apiRequest('GET', url);
           const data = await response.json();
@@ -168,6 +169,31 @@ export const useAsaas = () => {
       },
       staleTime: 1000 * 60, // 1 minuto
       retry: 2,
+    });
+  };
+  
+  // Query para buscar um cliente específico pelo CPF/CNPJ (sem paginação)
+  const useFindCustomerByCpfCnpj = (cpfCnpj?: string) => {
+    return useQuery({
+      queryKey: ['/api/asaas/customers/find', cpfCnpj],
+      queryFn: async () => {
+        if (!cpfCnpj) return null;
+        
+        try {
+          const url = `/api/asaas/customers?cpfCnpj=${encodeURIComponent(cpfCnpj)}`;
+          const response = await apiRequest('GET', url);
+          const data = await response.json() as { data: AsaasCustomer[], totalCount: number };
+          
+          // Retorna o primeiro cliente encontrado ou null
+          return data.data.length > 0 ? data.data[0] : null;
+        } catch (error) {
+          console.error("Erro ao buscar cliente por CPF/CNPJ:", error);
+          return null;
+        }
+      },
+      enabled: !!cpfCnpj && cpfCnpj.length >= 11, // Só busca quando tiver um CPF/CNPJ válido
+      staleTime: 1000 * 60 * 5, // 5 minutos
+      retry: 1,
     });
   };
   
@@ -335,6 +361,7 @@ export const useAsaas = () => {
   return {
     balanceQuery,
     useCustomersQuery,
+    useFindCustomerByCpfCnpj,
     usePaymentsQuery,
     usePaymentQuery,
     createPaymentMutation,

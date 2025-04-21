@@ -155,3 +155,22 @@ export function getInitials(name?: string): string {
     .toUpperCase()
     .substring(0, 2);
 }
+
+export function formatCpfCnpj(cpfCnpj?: string): string {
+  if (!cpfCnpj) return "";
+  
+  // Remove any non-numeric characters
+  const cleaned = cpfCnpj.replace(/\D/g, '');
+  
+  // Format based on length
+  if (cleaned.length === 11) {
+    // CPF
+    return `${cleaned.slice(0, 3)}.${cleaned.slice(3, 6)}.${cleaned.slice(6, 9)}-${cleaned.slice(9)}`;
+  } else if (cleaned.length === 14) {
+    // CNPJ
+    return `${cleaned.slice(0, 2)}.${cleaned.slice(2, 5)}.${cleaned.slice(5, 8)}/${cleaned.slice(8, 12)}-${cleaned.slice(12)}`;
+  }
+  
+  // Return as is if doesn't match expected lengths
+  return cpfCnpj;
+}

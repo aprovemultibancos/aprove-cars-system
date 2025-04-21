@@ -863,7 +863,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const offset = parseInt(req.query.offset as string) || 0;
       const limit = parseInt(req.query.limit as string) || 10;
       const name = req.query.name as string;
+      const cpfCnpj = req.query.cpfCnpj as string;
       
+      // Se tiver um CPF/CNPJ específico, buscar esse cliente
+      if (cpfCnpj) {
+        const customer = await asaasService.findCustomerByCpfCnpj(cpfCnpj);
+        if (customer) {
+          return res.json({ data: [customer], totalCount: 1 });
+        } else {
+          return res.json({ data: [], totalCount: 0 });
+        }
+      }
+      
+      // Caso contrário, listar todos os clientes
       const customers = await asaasService.getCustomers(offset, limit, name);
       res.json(customers);
     } catch (error) {
