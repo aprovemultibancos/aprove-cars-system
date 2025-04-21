@@ -9,15 +9,8 @@ import {
   WhatsappGroup
 } from '@shared/schema';
 
-// O tipo InternalWhatsappMessage é importado quando este arquivo é importado pelo adaptador WhatsApp
-interface InternalInternalWhatsappMessage {
-  type: 'text' | 'image' | 'video' | 'document' | 'audio';
-  to: string;
-  content: string;
-  mediaUrl?: string;
-  caption?: string;
-  filename?: string;
-}
+// O tipo WhatsappMessage é importado do arquivo whatsapp.ts
+import { WhatsappMessage } from './whatsapp';
 
 // Status interno de uma mensagem enviada
 type InternalMessageStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
@@ -43,7 +36,7 @@ export class WhatsappSessionHandler extends EventEmitter {
   private qrCode: string = '';
   private status: 'disconnected' | 'connecting' | 'connected' = 'disconnected';
   private connectionInfo: WhatsappConnection;
-  private messageQueue: InternalWhatsappMessage[] = [];
+  private messageQueue: WhatsappMessage[] = [];
   private processingQueue: boolean = false;
   private client: Whatsapp | null = null;
   private sessionPath: string = './whatsapp-sessions';
@@ -209,7 +202,7 @@ export class WhatsappSessionHandler extends EventEmitter {
   /**
    * Envia mensagem para o número especificado
    */
-  public async sendMessage(message: InternalWhatsappMessage): Promise<string> {
+  public async sendMessage(message: WhatsappMessage): Promise<string> {
     if (this.status !== 'connected' || !this.client) {
       // Adicionar à fila para enviar quando conectar
       this.messageQueue.push(message);
@@ -552,7 +545,7 @@ export class WPPConnectService {
         await new Promise(resolve => setTimeout(resolve, interval));
         
         // Enviar mensagem com base no tipo
-        const message: InternalWhatsappMessage = {
+        const message: WhatsappMessage = {
           type: 'text',
           to: contact.phoneNumber,
           content: processedContent

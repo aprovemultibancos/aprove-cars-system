@@ -56,11 +56,14 @@ export default function WhatsappConnectionForm({
       form.reset({
         name: editingConnection.name,
         phoneNumber: editingConnection.phoneNumber,
-        dailyLimit: editingConnection.dailyLimit,
+        dailyLimit: editingConnection.dailyLimit || 50,
       });
     }
   }, [editingConnection, form]);
 
+  // Obter queryClient no nível do componente
+  const queryClient = useQueryClient();
+  
   // Mutation para criar ou atualizar conexão
   const connectionMutation = useMutation({
     mutationFn: async (values: z.infer<typeof formSchema>) => {
@@ -89,7 +92,6 @@ export default function WhatsappConnectionForm({
       });
       
       // Invalidar queries para atualizar a lista
-      const queryClient = useQueryClient();
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/connections"] });
       
       onSave();
