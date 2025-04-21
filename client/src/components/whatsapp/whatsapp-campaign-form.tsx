@@ -3,7 +3,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { WhatsappCampaign, WhatsappTemplate, WhatsappGroup, WhatsappConnection, insertWhatsappCampaignSchema } from "@shared/schema";
-import { useMutation, useQuery, queryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -214,6 +214,7 @@ export default function WhatsappCampaignForm({
       });
       
       // Invalidar queries para atualizar a lista
+      const queryClient = useQueryClient();
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/campaigns"] });
       
       onSave();
