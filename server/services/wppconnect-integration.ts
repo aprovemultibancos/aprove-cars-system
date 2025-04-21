@@ -175,6 +175,30 @@ export class WPPConnectIntegration extends EventEmitter {
       throw new Error('WhatsApp não está conectado');
     }
     
+    // Verificar limite diário de mensagens
+    if (this.connectionInfo.dailyLimit && this.connectionInfo.messagesSent !== undefined) {
+      // Verificar se precisa resetar o contador diário
+      const now = new Date();
+      const lastReset = this.connectionInfo.lastResetDate ? new Date(this.connectionInfo.lastResetDate) : null;
+      
+      if (lastReset) {
+        const isSameDay = 
+          now.getDate() === lastReset.getDate() && 
+          now.getMonth() === lastReset.getMonth() && 
+          now.getFullYear() === lastReset.getFullYear();
+        
+        if (!isSameDay) {
+          // Resetar contador se for um novo dia
+          this.emit('resetMessageCounter');
+        } else if (this.connectionInfo.messagesSent >= this.connectionInfo.dailyLimit) {
+          throw new Error(`Limite diário de ${this.connectionInfo.dailyLimit} mensagens atingido`);
+        }
+      }
+      
+      // Incrementar contador
+      this.emit('incrementMessageCounter');
+    }
+    
     try {
       if (this.lastMode === 'direct' && this.directHandler) {
         return await this.directHandler.sendMessage(message);

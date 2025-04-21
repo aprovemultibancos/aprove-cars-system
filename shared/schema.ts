@@ -372,6 +372,8 @@ export const whatsappConnections = pgTable("whatsapp_connections", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   lastConnection: timestamp("last_connection"),
   dailyLimit: integer("daily_limit").default(50),
+  messagesSent: integer("messages_sent").default(0),
+  lastResetDate: timestamp("last_reset_date").defaultNow(),
 });
 
 export const whatsappContacts = pgTable("whatsapp_contacts", {
