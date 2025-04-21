@@ -43,34 +43,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Definir token de API para o servidor WPPConnect
     process.env.WPPCONNECT_KEY = 'aprove_key';
     
-    // Iniciar o processo do servidor WPPConnect
-    const wppConnectProcess = require('child_process').spawn('node', ['scripts/start-wppconnect-server.cjs'], {
-      stdio: 'inherit',
-      shell: true,
-      env: { ...process.env }
-    });
+    // Iniciar o processo do servidor WPPConnect usando ESM import
+    import('child_process').then(({ spawn }) => {
+      const wppConnectProcess = spawn('node', ['scripts/start-wppconnect-server.cjs'], {
+        stdio: 'inherit',
+        shell: true,
+        env: { ...process.env }
+      });
     
-    wppConnectProcess.on('error', (err: Error) => {
-      console.error('Erro ao iniciar servidor WPPConnect:', err);
-    });
+      wppConnectProcess.on('error', (err: Error) => {
+        console.error('Erro ao iniciar servidor WPPConnect:', err);
+      });
+      
+      wppConnectProcess.on('exit', (code: number) => {
+        console.log(`Servidor WPPConnect encerrado com código ${code}`);
+      });
+      
+      // Configurar encerramento do servidor quando a aplicação for encerrada
+      process.on('exit', () => {
+        console.log('Encerrando servidor WPPConnect...');
+        wppConnectProcess.kill();
+      });
+      
+      process.on('SIGINT', () => {
+        console.log('Encerrando servidor WPPConnect...');
+        wppConnectProcess.kill();
+        process.exit(0);
+      });
     
-    wppConnectProcess.on('exit', (code: number) => {
-      console.log(`Servidor WPPConnect encerrado com código ${code}`);
+      console.log("Servidor WPPConnect iniciado com sucesso!");
     });
-    
-    // Configurar encerramento do servidor quando a aplicação for encerrada
-    process.on('exit', () => {
-      console.log('Encerrando servidor WPPConnect...');
-      wppConnectProcess.kill();
-    });
-    
-    process.on('SIGINT', () => {
-      console.log('Encerrando servidor WPPConnect...');
-      wppConnectProcess.kill();
-      process.exit(0);
-    });
-    
-    console.log("Servidor WPPConnect iniciado com sucesso!");
   } catch (error) {
     console.error("Erro ao iniciar servidor WPPConnect:", error);
   }
