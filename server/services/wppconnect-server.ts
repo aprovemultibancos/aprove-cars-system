@@ -196,7 +196,7 @@ export class WPPConnectServerService {
         } as SendFileRequest)
       });
       
-      const data = await response.json();
+      const data = await response.json() as { status: boolean };
       return data.status;
     } catch (error) {
       console.error('Erro ao enviar arquivo:', error);
@@ -214,7 +214,7 @@ export class WPPConnectServerService {
         headers: this.headers
       });
       
-      const data = await response.json();
+      const data = await response.json() as { status: boolean, response: any[] };
       
       if (data.status && Array.isArray(data.response)) {
         return data.response;
@@ -240,7 +240,14 @@ export class WPPConnectServerService {
         headers: this.headers
       });
       
-      const data = await response.json();
+      type NumberStatusResponse = { 
+        status: boolean, 
+        response: { 
+          numberExists: boolean 
+        } 
+      };
+      
+      const data = await response.json() as NumberStatusResponse;
       
       if (data.status && data.response && data.response.numberExists) {
         return true;

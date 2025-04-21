@@ -1259,6 +1259,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         connection.qrCode = handler.getQrCode();
       }
       
+      // Verificar status no WPPConnect Server se estiver disponível
+      try {
+        const sessionName = `session-${connection.id}`;
+        const serverStatus = await wppConnectServerService.getSessionStatus(sessionName);
+        
+        // Atualizar status se o WPPConnect Server tiver informações mais recentes
+        if (serverStatus === 'CONNECTED' && connection.status !== 'connected') {
+          connection.status = 'connected';
+          // Atualizar no banco de dados
+          await db.update(whatsappConnections)
+            .set({ status: "connected" })
+            .where(eq(whatsappConnections.id, id));
+        }
+      } catch (e) {
+        // Silenciosamente falha se o WPPConnect Server não estiver disponível
+        console.log('WPPConnect Server não disponível para verificar status:', e);
+      }
+      
       res.json(connection);
     } catch (error) {
       console.error("Erro ao buscar conexão WhatsApp:", error);
@@ -1805,6 +1823,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao enviar mensagem WhatsApp:", error);
       res.status(500).json({ message: "Erro ao enviar mensagem WhatsApp", error: String(error) });
+    }
+  });
+  
+  // Rota para enviar arquivo através do WPPConnect Server
+  app.post("/api/whatsapp/connections/:id/send-file", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const id = parseInt(req.params.id);
+      const { phone, path, filename, caption } = req.body;
+      
+      if (!phone || !path) {
+        return res.status(400).json({ message: "Número de telefone e URL do arquivo são obrigatórios" });
+      }
+      
+      // Obter a conexão do banco de dados
+      const [connection] = await db.select().from(whatsappConnections).where(eq(whatsappConnections.id, id));
+      
+      if (!connection) {
+        return res.status(404).json({ message: "Conexão não encontrada" });
+      }
+      
+      // Verificar se a conexão está ativa
+      const sessionName = `session-${connection.id}`;
+      const status = await wppConnectServerService.getSessionStatus(sessionName);
+      
+      if (status !== 'CONNECTED') {
+        return res.status(400).json({ 
+          message: "Conexão não está ativa", 
+          status,
+          suggestion: "Escaneie o QR code para se conectar ao WhatsApp Web"
+        });
+      }
+      
+      // Enviar arquivo
+      const success = await wppConnectServerService.sendFile(
+        sessionName, 
+        phone, 
+        path, 
+        filename || undefined, 
+        caption || undefined
+      );
+      
+      if (!success) {
+        return res.status(500).json({ message: "Erro ao enviar arquivo" });
+      }
+      
+      res.json({ success: true, message: "Arquivo enviado com sucesso" });
+    } catch (error) {
+      console.error("Erro ao enviar arquivo WhatsApp:", error);
+      res.status(500).json({ message: "Erro ao enviar arquivo WhatsApp", error: String(error) });
     }
   });
 
