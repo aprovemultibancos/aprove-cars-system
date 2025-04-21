@@ -1,6 +1,7 @@
-import { pgTable, text, serial, integer, boolean, numeric, date, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, numeric, date, timestamp, jsonb, varchar, foreignKey, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { relations } from "drizzle-orm";
 
 // User schema for authentication
 export const users = pgTable("users", {
@@ -25,6 +26,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
 // Vehicle schema
 export const vehicles = pgTable("vehicles", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull().references(() => companies.id),
   make: text("make").notNull(),
   model: text("model").notNull(),
   year: integer("year").notNull(),
@@ -61,6 +63,7 @@ export const insertVehicleSchema = createInsertSchema(vehicles).pick({
 // Sales schema
 export const sales = pgTable("sales", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull().references(() => companies.id),
   vehicleId: integer("vehicle_id").notNull(),
   customerId: integer("customer_id"),
   customerName: text("customer_name"),
@@ -90,6 +93,7 @@ export const insertSaleSchema = createInsertSchema(sales).pick({
 // Customers schema
 export const customers = pgTable("customers", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull().references(() => companies.id),
   name: text("name").notNull(),
   email: text("email"),
   phone: text("phone").notNull(),
@@ -98,6 +102,7 @@ export const customers = pgTable("customers", {
   city: text("city"),
   state: text("state"),
   zipCode: text("zip_code"),
+  asaasId: text("asaas_id"), // ID do cliente no Asaas
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -115,6 +120,7 @@ export const insertCustomerSchema = createInsertSchema(customers).pick({
 // Financing schema
 export const financings = pgTable("financings", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull().references(() => companies.id),
   customerId: integer("customer_id"), // Pode ser NULL conforme alteração no banco
   customerName: text("customer_name").notNull(),
   bank: text("bank").notNull(),
@@ -155,6 +161,7 @@ export const insertFinancingSchema = z.object({
 // Expenses schema
 export const expenses = pgTable("expenses", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull().references(() => companies.id),
   description: text("description").notNull(),
   amount: numeric("amount").notNull(),
   date: date("date").notNull(),
@@ -186,6 +193,7 @@ export const updateExpenseStatusSchema = z.object({
 // Personnel schema
 export const personnel = pgTable("personnel", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull().references(() => companies.id),
   name: text("name").notNull(),
   type: text("type", { enum: ["employee", "agent", "dealer"] }).notNull(),
   document: text("document").notNull(),
@@ -213,6 +221,110 @@ export const insertPersonnelSchema = z.object({
   notes: z.string().optional().nullable()
 });
 
+// Companies (multitenancy) schema
+export const companies = pgTable("companies", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  tradingName: text("trading_name").notNull(),
+  document: text("document").notNull().unique(), // CNPJ
+  email: text("email").notNull(),
+  phone: text("phone").notNull(),
+  address: text("address"),
+  city: text("city"),
+  state: text("state"),
+  zipCode: text("zip_code"),
+  logo: text("logo"),
+  primaryColor: text("primary_color").default("#10b981"), // default verde
+  isActive: boolean("is_active").notNull().default(true),
+  isMaster: boolean("is_master").notNull().default(false), // Flag para identificar a conta mestre
+  masterCompanyId: integer("master_company_id").references(() => companies.id), // Auto-referência para a empresa mãe
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertCompanySchema = createInsertSchema(companies)
+  .omit({ 
+    id: true, 
+    createdAt: true, 
+    isMaster: true, 
+    isActive: true, 
+    masterCompanyId: true
+  });
+
+// Company API Integrations schema
+export const companyIntegrations = pgTable("company_integrations", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull().references(() => companies.id),
+  integrationType: text("integration_type", { enum: ["asaas", "whatsapp"] }).notNull(),
+  apiKey: text("api_key").notNull(),
+  apiSecret: text("api_secret"), // Para APIs que exigem secret key
+  walletId: text("wallet_id"), // ID da carteira/conta no serviço externo
+  isSandbox: boolean("is_sandbox").notNull().default(false),
+  additionalConfig: jsonb("additional_config"), // Para configurações adicionais específicas de cada integração
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertCompanyIntegrationSchema = createInsertSchema(companyIntegrations)
+  .omit({ 
+    id: true, 
+    createdAt: true, 
+    updatedAt: true 
+  });
+
+// Split configuration schema
+export const splitConfigs = pgTable("split_configs", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull().references(() => companies.id),
+  masterPercentage: numeric("master_percentage").notNull().default("1.0"), // Porcentagem que vai para a conta master (default 1%)
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertSplitConfigSchema = createInsertSchema(splitConfigs)
+  .omit({ 
+    id: true, 
+    createdAt: true, 
+    updatedAt: true 
+  });
+
+// Adicionar coluna companyId às entidades principais para isolar os dados por empresa
+export const userCompanies = pgTable("user_companies", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  companyId: integer("company_id").notNull().references(() => companies.id),
+  isAdmin: boolean("is_admin").notNull().default(false), // Se usuário é admin desta empresa
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Relações
+export const companiesRelations = relations(companies, ({ many, one }) => ({
+  users: many(userCompanies),
+  integrations: many(companyIntegrations),
+  splitConfigs: many(splitConfigs),
+  childCompanies: many(companies, { relationName: "parentChild" }),
+  parentCompany: one(companies, {
+    fields: [companies.masterCompanyId],
+    references: [companies.id],
+    relationName: "parentChild"
+  }),
+}));
+
+export const usersRelations = relations(users, ({ many }) => ({
+  companies: many(userCompanies)
+}));
+
+export const userCompaniesRelations = relations(userCompanies, ({ one }) => ({
+  user: one(users, {
+    fields: [userCompanies.userId],
+    references: [users.id]
+  }),
+  company: one(companies, {
+    fields: [userCompanies.companyId],
+    references: [companies.id]
+  })
+}));
+
 // Type exports
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -235,11 +347,21 @@ export type Expense = typeof expenses.$inferSelect;
 export type InsertPersonnel = z.infer<typeof insertPersonnelSchema>;
 export type Personnel = typeof personnel.$inferSelect;
 
+export type InsertCompany = z.infer<typeof insertCompanySchema>;
+export type Company = typeof companies.$inferSelect;
+
+export type InsertCompanyIntegration = z.infer<typeof insertCompanyIntegrationSchema>;
+export type CompanyIntegration = typeof companyIntegrations.$inferSelect;
+
+export type InsertSplitConfig = z.infer<typeof insertSplitConfigSchema>;
+export type SplitConfig = typeof splitConfigs.$inferSelect;
+
 // Payments schema removido conforme solicitado
 
 // WhatsApp Integration schemas
 export const whatsappConnections = pgTable("whatsapp_connections", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull().references(() => companies.id),
   name: text("name").notNull(),
   phoneNumber: text("phone_number").notNull().unique(),
   status: text("status", { enum: ["connected", "disconnected", "connecting"] }).notNull().default("disconnected"),
@@ -251,6 +373,7 @@ export const whatsappConnections = pgTable("whatsapp_connections", {
 
 export const whatsappContacts = pgTable("whatsapp_contacts", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull().references(() => companies.id),
   name: text("name").notNull(),
   phoneNumber: text("phone_number").notNull(),
   customerId: integer("customer_id").references(() => customers.id),
@@ -262,6 +385,7 @@ export const whatsappContacts = pgTable("whatsapp_contacts", {
 
 export const whatsappGroups = pgTable("whatsapp_groups", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull().references(() => companies.id),
   name: text("name").notNull(),
   description: text("description"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -276,6 +400,7 @@ export const whatsappGroupContacts = pgTable("whatsapp_group_contacts", {
 
 export const whatsappTemplates = pgTable("whatsapp_templates", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull().references(() => companies.id),
   name: text("name").notNull(),
   content: text("content").notNull(),
   hasMedia: boolean("has_media").default(false),
@@ -287,6 +412,7 @@ export const whatsappTemplates = pgTable("whatsapp_templates", {
 
 export const whatsappCampaigns = pgTable("whatsapp_campaigns", {
   id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull().references(() => companies.id),
   name: text("name").notNull(),
   description: text("description"),
   templateId: integer("template_id").notNull().references(() => whatsappTemplates.id),
