@@ -58,7 +58,7 @@ export interface CreatePaymentParams {
   };
 }
 
-export function useAsaas() {
+export const useAsaas = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
