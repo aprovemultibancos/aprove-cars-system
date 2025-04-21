@@ -411,8 +411,10 @@ interface PaymentFormData {
 }
 
 function PaymentForm() {
-  const { createPaymentMutation, calculateFeeAmount, formatCurrency } = useAsaas();
+  const { createPaymentMutation, calculateFeeAmount, formatCurrency, createCustomerMutation } = useAsaas();
+  const { toast } = useToast();
   const [isDemoMode, setIsDemoMode] = useState(true); // Começamos assumindo modo de demonstração
+  const [showNewCustomerDialog, setShowNewCustomerDialog] = useState(false);
   const [formData, setFormData] = useState<PaymentFormData>({
     customerName: '',
     customerCpfCnpj: '',
@@ -537,7 +539,33 @@ function PaymentForm() {
       
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
-            <h3 className="text-lg font-medium">Informações do Cliente</h3>
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium">Informações do Cliente</h3>
+              <Dialog open={showNewCustomerDialog} onOpenChange={setShowNewCustomerDialog}>
+                <DialogTrigger asChild>
+                  <Button type="button" variant="outline" size="sm">
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Cadastrar Novo Cliente
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl">
+                  <DialogHeader>
+                    <DialogTitle>Cadastrar Novo Cliente</DialogTitle>
+                    <DialogDescription>
+                      Adicione um novo cliente para gerar cobranças no Asaas
+                    </DialogDescription>
+                  </DialogHeader>
+                  <NewCustomerForm onSuccess={() => {
+                    setShowNewCustomerDialog(false);
+                    // Mensagem de feedback ao usuário
+                    toast({
+                      title: "Cliente cadastrado com sucesso",
+                      description: "O cliente foi adicionado ao Asaas."
+                    });
+                  }} />
+                </DialogContent>
+              </Dialog>
+            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">

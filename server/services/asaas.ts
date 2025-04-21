@@ -6,6 +6,7 @@ const ASAAS_API_KEY = process.env.ASAAS_API_KEY;
 
 // Tipos para a API do Asaas
 export type AsaasPaymentMethod = 'BOLETO' | 'CREDIT_CARD' | 'PIX';
+export type AsaasPaymentStatus = 'PENDING' | 'CONFIRMED' | 'RECEIVED' | 'OVERDUE' | 'REFUNDED' | 'CANCELED';
 
 export interface AsaasPaymentRequest {
   customer: string;
@@ -74,7 +75,7 @@ export interface AsaasPaymentResponse {
   value: number;
   netValue: number;
   billingType: AsaasPaymentMethod;
-  status: 'PENDING' | 'CONFIRMED' | 'RECEIVED' | 'OVERDUE' | 'REFUNDED' | 'CANCELED';
+  status: AsaasPaymentStatus;
   dueDate: string;
   description: string;
   invoiceUrl: string;
