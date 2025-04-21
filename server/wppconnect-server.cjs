@@ -163,6 +163,39 @@ app.get('/api/:key/qrcode', async (req, res) => {
       });
     }
     
+    // Se a sessão não existir, tentar inicializá-la automaticamente
+    if (!clients[session]) {
+      console.log(`Sessão ${session} não encontrada, criando automaticamente...`);
+      try {
+        // Iniciar cliente
+        const client = await wppconnect.create({
+          session,
+          ...wppOptions,
+          statusFind: (statusSession, sessionName) => {
+            console.log(`Status da sessão [${sessionName}]: ${statusSession}`);
+            if (!clients[sessionName]) {
+              clients[sessionName] = {};
+            }
+            clients[sessionName].status = statusSession;
+          }
+        });
+        
+        if (!clients[session]) {
+          clients[session] = {};
+        }
+        
+        clients[session].client = client;
+        console.log(`Sessão ${session} criada com sucesso, aguardando QR Code...`);
+      } catch (initError) {
+        console.error(`Erro ao inicializar sessão ${session}:`, initError);
+        return res.status(500).json({
+          status: false,
+          message: 'Erro ao inicializar a sessão',
+          error: initError.message
+        });
+      }
+    }
+    
     if (!clients[session]) {
       return res.status(404).json({
         status: false,

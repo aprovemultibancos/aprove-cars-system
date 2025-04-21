@@ -1,44 +1,47 @@
 /**
  * Script para iniciar tanto o servidor WPPConnect quanto a aplicação principal
  */
-const { spawn } = require('child_process');
-const path = require('path');
+import { spawn } from 'child_process';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const rootDir = join(__dirname, '..');
 
 // Iniciar o servidor WPPConnect
-const wppConnectProcess = spawn('node', ['server/wppconnect-server.js'], {
+console.log('Iniciando servidor WPPConnect...');
+const wppconnect = spawn('node', [join(rootDir, 'scripts/start-wppconnect-server.cjs')], {
   stdio: 'inherit',
-  cwd: path.join(__dirname, '..')
+  cwd: rootDir
 });
 
-console.log('Servidor WPPConnect iniciado com PID:', wppConnectProcess.pid);
+wppconnect.on('error', (error) => {
+  console.error('Erro ao iniciar servidor WPPConnect:', error);
+});
 
-// Iniciar a aplicação principal após 2 segundos para dar tempo ao servidor WPPConnect iniciar
-setTimeout(() => {
-  const appProcess = spawn('npm', ['run', 'dev'], {
-    stdio: 'inherit',
-    cwd: path.join(__dirname, '..')
-  });
+// Iniciar o servidor principal
+console.log('Iniciando aplicação principal...');
+const app = spawn('npm', ['run', 'dev'], {
+  stdio: 'inherit',
+  cwd: rootDir,
+  env: { ...process.env }
+});
 
-  console.log('Aplicação principal iniciada com PID:', appProcess.pid);
+app.on('error', (error) => {
+  console.error('Erro ao iniciar aplicação principal:', error);
+});
 
-  // Lidar com sinais de encerramento
-  process.on('SIGINT', () => {
-    console.log('Encerrando processos...');
-    wppConnectProcess.kill();
-    appProcess.kill();
-    process.exit(0);
-  });
+// Tratamento para encerrar os processos quando o script for terminado
+process.on('SIGINT', () => {
+  console.log('Encerrando todos os servidores...');
+  wppconnect.kill();
+  app.kill();
+  process.exit(0);
+});
 
-  // Se um dos processos morrer, encerrar tudo
-  wppConnectProcess.on('close', (code) => {
-    console.log(`Servidor WPPConnect encerrado com código: ${code}`);
-    appProcess.kill();
-    process.exit(code);
-  });
-
-  appProcess.on('close', (code) => {
-    console.log(`Aplicação principal encerrada com código: ${code}`);
-    wppConnectProcess.kill();
-    process.exit(code);
-  });
-}, 2000);
+process.on('SIGTERM', () => {
+  console.log('Encerrando todos os servidores...');
+  wppconnect.kill();
+  app.kill();
+  process.exit(0);
+});
