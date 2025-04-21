@@ -3,6 +3,26 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
 
+// Companies (multitenancy) schema - deve ser definido primeiro para evitar referências circulares
+export const companies = pgTable("companies", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  tradingName: text("trading_name").notNull(),
+  document: text("document").notNull().unique(), // CNPJ
+  email: text("email").notNull(),
+  phone: text("phone").notNull(),
+  address: text("address"),
+  city: text("city"),
+  state: text("state"),
+  zipCode: text("zip_code"),
+  logo: text("logo"),
+  primaryColor: text("primary_color").default("#10b981"), // default verde
+  isActive: boolean("is_active").notNull().default(true),
+  isMaster: boolean("is_master").notNull().default(false), // Flag para identificar a conta mestre
+  masterCompanyId: integer("master_company_id").references(() => companies.id), // Auto-referência para a empresa mãe
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // User schema for authentication
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -13,6 +33,7 @@ export const users = pgTable("users", {
   role: text("role", { enum: ["admin", "financial", "sales"] }).notNull(),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  companyId: integer("company_id").references(() => companies.id),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -221,25 +242,7 @@ export const insertPersonnelSchema = z.object({
   notes: z.string().optional().nullable()
 });
 
-// Companies (multitenancy) schema
-export const companies = pgTable("companies", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  tradingName: text("trading_name").notNull(),
-  document: text("document").notNull().unique(), // CNPJ
-  email: text("email").notNull(),
-  phone: text("phone").notNull(),
-  address: text("address"),
-  city: text("city"),
-  state: text("state"),
-  zipCode: text("zip_code"),
-  logo: text("logo"),
-  primaryColor: text("primary_color").default("#10b981"), // default verde
-  isActive: boolean("is_active").notNull().default(true),
-  isMaster: boolean("is_master").notNull().default(false), // Flag para identificar a conta mestre
-  masterCompanyId: integer("master_company_id").references(() => companies.id), // Auto-referência para a empresa mãe
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+// REMOVIDO - Já foi definido no início do arquivo para evitar referências circulares
 
 export const insertCompanySchema = createInsertSchema(companies)
   .omit({ 

@@ -661,7 +661,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Rotas do Asaas Payment Gateway
   
-  // Rota para configurar a API do Asaas
+  // Rota para definir a empresa atual para o Asaas
+  app.post("/api/asaas/set-company", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const { companyId } = req.body;
+      
+      if (!companyId) {
+        return res.status(400).json({ message: "ID da empresa é obrigatório" });
+      }
+      
+      const success = await asaasService.setCompany(parseInt(companyId));
+      
+      if (success) {
+        res.json({ success: true, message: "Empresa selecionada com sucesso" });
+      } else {
+        res.status(404).json({ message: "Empresa não encontrada ou sem integração com Asaas" });
+      }
+    } catch (error) {
+      console.error("Erro ao selecionar empresa:", error);
+      res.status(500).json({ message: "Erro ao selecionar empresa para o Asaas" });
+    }
+  });
+  
+  // Rota para configurar a API do Asaas (para a empresa atual)
   app.post("/api/asaas/config", async (req, res) => {
     try {
       if (!req.isAuthenticated()) {
@@ -678,7 +704,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Chave de API é obrigatória" });
       }
       
-      // Atualizar a chave de API no serviço
+      // Atualizar a chave de API no serviço para a empresa atual
       const success = await asaasService.updateApiKey(apiKey);
       if (success) {
         return res.json({ success: true, message: "API configurada com sucesso" });
@@ -687,6 +713,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       console.error("Erro ao configurar API:", error);
+      res.status(500).json({ message: "Erro ao configurar API do Asaas" });
+    }
+  });
+  
+  // Rota para configurar a API do Asaas para uma empresa específica
+  app.post("/api/asaas/config/:companyId", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      // Para segurança, somente administradores podem configurar a API
+      if (req.user.role !== 'admin' && req.user.username !== 'administrador') {
+        return res.status(403).json({ message: "Apenas administradores podem configurar a API" });
+      }
+      
+      const companyId = parseInt(req.params.companyId);
+      const { apiKey } = req.body;
+      
+      if (!companyId) {
+        return res.status(400).json({ message: "ID da empresa é obrigatório" });
+      }
+      
+      if (!apiKey) {
+        return res.status(400).json({ message: "Chave de API é obrigatória" });
+      }
+      
+      // Atualizar a chave de API para a empresa específica
+      const success = await asaasService.updateApiKey(apiKey, companyId);
+      if (success) {
+        return res.json({ success: true, message: "API configurada com sucesso para a empresa" });
+      } else {
+        return res.status(400).json({ message: "Não foi possível configurar a API para esta empresa" });
+      }
+    } catch (error) {
+      console.error("Erro ao configurar API para empresa específica:", error);
       res.status(500).json({ message: "Erro ao configurar API do Asaas" });
     }
   });

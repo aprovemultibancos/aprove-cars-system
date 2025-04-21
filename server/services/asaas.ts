@@ -9,6 +9,12 @@ const ASAAS_API_KEY = process.env.ASAAS_API_KEY;
 export type AsaasPaymentMethod = 'BOLETO' | 'CREDIT_CARD' | 'PIX';
 export type AsaasPaymentStatus = 'PENDING' | 'CONFIRMED' | 'RECEIVED' | 'OVERDUE' | 'REFUNDED' | 'CANCELED';
 
+export interface AsaasPaymentSplit {
+  walletId: string;
+  fixedValue?: number;
+  percentualValue?: number;
+}
+
 export interface AsaasPaymentRequest {
   customer: string;
   billingType: AsaasPaymentMethod;
@@ -32,6 +38,7 @@ export interface AsaasPaymentRequest {
     addressComplement?: string;
     phone: string;
   };
+  split?: AsaasPaymentSplit[];
 }
 
 export interface AsaasCustomerRequest {
@@ -92,30 +99,33 @@ export interface AsaasBalanceResponse {
   balance: number;
 }
 
+import { db } from "../db";
+import { companyIntegrations, companies, splitConfigs } from "@shared/schema";
+import { eq, and } from "drizzle-orm";
+
 // Classe para interagir com a API do Asaas
 export class AsaasService {
   private apiKey: string;
   private baseUrl: string;
   public inDemoMode: boolean;
+  private currentCompanyId: number | null;
   
   constructor() {
+    // Inicializar com valores padrão
+    this.apiKey = ASAAS_API_KEY || 'demo-key';
+    this.inDemoMode = !ASAAS_API_KEY;
+    this.baseUrl = ASAAS_API_KEY?.startsWith('$aact_') || ASAAS_API_KEY?.includes('prod_') 
+      ? ASAAS_PRODUCTION_URL 
+      : ASAAS_SANDBOX_URL;
+    this.currentCompanyId = null;
+    
     if (!ASAAS_API_KEY) {
       console.warn('ATENÇÃO: ASAAS_API_KEY não está configurada. O sistema funcionará em modo de demonstração com dados simulados.');
-      // Não lançar erro para permitir que o sistema funcione no modo de demonstração
-      this.apiKey = 'demo-key';
-      this.inDemoMode = true;
-      this.baseUrl = ASAAS_SANDBOX_URL; // Usar sandbox por padrão para modo de demonstração
     } else {
-      this.apiKey = ASAAS_API_KEY;
-      this.inDemoMode = false;
-      
-      // Determinar o ambiente correto com base na chave API
-      if (ASAAS_API_KEY.startsWith('$aact_') || ASAAS_API_KEY.includes('prod_')) {
+      if (this.apiKey.startsWith('$aact_') || this.apiKey.includes('prod_')) {
         console.log('📊 Utilizando ambiente de PRODUÇÃO do Asaas');
-        this.baseUrl = ASAAS_PRODUCTION_URL;
       } else {
         console.log('📋 Utilizando ambiente de SANDBOX do Asaas');
-        this.baseUrl = ASAAS_SANDBOX_URL;
       }
     }
     
@@ -123,13 +133,64 @@ export class AsaasService {
     setTimeout(() => this.testConnection(), 1000);
   }
   
-  // Método para atualizar a chave da API
-  async updateApiKey(newApiKey: string): Promise<boolean> {
+  // Método para selecionar a empresa atual
+  async setCompany(companyId: number): Promise<boolean> {
+    try {
+      // Buscar a integração da empresa no banco de dados
+      const [integration] = await db
+        .select()
+        .from(companyIntegrations)
+        .where(
+          and(
+            eq(companyIntegrations.companyId, companyId),
+            eq(companyIntegrations.integrationType, 'asaas')
+          )
+        );
+      
+      if (integration) {
+        this.apiKey = integration.apiKey;
+        this.inDemoMode = false;
+        this.currentCompanyId = companyId;
+        
+        // Definir a URL base com base na chave da API
+        if (this.apiKey.startsWith('$aact_') || this.apiKey.includes('prod_')) {
+          this.baseUrl = ASAAS_PRODUCTION_URL;
+        } else {
+          this.baseUrl = ASAAS_SANDBOX_URL;
+        }
+        
+        return true;
+      } else {
+        // Se não encontrar integração, usar a chave padrão do ambiente
+        this.apiKey = ASAAS_API_KEY || 'demo-key';
+        this.inDemoMode = !ASAAS_API_KEY;
+        this.currentCompanyId = null;
+        
+        // Definir URL base com base na chave padrão
+        if (this.apiKey.startsWith('$aact_') || this.apiKey.includes('prod_')) {
+          this.baseUrl = ASAAS_PRODUCTION_URL;
+        } else {
+          this.baseUrl = ASAAS_SANDBOX_URL;
+        }
+        
+        console.warn(`Empresa ${companyId} não possui integração com Asaas. Usando chave padrão.`);
+        return false;
+      }
+    } catch (error) {
+      console.error('Erro ao definir empresa para o serviço Asaas:', error);
+      this.inDemoMode = true;
+      return false;
+    }
+  }
+  
+  // Método para atualizar a chave da API e associá-la a uma empresa
+  async updateApiKey(newApiKey: string, companyId?: number): Promise<boolean> {
     try {
       // Determinar primeiro o ambiente correto para a nova chave
       let url = '';
+      const isSandbox = !(newApiKey.startsWith('$aact_') || newApiKey.includes('prod_'));
       
-      if (newApiKey.startsWith('$aact_') || newApiKey.includes('prod_')) {
+      if (!isSandbox) {
         console.log('📊 Configurando ambiente de PRODUÇÃO do Asaas');
         url = `${ASAAS_PRODUCTION_URL}/finance/balance`;
       } else {
@@ -147,19 +208,61 @@ export class AsaasService {
       });
       
       if (response.ok) {
-        // A chave é válida, então vamos atualizá-la
+        // A chave é válida, vamos atualizá-la
         this.apiKey = newApiKey;
         this.inDemoMode = false;
         
         // Atualizar também a URL base
-        if (newApiKey.startsWith('$aact_') || newApiKey.includes('prod_')) {
-          this.baseUrl = ASAAS_PRODUCTION_URL;
-        } else {
-          this.baseUrl = ASAAS_SANDBOX_URL;
+        this.baseUrl = isSandbox ? ASAAS_SANDBOX_URL : ASAAS_PRODUCTION_URL;
+        
+        // Se temos um companyId, salvar a integração no banco de dados
+        if (companyId) {
+          try {
+            // Verificar se já existe uma integração
+            const [existingIntegration] = await db
+              .select()
+              .from(companyIntegrations)
+              .where(
+                and(
+                  eq(companyIntegrations.companyId, companyId), 
+                  eq(companyIntegrations.integrationType, 'asaas')
+                )
+              );
+            
+            if (existingIntegration) {
+              // Atualizar integração existente
+              await db
+                .update(companyIntegrations)
+                .set({ 
+                  apiKey: newApiKey,
+                  isSandbox,
+                  updatedAt: new Date()
+                })
+                .where(eq(companyIntegrations.id, existingIntegration.id));
+              
+              console.log(`Integração Asaas atualizada para empresa ${companyId}`);
+            } else {
+              // Criar nova integração
+              await db
+                .insert(companyIntegrations)
+                .values({
+                  companyId,
+                  integrationType: 'asaas',
+                  apiKey: newApiKey,
+                  isSandbox,
+                });
+              
+              console.log(`Nova integração Asaas criada para empresa ${companyId}`);
+            }
+            
+            // Definir a empresa atual
+            this.currentCompanyId = companyId;
+          } catch (dbError) {
+            console.error('Erro ao salvar integração no banco de dados:', dbError);
+            // Mesmo com erro no banco, a chave foi atualizada na memória
+          }
         }
         
-        // Em um ambiente de produção, você salvaria esta chave em um local seguro
-        // como uma variável de ambiente ou um serviço de gerenciamento de segredos
         console.log('Chave de API Asaas atualizada com sucesso');
         return true;
       } else {
@@ -392,7 +495,7 @@ export class AsaasService {
     }
   }
   
-  // Criar uma cobrança com as taxas aplicadas
+  // Criar uma cobrança com as taxas aplicadas e splitamento para empresa master
   async createPayment(
     paymentData: AsaasPaymentRequest,
     includeCustomFees: boolean = true
@@ -424,7 +527,72 @@ export class AsaasService {
     }
     
     try {
-      return await this.request<AsaasPaymentResponse>('/payments', 'POST', paymentData);
+      // Verificar se precisa adicionar split para empresa master
+      let paymentDataWithSplit = { ...paymentData };
+      
+      // Só aplicar split se temos uma empresa definida e não é a master
+      if (this.currentCompanyId) {
+        try {
+          // Consultar a empresa atual
+          const [company] = await db
+            .select()
+            .from(companies)
+            .where(eq(companies.id, this.currentCompanyId));
+          
+          // Se a empresa não for master e tiver uma empresa mãe configurada
+          if (company && !company.isMaster && company.masterCompanyId) {
+            // Buscar a configuração de splitamento
+            const [splitConfig] = await db
+              .select()
+              .from(splitConfigs)
+              .where(
+                and(
+                  eq(splitConfigs.companyId, this.currentCompanyId),
+                  eq(splitConfigs.isActive, true)
+                )
+              );
+            
+            // Buscar a integração da empresa master
+            const [masterIntegration] = await db
+              .select()
+              .from(companyIntegrations)
+              .where(
+                and(
+                  eq(companyIntegrations.companyId, company.masterCompanyId),
+                  eq(companyIntegrations.integrationType, 'asaas')
+                )
+              );
+            
+            // Se temos a configuração de split e a integração da master
+            if (splitConfig && masterIntegration && masterIntegration.walletId) {
+              const masterPercentage = parseFloat(splitConfig.masterPercentage.toString());
+              
+              // Calcular o valor para a empresa master (porcentagem do valor total)
+              const masterAmount = paymentData.value * (masterPercentage / 100);
+              
+              // Adicionar configuração de split ao pagamento
+              paymentDataWithSplit = {
+                ...paymentData,
+                split: [
+                  {
+                    walletId: masterIntegration.walletId,
+                    fixedValue: parseFloat(masterAmount.toFixed(2))
+                  }
+                ]
+              };
+              
+              console.log(`Split configurado: ${masterPercentage}% (R$ ${masterAmount.toFixed(2)}) para empresa master ${company.masterCompanyId}`);
+            } else {
+              console.log('Configuração de split ou integração da empresa master não encontrada');
+            }
+          }
+        } catch (splitError) {
+          console.error('Erro ao aplicar split:', splitError);
+          // Continuar com o pagamento sem split em caso de erro
+        }
+      }
+      
+      return await this.request<AsaasPaymentResponse>('/payments', 'POST', paymentDataWithSplit);
     } catch (error) {
       console.error('Erro ao criar pagamento real. Retornando resposta simulada.', error);
       
