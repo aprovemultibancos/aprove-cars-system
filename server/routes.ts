@@ -1324,7 +1324,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const id = parseInt(req.params.id);
-      const [contact] = await db.select().from(whatsappContacts).where(({ id: contactId }) => contactId.equals(id));
+      const [contact] = await db.select().from(whatsappContacts).where(eq(whatsappContacts.id, id));
       
       if (!contact) {
         return res.status(404).json({ message: "Contato não encontrado" });
@@ -1346,7 +1346,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       
       // Remover do banco de dados
-      await db.delete(whatsappContacts).where(({ id: contactId }) => contactId.equals(id));
+      await db.delete(whatsappContacts).where(eq(whatsappContacts.id, id));
       
       res.status(204).end();
     } catch (error) {
@@ -1396,7 +1396,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const id = parseInt(req.params.id);
-      const [group] = await db.select().from(whatsappGroups).where(({ id: groupId }) => groupId.equals(id));
+      const [group] = await db.select().from(whatsappGroups).where(eq(whatsappGroups.id, id));
       
       if (!group) {
         return res.status(404).json({ message: "Grupo não encontrado" });
@@ -1409,12 +1409,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           contactId: whatsappGroupContacts.contactId
         })
         .from(whatsappGroupContacts)
-        .where(({ groupId: gId }) => gId.equals(id));
+        .where(eq(whatsappGroupContacts.groupId, id));
       
       // Buscar os detalhes completos dos contatos
       const contactIds = groupContacts.map(gc => gc.contactId);
       const contacts = contactIds.length > 0 
-        ? await db.select().from(whatsappContacts).where(({ id: contactId }) => contactId.in(contactIds))
+        ? await db.select().from(whatsappContacts).where(inArray(whatsappContacts.id, contactIds))
         : [];
       
       res.json({
@@ -1441,7 +1441,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verificar se o grupo existe
-      const [group] = await db.select().from(whatsappGroups).where(({ id }) => id.equals(groupId));
+      const [group] = await db.select().from(whatsappGroups).where(eq(whatsappGroups.id, groupId));
       if (!group) {
         return res.status(404).json({ message: "Grupo não encontrado" });
       }
@@ -1455,15 +1455,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Inserir as associações
       await db.insert(whatsappGroupContacts).values(insertData);
       
-      // Atualizar o contador de contatos do grupo
-      const [count] = await db
-        .select({ count: db.fn.count() })
+      // Atualizar o contador de contatos do grupo usando SQL COUNT
+      const countQuery = db
+        .select({ count: sql`COUNT(*)` })
         .from(whatsappGroupContacts)
-        .where(({ groupId: gId }) => gId.equals(groupId));
+        .where(eq(whatsappGroupContacts.groupId, groupId));
+      
+      const [countResult] = await countQuery;
       
       await db.update(whatsappGroups)
-        .set({ totalContacts: parseInt(count.count.toString()) })
-        .where(({ id }) => id.equals(groupId));
+        .set({ totalContacts: parseInt(countResult.count.toString()) })
+        .where(eq(whatsappGroups.id, groupId));
       
       res.status(201).json({ message: "Contatos adicionados ao grupo" });
     } catch (error) {
@@ -1481,10 +1483,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       
       // Remover todas as associações com contatos
-      await db.delete(whatsappGroupContacts).where(({ groupId }) => groupId.equals(id));
+      await db.delete(whatsappGroupContacts).where(eq(whatsappGroupContacts.groupId, id));
       
       // Remover o grupo
-      await db.delete(whatsappGroups).where(({ id: groupId }) => groupId.equals(id));
+      await db.delete(whatsappGroups).where(eq(whatsappGroups.id, id));
       
       res.status(204).end();
     } catch (error) {
@@ -1534,7 +1536,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const id = parseInt(req.params.id);
-      const [template] = await db.select().from(whatsappTemplates).where(({ id: templateId }) => templateId.equals(id));
+      const [template] = await db.select().from(whatsappTemplates).where(eq(whatsappTemplates.id, id));
       
       if (!template) {
         return res.status(404).json({ message: "Template não encontrado" });
@@ -1556,7 +1558,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       
       // Remover o template
-      await db.delete(whatsappTemplates).where(({ id: templateId }) => templateId.equals(id));
+      await db.delete(whatsappTemplates).where(eq(whatsappTemplates.id, id));
       
       res.status(204).end();
     } catch (error) {
