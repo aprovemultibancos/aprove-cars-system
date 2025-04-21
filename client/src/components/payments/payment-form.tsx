@@ -140,14 +140,22 @@ export function PaymentForm({ customers, sales }: PaymentFormProps) {
   // Mutação para criar pagamento
   const mutation = useMutation({
     mutationFn: async (data: PaymentFormValues) => {
+      if (!selectedAsaasCustomer) {
+        throw new Error("É necessário selecionar um cliente para criar cobrança");
+      }
+      
       // Criar o objeto de pagamento para a API do Asaas
       const paymentData = {
-        customerId: selectedAsaasCustomer?.id, // Enviar o ID do cliente selecionado
+        customerId: selectedAsaasCustomer.id,
+        customerName: selectedAsaasCustomer.name,
+        customerCpfCnpj: selectedAsaasCustomer.cpfCnpj,
+        customerEmail: selectedAsaasCustomer.email,
+        customerPhone: selectedAsaasCustomer.phone,
         description: data.description,
         value: data.value,
         dueDate: format(data.dueDate, 'yyyy-MM-dd'),
         billingType: data.billingType,
-        relatedSaleId: data.relatedSaleId !== "0" ? data.relatedSaleId : undefined,
+        externalReference: data.relatedSaleId !== "0" ? `sale_${data.relatedSaleId}` : undefined,
         notes: data.notes
       };
       
