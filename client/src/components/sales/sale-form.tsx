@@ -29,8 +29,9 @@ import { CalendarIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
-import { cn } from "@/lib/utils";
-import { useEffect } from "react";
+import { cn, formatCpfCnpj } from "@/lib/utils";
+import { useEffect, useState } from "react";
+import { AsaasCustomerLookup } from "./asaas-customer-lookup";
 
 // Extended schema with validation
 const extendedSaleSchema = insertSaleSchema.extend({
@@ -44,6 +45,12 @@ const extendedSaleSchema = insertSaleSchema.extend({
   commission: z.coerce.number().min(0, "Comissão inválida"),
   asaasPaymentId: z.string().optional(),
   notes: z.string().optional(),
+  // Campos para cliente do Asaas
+  asaasCustomerId: z.string().optional(),
+  asaasCustomerName: z.string().optional(),
+  asaasCustomerCpfCnpj: z.string().optional(),
+  asaasCustomerEmail: z.string().optional(),
+  asaasCustomerPhone: z.string().optional(),
 });
 
 type SaleFormValues = z.infer<typeof extendedSaleSchema>;
@@ -57,6 +64,7 @@ export function SaleForm({ editSale, onSaveSuccess }: SaleFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
+  const [showAsaasLookup, setShowAsaasLookup] = useState(false);
 
   const { data: vehicles } = useQuery<Vehicle[]>({
     queryKey: ["/api/vehicles/available"],
@@ -184,6 +192,34 @@ export function SaleForm({ editSale, onSaveSuccess }: SaleFormProps) {
       form.setValue("commission", defaultCommission);
     }
   };
+  
+  // Função para lidar com a seleção de cliente do Asaas
+  const handleAsaasCustomerSelect = (customer: {
+    id: string;
+    name: string;
+    cpfCnpj: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+  }) => {
+    // Defina os campos do cliente Asaas
+    form.setValue("asaasCustomerId", customer.id);
+    form.setValue("asaasCustomerName", customer.name);
+    form.setValue("asaasCustomerCpfCnpj", customer.cpfCnpj);
+    form.setValue("asaasCustomerEmail", customer.email || "");
+    form.setValue("asaasCustomerPhone", customer.phone || "");
+    
+    // Também atualiza o nome do cliente para exibição
+    form.setValue("customerName", customer.name);
+    
+    // Oculta o componente de busca depois de selecionar um cliente
+    setShowAsaasLookup(false);
+    
+    toast({
+      title: "Cliente selecionado",
+      description: `Cliente ${customer.name} selecionado do Asaas`,
+    });
+  };
 
   return (
     <Form {...form}>
@@ -222,6 +258,29 @@ export function SaleForm({ editSale, onSaveSuccess }: SaleFormProps) {
 
           {/* Cliente registrado ou não registrado */}
           <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-sm font-medium">Escolha uma opção de cliente:</h3>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowAsaasLookup(!showAsaasLookup)}
+              >
+                {showAsaasLookup ? "Ocultar busca Asaas" : "Buscar Cliente Asaas"}
+              </Button>
+            </div>
+            
+            {showAsaasLookup && (
+              <AsaasCustomerLookup onCustomerSelect={handleAsaasCustomerSelect} />
+            )}
+
+            {/* Campos ocultos para armazenar os dados do cliente do Asaas */}
+            <input type="hidden" {...form.register("asaasCustomerId")} />
+            <input type="hidden" {...form.register("asaasCustomerCpfCnpj")} />
+            <input type="hidden" {...form.register("asaasCustomerEmail")} />
+            <input type="hidden" {...form.register("asaasCustomerPhone")} />
+            <input type="hidden" {...form.register("asaasCustomerName")} />
+            
             <FormField
               control={form.control}
               name="customerId"
@@ -234,6 +293,12 @@ export function SaleForm({ editSale, onSaveSuccess }: SaleFormProps) {
                       // Se um cliente for selecionado, limpar o campo de nome manual
                       if (value) {
                         form.setValue("customerName", "");
+                        // Limpar os campos do Asaas também
+                        form.setValue("asaasCustomerId", "");
+                        form.setValue("asaasCustomerName", "");
+                        form.setValue("asaasCustomerCpfCnpj", "");
+                        form.setValue("asaasCustomerEmail", "");
+                        form.setValue("asaasCustomerPhone", "");
                       }
                     }}
                     defaultValue={field.value?.toString()}
@@ -285,6 +350,17 @@ export function SaleForm({ editSale, onSaveSuccess }: SaleFormProps) {
                 </FormItem>
               )}
             />
+            
+            {form.getValues().asaasCustomerId && (
+              <div className="p-3 bg-slate-100 rounded-md border text-sm space-y-1">
+                <p className="font-medium">Cliente selecionado do Asaas:</p>
+                <p>{form.getValues().asaasCustomerName}</p>
+                <p>{formatCpfCnpj(form.getValues().asaasCustomerCpfCnpj)}</p>
+                {form.getValues().asaasCustomerEmail && (
+                  <p>{form.getValues().asaasCustomerEmail}</p>
+                )}
+              </div>
+            )}
           </div>
 
           <FormField
