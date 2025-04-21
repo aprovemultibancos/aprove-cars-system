@@ -100,29 +100,19 @@ export function PaymentForm({ customers, sales }: PaymentFormProps) {
     },
   });
   
-  // Acompanhar taxa do pagamento - 2.49% para boleto e PIX
+  // Acompanhar valor e tipo de pagamento
   const watchBillingType = form.watch("billingType");
   const watchValue = form.watch("value");
   
   // Atualizar valores quando mudar o tipo de pagamento ou valor
   useEffect(() => {
     setOriginalValue(watchValue || 0);
-    
-    // Taxa de 2.49% para qualquer método de pagamento
-    const fee = 0.0249; // 2.49%
-    const calculatedValue = (watchValue || 0) * (1 + fee);
-    setFinalValue(calculatedValue);
-    
+    setFinalValue(watchValue || 0);
   }, [watchBillingType, watchValue]);
   
   // Quando o modo de pagamento mudar
   const handleBillingTypeChange = (type: string) => {
     form.setValue("billingType", type as "BOLETO" | "PIX" | "CREDIT_CARD");
-    
-    // Taxa de 2.49% para qualquer método de pagamento
-    const fee = 0.0249; // 2.49%
-    const calculatedValue = (watchValue || 0) * (1 + fee);
-    setFinalValue(calculatedValue);
   };
   
   // Quando o valor mudar
@@ -130,11 +120,7 @@ export function PaymentForm({ customers, sales }: PaymentFormProps) {
     const numValue = parseFloat(value);
     form.setValue("value", numValue);
     setOriginalValue(numValue);
-    
-    // Taxa de 2.49% para qualquer método de pagamento
-    const fee = 0.0249; // 2.49%
-    const calculatedValue = numValue * (1 + fee);
-    setFinalValue(calculatedValue);
+    setFinalValue(numValue);
   };
   
   // Mutação para criar pagamento
@@ -348,8 +334,8 @@ export function PaymentForm({ customers, sales }: PaymentFormProps) {
                     onChange={(e) => handleValueChange(e.target.value)}
                   />
                 </FormControl>
-                <FormDescription className="text-amber-500">
-                  Taxa de 2.49%: {formatCurrency(finalValue)}
+                <FormDescription>
+                  Valor total a ser cobrado
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -473,17 +459,7 @@ export function PaymentForm({ customers, sales }: PaymentFormProps) {
             />
           </div>
           
-          <div className="md:col-span-2">
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Taxa de serviço</AlertTitle>
-              <AlertDescription>
-                O pagamento tem uma taxa de serviço de 2.49%. 
-                Valor original: {formatCurrency(originalValue)} | 
-                Valor com taxa: {formatCurrency(finalValue)}
-              </AlertDescription>
-            </Alert>
-          </div>
+
           
           <div className="md:col-span-2">
             <FormField
