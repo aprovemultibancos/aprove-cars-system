@@ -1073,7 +1073,732 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return customers;
   }
 
+  // WhatsApp routes
+  // Rotas para conexões WhatsApp
+  app.get("/api/whatsapp/connections", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const connections = await db.select().from(whatsappConnections);
+      res.json(connections);
+    } catch (error) {
+      console.error("Erro ao buscar conexões WhatsApp:", error);
+      res.status(500).json({ message: "Erro ao buscar conexões WhatsApp", error: String(error) });
+    }
+  });
+
+  app.get("/api/whatsapp/connections/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const id = parseInt(req.params.id);
+      const [connection] = await db.select().from(whatsappConnections).where(({ id: connectionId }) => connectionId.equals(id));
+      
+      if (!connection) {
+        return res.status(404).json({ message: "Conexão não encontrada" });
+      }
+      
+      // Verificar status atual da conexão no serviço
+      const handler = whatsappService.getConnection(id);
+      if (handler) {
+        // Atualizar os dados com informações em tempo real
+        connection.status = handler.getStatus();
+        connection.qrCode = handler.getQrCode();
+      }
+      
+      res.json(connection);
+    } catch (error) {
+      console.error("Erro ao buscar conexão WhatsApp:", error);
+      res.status(500).json({ message: "Erro ao buscar conexão WhatsApp", error: String(error) });
+    }
+  });
+
+  app.post("/api/whatsapp/connections", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      // Validar dados
+      const connectionData = insertWhatsappConnectionSchema.parse(req.body);
+      
+      // Inserir no banco de dados
+      const [newConnection] = await db.insert(whatsappConnections).values(connectionData).returning();
+      
+      // Registrar no serviço WhatsApp
+      whatsappService.registerConnection(newConnection);
+      
+      res.status(201).json(newConnection);
+    } catch (error) {
+      console.error("Erro ao criar conexão WhatsApp:", error);
+      res.status(400).json({ message: "Dados inválidos", error: String(error) });
+    }
+  });
+
+  app.delete("/api/whatsapp/connections/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const id = parseInt(req.params.id);
+      
+      // Remover do serviço WhatsApp
+      whatsappService.removeConnection(id);
+      
+      // Remover do banco de dados
+      await db.delete(whatsappConnections).where(({ id: connectionId }) => connectionId.equals(id));
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error("Erro ao excluir conexão WhatsApp:", error);
+      res.status(500).json({ message: "Erro ao excluir conexão WhatsApp", error: String(error) });
+    }
+  });
+
+  app.post("/api/whatsapp/connections/:id/connect", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const id = parseInt(req.params.id);
+      const [connection] = await db.select().from(whatsappConnections).where(({ id: connectionId }) => connectionId.equals(id));
+      
+      if (!connection) {
+        return res.status(404).json({ message: "Conexão não encontrada" });
+      }
+      
+      // Obter ou criar o handler para essa conexão
+      const handler = whatsappService.registerConnection(connection);
+      
+      // Conectar
+      handler.connect();
+      
+      // Atualizar status no banco de dados
+      await db.update(whatsappConnections)
+        .set({ status: "connecting" })
+        .where(({ id: connectionId }) => connectionId.equals(id));
+      
+      res.json({ message: "Conexão iniciada", status: "connecting" });
+    } catch (error) {
+      console.error("Erro ao conectar WhatsApp:", error);
+      res.status(500).json({ message: "Erro ao conectar WhatsApp", error: String(error) });
+    }
+  });
+
+  app.post("/api/whatsapp/connections/:id/disconnect", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const id = parseInt(req.params.id);
+      
+      // Obter o handler
+      const handler = whatsappService.getConnection(id);
+      if (!handler) {
+        return res.status(404).json({ message: "Conexão não encontrada ou já desconectada" });
+      }
+      
+      // Desconectar
+      handler.disconnect();
+      
+      // Atualizar status no banco de dados
+      await db.update(whatsappConnections)
+        .set({ status: "disconnected" })
+        .where(({ id: connectionId }) => connectionId.equals(id));
+      
+      res.json({ message: "Desconectado com sucesso" });
+    } catch (error) {
+      console.error("Erro ao desconectar WhatsApp:", error);
+      res.status(500).json({ message: "Erro ao desconectar WhatsApp", error: String(error) });
+    }
+  });
+
+  // Rotas para contatos WhatsApp
+  app.get("/api/whatsapp/contacts", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const contacts = await db.select().from(whatsappContacts);
+      res.json(contacts);
+    } catch (error) {
+      console.error("Erro ao buscar contatos WhatsApp:", error);
+      res.status(500).json({ message: "Erro ao buscar contatos WhatsApp", error: String(error) });
+    }
+  });
+
+  app.post("/api/whatsapp/contacts", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      // Validar dados
+      const contactData = insertWhatsappContactSchema.parse(req.body);
+      
+      // Inserir no banco de dados
+      const [newContact] = await db.insert(whatsappContacts).values(contactData).returning();
+      
+      res.status(201).json(newContact);
+    } catch (error) {
+      console.error("Erro ao criar contato WhatsApp:", error);
+      res.status(400).json({ message: "Dados inválidos", error: String(error) });
+    }
+  });
+
+  app.get("/api/whatsapp/contacts/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const id = parseInt(req.params.id);
+      const [contact] = await db.select().from(whatsappContacts).where(({ id: contactId }) => contactId.equals(id));
+      
+      if (!contact) {
+        return res.status(404).json({ message: "Contato não encontrado" });
+      }
+      
+      res.json(contact);
+    } catch (error) {
+      console.error("Erro ao buscar contato WhatsApp:", error);
+      res.status(500).json({ message: "Erro ao buscar contato WhatsApp", error: String(error) });
+    }
+  });
+
+  app.delete("/api/whatsapp/contacts/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const id = parseInt(req.params.id);
+      
+      // Remover do banco de dados
+      await db.delete(whatsappContacts).where(({ id: contactId }) => contactId.equals(id));
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error("Erro ao excluir contato WhatsApp:", error);
+      res.status(500).json({ message: "Erro ao excluir contato WhatsApp", error: String(error) });
+    }
+  });
+
+  // Rotas para grupos WhatsApp
+  app.get("/api/whatsapp/groups", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const groups = await db.select().from(whatsappGroups);
+      res.json(groups);
+    } catch (error) {
+      console.error("Erro ao buscar grupos WhatsApp:", error);
+      res.status(500).json({ message: "Erro ao buscar grupos WhatsApp", error: String(error) });
+    }
+  });
+
+  app.post("/api/whatsapp/groups", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      // Validar dados
+      const groupData = insertWhatsappGroupSchema.parse(req.body);
+      
+      // Inserir no banco de dados
+      const [newGroup] = await db.insert(whatsappGroups).values(groupData).returning();
+      
+      res.status(201).json(newGroup);
+    } catch (error) {
+      console.error("Erro ao criar grupo WhatsApp:", error);
+      res.status(400).json({ message: "Dados inválidos", error: String(error) });
+    }
+  });
+
+  app.get("/api/whatsapp/groups/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const id = parseInt(req.params.id);
+      const [group] = await db.select().from(whatsappGroups).where(({ id: groupId }) => groupId.equals(id));
+      
+      if (!group) {
+        return res.status(404).json({ message: "Grupo não encontrado" });
+      }
+      
+      // Buscar os contatos associados a este grupo
+      const groupContacts = await db
+        .select({
+          id: whatsappGroupContacts.id,
+          contactId: whatsappGroupContacts.contactId
+        })
+        .from(whatsappGroupContacts)
+        .where(({ groupId: gId }) => gId.equals(id));
+      
+      // Buscar os detalhes completos dos contatos
+      const contactIds = groupContacts.map(gc => gc.contactId);
+      const contacts = contactIds.length > 0 
+        ? await db.select().from(whatsappContacts).where(({ id: contactId }) => contactId.in(contactIds))
+        : [];
+      
+      res.json({
+        ...group,
+        contacts
+      });
+    } catch (error) {
+      console.error("Erro ao buscar grupo WhatsApp:", error);
+      res.status(500).json({ message: "Erro ao buscar grupo WhatsApp", error: String(error) });
+    }
+  });
+
+  app.post("/api/whatsapp/groups/:id/contacts", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const groupId = parseInt(req.params.id);
+      const { contactIds } = req.body;
+      
+      if (!Array.isArray(contactIds) || contactIds.length === 0) {
+        return res.status(400).json({ message: "Lista de IDs de contatos inválida" });
+      }
+      
+      // Verificar se o grupo existe
+      const [group] = await db.select().from(whatsappGroups).where(({ id }) => id.equals(groupId));
+      if (!group) {
+        return res.status(404).json({ message: "Grupo não encontrado" });
+      }
+      
+      // Adicionar cada contato ao grupo
+      const insertData = contactIds.map(contactId => ({
+        groupId,
+        contactId: parseInt(contactId)
+      }));
+      
+      // Inserir as associações
+      await db.insert(whatsappGroupContacts).values(insertData);
+      
+      // Atualizar o contador de contatos do grupo
+      const [count] = await db
+        .select({ count: db.fn.count() })
+        .from(whatsappGroupContacts)
+        .where(({ groupId: gId }) => gId.equals(groupId));
+      
+      await db.update(whatsappGroups)
+        .set({ totalContacts: parseInt(count.count.toString()) })
+        .where(({ id }) => id.equals(groupId));
+      
+      res.status(201).json({ message: "Contatos adicionados ao grupo" });
+    } catch (error) {
+      console.error("Erro ao adicionar contatos ao grupo:", error);
+      res.status(500).json({ message: "Erro ao adicionar contatos ao grupo", error: String(error) });
+    }
+  });
+
+  app.delete("/api/whatsapp/groups/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const id = parseInt(req.params.id);
+      
+      // Remover todas as associações com contatos
+      await db.delete(whatsappGroupContacts).where(({ groupId }) => groupId.equals(id));
+      
+      // Remover o grupo
+      await db.delete(whatsappGroups).where(({ id: groupId }) => groupId.equals(id));
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error("Erro ao excluir grupo WhatsApp:", error);
+      res.status(500).json({ message: "Erro ao excluir grupo WhatsApp", error: String(error) });
+    }
+  });
+
+  // Rotas para templates WhatsApp
+  app.get("/api/whatsapp/templates", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const templates = await db.select().from(whatsappTemplates);
+      res.json(templates);
+    } catch (error) {
+      console.error("Erro ao buscar templates WhatsApp:", error);
+      res.status(500).json({ message: "Erro ao buscar templates WhatsApp", error: String(error) });
+    }
+  });
+
+  app.post("/api/whatsapp/templates", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      // Validar dados
+      const templateData = insertWhatsappTemplateSchema.parse(req.body);
+      
+      // Inserir no banco de dados
+      const [newTemplate] = await db.insert(whatsappTemplates).values(templateData).returning();
+      
+      res.status(201).json(newTemplate);
+    } catch (error) {
+      console.error("Erro ao criar template WhatsApp:", error);
+      res.status(400).json({ message: "Dados inválidos", error: String(error) });
+    }
+  });
+
+  app.get("/api/whatsapp/templates/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const id = parseInt(req.params.id);
+      const [template] = await db.select().from(whatsappTemplates).where(({ id: templateId }) => templateId.equals(id));
+      
+      if (!template) {
+        return res.status(404).json({ message: "Template não encontrado" });
+      }
+      
+      res.json(template);
+    } catch (error) {
+      console.error("Erro ao buscar template WhatsApp:", error);
+      res.status(500).json({ message: "Erro ao buscar template WhatsApp", error: String(error) });
+    }
+  });
+
+  app.delete("/api/whatsapp/templates/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const id = parseInt(req.params.id);
+      
+      // Remover o template
+      await db.delete(whatsappTemplates).where(({ id: templateId }) => templateId.equals(id));
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error("Erro ao excluir template WhatsApp:", error);
+      res.status(500).json({ message: "Erro ao excluir template WhatsApp", error: String(error) });
+    }
+  });
+
+  // Rotas para campanhas WhatsApp
+  app.get("/api/whatsapp/campaigns", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const campaigns = await db.select().from(whatsappCampaigns);
+      res.json(campaigns);
+    } catch (error) {
+      console.error("Erro ao buscar campanhas WhatsApp:", error);
+      res.status(500).json({ message: "Erro ao buscar campanhas WhatsApp", error: String(error) });
+    }
+  });
+
+  app.post("/api/whatsapp/campaigns", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      // Validar dados
+      const campaignData = insertWhatsappCampaignSchema.parse(req.body);
+      
+      // Inserir no banco de dados
+      const [newCampaign] = await db.insert(whatsappCampaigns).values(campaignData).returning();
+      
+      res.status(201).json(newCampaign);
+    } catch (error) {
+      console.error("Erro ao criar campanha WhatsApp:", error);
+      res.status(400).json({ message: "Dados inválidos", error: String(error) });
+    }
+  });
+
+  app.get("/api/whatsapp/campaigns/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const id = parseInt(req.params.id);
+      const [campaign] = await db.select().from(whatsappCampaigns).where(({ id: campaignId }) => campaignId.equals(id));
+      
+      if (!campaign) {
+        return res.status(404).json({ message: "Campanha não encontrada" });
+      }
+      
+      // Buscar os alvos da campanha
+      const targets = await db
+        .select()
+        .from(whatsappCampaignTargets)
+        .where(({ campaignId }) => campaignId.equals(id));
+      
+      // Buscar o template associado
+      const [template] = await db
+        .select()
+        .from(whatsappTemplates)
+        .where(({ id: templateId }) => templateId.equals(campaign.templateId));
+      
+      res.json({
+        ...campaign,
+        targets,
+        template
+      });
+    } catch (error) {
+      console.error("Erro ao buscar campanha WhatsApp:", error);
+      res.status(500).json({ message: "Erro ao buscar campanha WhatsApp", error: String(error) });
+    }
+  });
+
+  app.post("/api/whatsapp/campaigns/:id/start", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const id = parseInt(req.params.id);
+      
+      // Buscar a campanha
+      const [campaign] = await db.select().from(whatsappCampaigns).where(({ id: campaignId }) => campaignId.equals(id));
+      if (!campaign) {
+        return res.status(404).json({ message: "Campanha não encontrada" });
+      }
+      
+      // Verificar se a campanha já está em andamento
+      if (campaign.status === 'in_progress') {
+        return res.status(400).json({ message: "Campanha já está em andamento" });
+      }
+      
+      // Buscar o template
+      const [template] = await db
+        .select()
+        .from(whatsappTemplates)
+        .where(({ id: templateId }) => templateId.equals(campaign.templateId));
+      
+      if (!template) {
+        return res.status(404).json({ message: "Template da campanha não encontrado" });
+      }
+      
+      // Buscar contatos ou grupo
+      let contacts: any[] = [];
+      
+      // Se a campanha tem alvos específicos (contatos individuais ou grupos)
+      const targets = await db
+        .select()
+        .from(whatsappCampaignTargets)
+        .where(({ campaignId }) => campaignId.equals(id));
+      
+      if (targets.length > 0) {
+        // Buscar contatos dos grupos referenciados
+        const groupIds = targets
+          .filter(t => t.groupId)
+          .map(t => t.groupId);
+        
+        if (groupIds.length > 0) {
+          // Buscar todos os contatos associados a esses grupos
+          const groupContacts = await db
+            .select({ contactId: whatsappGroupContacts.contactId })
+            .from(whatsappGroupContacts)
+            .where(({ groupId }) => groupId.in(groupIds));
+          
+          const contactIds = groupContacts.map(gc => gc.contactId);
+          
+          // Buscar detalhes completos dos contatos
+          if (contactIds.length > 0) {
+            const groupContactsDetails = await db
+              .select()
+              .from(whatsappContacts)
+              .where(({ id }) => id.in(contactIds));
+            
+            contacts = [...contacts, ...groupContactsDetails];
+          }
+        }
+        
+        // Buscar contatos individuais
+        const contactIds = targets
+          .filter(t => t.contactId)
+          .map(t => t.contactId);
+        
+        if (contactIds.length > 0) {
+          const individualContacts = await db
+            .select()
+            .from(whatsappContacts)
+            .where(({ id }) => id.in(contactIds));
+          
+          contacts = [...contacts, ...individualContacts];
+        }
+      } else {
+        // Se não tem alvos específicos, enviar para todos os contatos
+        contacts = await db.select().from(whatsappContacts);
+      }
+      
+      // Verificar se temos contatos para enviar
+      if (contacts.length === 0) {
+        return res.status(400).json({ message: "Nenhum contato disponível para esta campanha" });
+      }
+      
+      // Iniciar o envio em segundo plano
+      const connectionId = campaign.connectionId;
+      
+      // Atualizar status da campanha
+      await db.update(whatsappCampaigns)
+        .set({ 
+          status: 'in_progress',
+          totalContacts: contacts.length
+        })
+        .where(({ id: campaignId }) => campaignId.equals(id));
+      
+      // Iniciar o envio em segundo plano (não aguardamos a conclusão)
+      whatsappService.sendCampaign(campaign, template, contacts, connectionId);
+      
+      res.json({ 
+        message: "Campanha iniciada", 
+        totalContacts: contacts.length 
+      });
+    } catch (error) {
+      console.error("Erro ao iniciar campanha:", error);
+      res.status(500).json({ message: "Erro ao iniciar campanha", error: String(error) });
+    }
+  });
+
+  app.post("/api/whatsapp/campaigns/:id/stop", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const id = parseInt(req.params.id);
+      
+      // Atualizar status da campanha
+      await db.update(whatsappCampaigns)
+        .set({ status: 'canceled' })
+        .where(({ id: campaignId }) => campaignId.equals(id));
+      
+      // Nota: Precisaríamos implementar um mecanismo para parar o envio em andamento
+      // Para isso, seria necessário manter um controle das campanhas em andamento no serviço
+      
+      res.json({ message: "Campanha interrompida" });
+    } catch (error) {
+      console.error("Erro ao interromper campanha:", error);
+      res.status(500).json({ message: "Erro ao interromper campanha", error: String(error) });
+    }
+  });
+
+  app.delete("/api/whatsapp/campaigns/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const id = parseInt(req.params.id);
+      
+      // Remover todos os alvos da campanha
+      await db.delete(whatsappCampaignTargets).where(({ campaignId }) => campaignId.equals(id));
+      
+      // Remover a campanha
+      await db.delete(whatsappCampaigns).where(({ id: campaignId }) => campaignId.equals(id));
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error("Erro ao excluir campanha WhatsApp:", error);
+      res.status(500).json({ message: "Erro ao excluir campanha WhatsApp", error: String(error) });
+    }
+  });
+
+  // Rota para envio direto de mensagem (single)
+  app.post("/api/whatsapp/send", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const { connectionId, to, content, type, mediaUrl, caption, filename } = req.body;
+      
+      if (!connectionId || !to || !content) {
+        return res.status(400).json({ message: "Dados incompletos. Forneça connectionId, to e content" });
+      }
+      
+      // Verificar se é uma conexão válida
+      const connection = whatsappService.getConnection(connectionId);
+      if (!connection) {
+        return res.status(404).json({ message: "Conexão não encontrada ou não iniciada" });
+      }
+      
+      let messageId: string | null;
+      
+      // Enviar mensagem com base no tipo
+      if (type === 'image' && mediaUrl) {
+        messageId = await whatsappService.sendImageMessage(connectionId, to, mediaUrl, caption || content);
+      } else if (type === 'document' && mediaUrl) {
+        messageId = await whatsappService.sendDocumentMessage(connectionId, to, mediaUrl, filename || 'documento.pdf');
+      } else {
+        // Padrão é mensagem de texto
+        messageId = await whatsappService.sendTextMessage(connectionId, to, content);
+      }
+      
+      if (!messageId) {
+        return res.status(500).json({ message: "Falha ao enviar mensagem" });
+      }
+      
+      res.json({ 
+        message: "Mensagem enviada com sucesso",
+        messageId
+      });
+    } catch (error) {
+      console.error("Erro ao enviar mensagem:", error);
+      res.status(500).json({ message: "Erro ao enviar mensagem", error: String(error) });
+    }
+  });
+
+  // Configuração do WebSocket Server
   const httpServer = createServer(app);
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  // Eventos do WebSocket
+  wss.on('connection', (ws) => {
+    console.log('Cliente WebSocket conectado');
+    
+    ws.on('message', (message) => {
+      try {
+        const data = JSON.parse(message.toString());
+        console.log('Mensagem recebida:', data);
+        
+        // Implementar lógica de processamento de mensagens
+        // Poderia ser autenticação, atualização de status, etc.
+      } catch (error) {
+        console.error('Erro ao processar mensagem WebSocket:', error);
+      }
+    });
+    
+    ws.on('close', () => {
+      console.log('Cliente WebSocket desconectado');
+    });
+    
+    // Enviar um evento de conexão inicial
+    ws.send(JSON.stringify({ type: 'connected', timestamp: Date.now() }));
+  });
 
   return httpServer;
 }
