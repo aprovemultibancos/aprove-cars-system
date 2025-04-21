@@ -637,6 +637,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Rotas do Asaas Payment Gateway
   
+  // Rota para configurar a API do Asaas
+  app.post("/api/asaas/config", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      // Para segurança, somente administradores podem configurar a API
+      if (req.user.role !== 'admin' && req.user.username !== 'administrador') {
+        return res.status(403).json({ message: "Apenas administradores podem configurar a API" });
+      }
+      
+      const { apiKey } = req.body;
+      if (!apiKey) {
+        return res.status(400).json({ message: "Chave de API é obrigatória" });
+      }
+      
+      // Atualizar a chave de API no serviço
+      const success = await asaasService.updateApiKey(apiKey);
+      if (success) {
+        return res.json({ success: true, message: "API configurada com sucesso" });
+      } else {
+        return res.status(400).json({ message: "Não foi possível configurar a API" });
+      }
+    } catch (error) {
+      console.error("Erro ao configurar API:", error);
+      res.status(500).json({ message: "Erro ao configurar API do Asaas" });
+    }
+  });
+
   // Rota para buscar o saldo da conta Asaas
   app.get("/api/asaas/balance", async (req, res) => {
     try {

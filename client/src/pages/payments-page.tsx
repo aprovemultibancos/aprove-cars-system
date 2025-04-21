@@ -254,6 +254,15 @@ function PaymentsList() {
           </div>
         ) : data && data.data.length > 0 ? (
           <>
+            {isDemoMode && (
+              <Alert className="mb-4 border-amber-300 bg-amber-50 text-amber-800">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Modo de demonstração</AlertTitle>
+                <AlertDescription className="text-xs">
+                  Os pagamentos exibidos são exemplos simulados. Para utilizar dados reais, configure uma chave de API Asaas válida.
+                </AlertDescription>
+              </Alert>
+            )}
             <Table>
               <TableHeader>
                 <TableRow>
@@ -389,6 +398,7 @@ interface PaymentFormData {
 
 function PaymentForm() {
   const { createPaymentMutation, calculateFeeAmount, formatCurrency } = useAsaas();
+  const [isDemoMode, setIsDemoMode] = useState(true); // Começamos assumindo modo de demonstração
   const [formData, setFormData] = useState<PaymentFormData>({
     customerName: '',
     customerCpfCnpj: '',
@@ -500,6 +510,17 @@ function PaymentForm() {
         <CardDescription>Criar uma nova cobrança para um cliente</CardDescription>
       </CardHeader>
       <CardContent>
+        {isDemoMode && (
+          <Alert className="mb-6 border-amber-300 bg-amber-50 text-amber-800">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Modo de demonstração</AlertTitle>
+            <AlertDescription className="text-xs">
+              O sistema está operando em modo de demonstração. As cobranças criadas serão simuladas e não processadas pelo Asaas.
+              Para utilizar a API real, configure uma chave de API válida.
+            </AlertDescription>
+          </Alert>
+        )}
+      
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Informações do Cliente</h3>

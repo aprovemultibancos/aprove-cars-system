@@ -58,6 +58,40 @@ export interface CreatePaymentParams {
   };
 }
 
+// Interface para configuração de API
+export interface AsaasApiConfig {
+  apiKey: string;
+}
+
+// Mutation para configurar a API
+export const useConfigureAsaasApi = () => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (config: AsaasApiConfig) => {
+      const response = await apiRequest('POST', '/api/asaas/config', config);
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Configuração atualizada",
+        description: "A chave de API do Asaas foi configurada com sucesso."
+      });
+      
+      // Invalidar todas as queries do Asaas para recarregar os dados com a nova API
+      queryClient.invalidateQueries({ queryKey: ['/api/asaas'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro de configuração",
+        description: `Falha ao configurar a API: ${error.message}`,
+        variant: "destructive"
+      });
+    }
+  });
+};
+
 export const useAsaas = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
