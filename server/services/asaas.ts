@@ -108,7 +108,7 @@ export class AsaasService {
   private apiKey: string;
   private baseUrl: string;
   public inDemoMode: boolean;
-  private currentCompanyId: number | null;
+  public currentCompanyId: number | null;
   
   constructor() {
     // Inicializar com valores padrão

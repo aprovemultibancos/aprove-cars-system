@@ -700,13 +700,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Apenas administradores podem configurar a API" });
       }
       
-      const { apiKey } = req.body;
+      const { apiKey, walletId } = req.body;
       if (!apiKey) {
         return res.status(400).json({ message: "Chave de API é obrigatória" });
       }
       
       // Atualizar a chave de API no serviço para a empresa atual
-      const success = await asaasService.updateApiKey(apiKey);
+      const success = await asaasService.updateApiKey(apiKey, undefined, walletId);
       if (success) {
         return res.json({ success: true, message: "API configurada com sucesso" });
       } else {
@@ -715,6 +715,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao configurar API:", error);
       res.status(500).json({ message: "Erro ao configurar API do Asaas" });
+    }
+  });
+  
+  // Rota para obter a configuração Asaas atual
+  app.get("/api/asaas/config", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      // Verificar se há uma empresa configurada atualmente
+      if (!asaasService.currentCompanyId) {
+        return res.status(400).json({ message: "Nenhuma empresa selecionada" });
+      }
+      
+      // Para segurança, somente administradores podem visualizar a configuração completa
+      const isAdmin = req.user.role === 'admin' || req.user.username === 'administrador';
+      
+      // Buscar a configuração da empresa atual
+      const config = await asaasService.getAsaasConfig(asaasService.currentCompanyId);
+      
+      if (config) {
+        // Se não for admin, não mostrar a apiKey completa
+        if (!isAdmin) {
+          // Retornar apenas informações limitadas
+          return res.json({
+            companyId: config.companyId,
+            mode: config.mode,
+            walletId: config.walletId,
+            hasApiKey: !!config.apiKey,
+            apiKeyPreview: config.apiKey ? `${config.apiKey.substring(0, 6)}...` : null
+          });
+        }
+        
+        // Admin vê tudo
+        return res.json(config);
+      } else {
+        return res.status(404).json({ message: "Configuração não encontrada" });
+      }
+    } catch (error) {
+      console.error("Erro ao buscar configuração Asaas:", error);
+      res.status(500).json({ message: "Erro ao buscar configuração do Asaas" });
     }
   });
   
@@ -731,7 +773,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const companyId = parseInt(req.params.companyId);
-      const { apiKey } = req.body;
+      const { apiKey, walletId } = req.body;
       
       if (!companyId) {
         return res.status(400).json({ message: "ID da empresa é obrigatório" });
@@ -741,8 +783,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Chave de API é obrigatória" });
       }
       
-      // Atualizar a chave de API para a empresa específica
-      const success = await asaasService.updateApiKey(apiKey, companyId);
+      // Atualizar a chave de API para a empresa específica, incluindo o walletId se fornecido
+      const success = await asaasService.updateApiKey(apiKey, companyId, walletId);
       if (success) {
         return res.json({ success: true, message: "API configurada com sucesso para a empresa" });
       } else {
@@ -751,6 +793,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao configurar API para empresa específica:", error);
       res.status(500).json({ message: "Erro ao configurar API do Asaas" });
+    }
+  });
+  
+  // Rota para obter a configuração Asaas de uma empresa
+  app.get("/api/asaas/config/:companyId", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      // Para segurança, somente administradores podem visualizar a configuração completa
+      const isAdmin = req.user.role === 'admin' || req.user.username === 'administrador';
+      
+      const companyId = parseInt(req.params.companyId);
+      
+      if (!companyId) {
+        return res.status(400).json({ message: "ID da empresa é obrigatório" });
+      }
+      
+      // Buscar a configuração
+      const config = await asaasService.getAsaasConfig(companyId);
+      
+      if (config) {
+        // Se não for admin, não mostrar a apiKey completa
+        if (!isAdmin) {
+          // Retornar apenas informações limitadas
+          return res.json({
+            companyId: config.companyId,
+            mode: config.mode,
+            walletId: config.walletId,
+            hasApiKey: !!config.apiKey,
+            apiKeyPreview: config.apiKey ? `${config.apiKey.substring(0, 6)}...` : null
+          });
+        }
+        
+        // Admin vê tudo
+        return res.json(config);
+      } else {
+        return res.status(404).json({ message: "Configuração não encontrada para esta empresa" });
+      }
+    } catch (error) {
+      console.error("Erro ao buscar configuração Asaas:", error);
+      res.status(500).json({ message: "Erro ao buscar configuração do Asaas" });
     }
   });
 
