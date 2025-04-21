@@ -79,6 +79,10 @@ export const useConfigureAsaasApi = () => {
         description: "A chave de API do Asaas foi configurada com sucesso."
       });
       
+      // Recarregar dados
+      queryClient.invalidateQueries({ queryKey: ['/api/asaas/balance'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/asaas/payments'] });
+      
       // Invalidar todas as queries do Asaas para recarregar os dados com a nova API
       queryClient.invalidateQueries({ queryKey: ['/api/asaas'] });
     },
