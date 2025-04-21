@@ -38,6 +38,10 @@ function Router() {
       <ProtectedRoute path="/personnel/:id" component={() => <Layout><PersonnelPage /></Layout>} />
       <ProtectedRoute path="/personnel/:id/:action" component={() => <Layout><PersonnelPage /></Layout>} />
 
+      <ProtectedRoute path="/payments" component={() => <Layout><PaymentsPage /></Layout>} />
+      <ProtectedRoute path="/payments/:id" component={() => <Layout><PaymentsPage /></Layout>} />
+      <ProtectedRoute path="/payments/:id/:action" component={() => <Layout><PaymentsPage /></Layout>} />
+
       <ProtectedRoute path="/reports" component={() => <Layout><ReportsPage /></Layout>} />
       <ProtectedRoute path="/users" component={() => <Layout><UserManagementPage /></Layout>} />
       <Route path="/auth" component={AuthPage} />

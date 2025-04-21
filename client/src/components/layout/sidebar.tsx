@@ -101,6 +101,9 @@ export function Sidebar() {
                   <SidebarLink href="/personnel" icon={Users} currentPath={location}>
                     Pessoal
                   </SidebarLink>
+                  <SidebarLink href="/payments" icon={Receipt} currentPath={location}>
+                    Pagamentos
+                  </SidebarLink>
                 </div>
               </div>
               
