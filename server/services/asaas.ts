@@ -222,9 +222,19 @@ export class AsaasService {
   // Método para atualizar a chave da API e associá-la a uma empresa
   async updateApiKey(newApiKey: string, companyId: number = 1, walletId?: string): Promise<boolean> {
     try {
+      if (!newApiKey || newApiKey.trim() === '') {
+        console.error('Chave API vazia fornecida');
+        return false;
+      }
+
+      // Remover espaços em branco da chave
+      const cleanApiKey = newApiKey.trim();
+      
       // Determinar primeiro o ambiente correto para a nova chave
       let url = '';
-      const mode = newApiKey.startsWith('$aact_') || newApiKey.includes('prod_') ? 'production' : 'sandbox';
+      const mode = cleanApiKey.startsWith('$aact_') || cleanApiKey.includes('prod_') 
+        ? 'production' 
+        : 'sandbox';
       
       if (mode === 'production') {
         console.log('📊 Configurando ambiente de PRODUÇÃO do Asaas');
@@ -234,23 +244,28 @@ export class AsaasService {
         url = `${ASAAS_SANDBOX_URL}/finance/balance`;
       }
       
+      console.log(`Testando chave API ${cleanApiKey.substring(0, 5)}... para empresa ${companyId}`);
+      
       // Testar a nova chave antes de atualizar
       const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'access_token': newApiKey
+          'access_token': cleanApiKey
         }
       });
       
       if (response.ok) {
-        // A chave é válida, vamos atualizá-la
-        this.apiKey = newApiKey;
+        console.log('✅ Teste de API bem-sucedido!');
+        
+        // A chave é válida, vamos atualizá-la na memória
+        this.apiKey = cleanApiKey;
         this.inDemoMode = false;
         
         // Atualizar também a URL base
         this.baseUrl = mode === 'sandbox' ? ASAAS_SANDBOX_URL : ASAAS_PRODUCTION_URL;
         
+        // Atualizando ou inserindo no banco de dados
         try {
           // Verificar se já existe uma configuração
           const [existingConfig] = await db
@@ -259,37 +274,58 @@ export class AsaasService {
             .where(eq(asaasConfig.companyId, companyId));
           
           if (existingConfig) {
+            console.log('Atualizando configuração existente no banco de dados...');
+            
             // Atualizar configuração existente
-            await db
+            const updateResult = await db
               .update(asaasConfig)
               .set({ 
-                apiKey: newApiKey,
+                apiKey: cleanApiKey,
                 mode,
                 walletId,
                 updatedAt: new Date()
               })
-              .where(eq(asaasConfig.id, existingConfig.id));
+              .where(eq(asaasConfig.id, existingConfig.id))
+              .returning();
             
+            console.log('Resultado da atualização:', updateResult);
             console.log(`Configuração Asaas atualizada para empresa ${companyId}`);
           } else {
+            console.log('Criando nova configuração no banco de dados...');
+            
             // Criar nova configuração
-            await db
+            const insertResult = await db
               .insert(asaasConfig)
               .values({
                 companyId,
-                apiKey: newApiKey,
+                apiKey: cleanApiKey,
                 mode,
                 walletId,
-              });
+              })
+              .returning();
             
+            console.log('Resultado da inserção:', insertResult);
             console.log(`Nova configuração Asaas criada para empresa ${companyId}`);
           }
           
           // Definir a empresa atual
           this.currentCompanyId = companyId;
+          
+          // Verificar novamente se a configuração foi salva corretamente
+          const configCheck = await this.getAsaasConfig(companyId);
+          if (configCheck && configCheck.apiKey === cleanApiKey) {
+            console.log('✅ Verificação: Chave API salva corretamente no banco de dados');
+          } else {
+            console.warn('⚠️ Verificação: A chave API pode não ter sido salva corretamente');
+          }
         } catch (dbError) {
           console.error('Erro ao salvar configuração Asaas no banco de dados:', dbError);
-          // Ainda retornamos true se a chave for válida, mesmo com erro de banco
+          if (dbError instanceof Error) {
+            console.error('Detalhes do erro:', dbError.message);
+            if (dbError.stack) console.error('Stack:', dbError.stack);
+          }
+          
+          // Se ainda conseguimos validar a chave, retornamos true mesmo com erro no banco
           return true;
         }
         
@@ -302,6 +338,10 @@ export class AsaasService {
       }
     } catch (error) {
       console.error('Erro ao testar nova chave API:', error);
+      if (error instanceof Error) {
+        console.error('Detalhes do erro:', error.message);
+        if (error.stack) console.error('Stack:', error.stack);
+      }
       return false;
     }
   }
