@@ -1,7 +1,14 @@
-import { Pool } from '@neondatabase/serverless';
-import { hashPassword } from './server/auth.js';
+import { Pool, neonConfig } from '@neondatabase/serverless';
+import ws from 'ws';
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// Configuração necessária para WebSockets
+neonConfig.webSocketConstructor = ws;
+
+// Usa a conexão do Supabase se disponível, caso contrário, usa a conexão padrão
+const connectionString = process.env.SUPABASE_DATABASE_URL || process.env.DATABASE_URL;
+console.log("Usando conexão:", process.env.SUPABASE_DATABASE_URL ? "Supabase" : "Padrão");
+
+const pool = new Pool({ connectionString });
 
 // Função para executar uma query
 async function query(text, params) {
