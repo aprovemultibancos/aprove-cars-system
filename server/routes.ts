@@ -2104,6 +2104,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rota para verificar se um número está no WhatsApp
+  app.get("/api/whatsapp/connections/:id/check-number", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Autenticação necessária" });
+      }
+      
+      const id = parseInt(req.params.id);
+      const phone = req.query.phone as string;
+      
+      if (!phone) {
+        return res.status(400).json({ message: "Número de telefone é obrigatório" });
+      }
+      
+      // Obter a conexão do banco de dados
+      const [connection] = await db.select().from(whatsappConnections).where(eq(whatsappConnections.id, id));
+      
+      if (!connection) {
+        return res.status(404).json({ message: "Conexão não encontrada" });
+      }
+      
+      // Verificar se a conexão está ativa
+      const sessionName = `session-${connection.id}`;
+      const status = await wppConnectServerService.getSessionStatus(sessionName);
+      
+      if (status !== 'CONNECTED') {
+        return res.status(400).json({ 
+          message: "Conexão não está ativa", 
+          status,
+          suggestion: "Escaneie o QR code para conectar ao WhatsApp Web"
+        });
+      }
+      
+      // Verificar se o número está no WhatsApp
+      const exists = await wppConnectServerService.checkNumberStatus(sessionName, phone);
+      
+      res.json({ 
+        phone,
+        exists,
+        message: exists ? "Número está no WhatsApp" : "Número não está no WhatsApp"
+      });
+    } catch (error) {
+      console.error("Erro ao verificar número WhatsApp:", error);
+      res.status(500).json({ message: "Erro ao verificar número WhatsApp", error: String(error) });
+    }
+  });
+  
   // Rota para envio direto de mensagem (single)
   app.post("/api/whatsapp/send", async (req, res) => {
     try {
@@ -2117,22 +2164,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Dados incompletos. Forneça connectionId, to e content" });
       }
       
-      // Verificar se é uma conexão válida
-      const connection = whatsappService.getConnection(connectionId);
-      if (!connection) {
-        return res.status(404).json({ message: "Conexão não encontrada ou não iniciada" });
+      // Obter a conexão do banco de dados
+      const [connectionData] = await db.select().from(whatsappConnections).where(eq(whatsappConnections.id, connectionId));
+      
+      if (!connectionData) {
+        return res.status(404).json({ message: "Conexão não encontrada" });
       }
       
-      let messageId: string | null;
+      let messageId: string | null = null;
+      let useWppConnectServer = false;
+      let wppConnectServerError = null;
       
-      // Enviar mensagem com base no tipo
-      if (type === 'image' && mediaUrl) {
-        messageId = await whatsappService.sendImageMessage(connectionId, to, mediaUrl, caption || content);
-      } else if (type === 'document' && mediaUrl) {
-        messageId = await whatsappService.sendDocumentMessage(connectionId, to, mediaUrl, filename || 'documento.pdf');
-      } else {
-        // Padrão é mensagem de texto
-        messageId = await whatsappService.sendTextMessage(connectionId, to, content);
+      // Tentar enviar via WPPConnect Server (método preferencial)
+      try {
+        const sessionName = `session-${connectionId}`;
+        const status = await wppConnectServerService.getSessionStatus(sessionName);
+        
+        if (status === 'CONNECTED') {
+          useWppConnectServer = true;
+          
+          // Enviar mensagem com base no tipo
+          if (type === 'image' && mediaUrl) {
+            const success = await wppConnectServerService.sendFile(sessionName, to, mediaUrl, filename, caption || content);
+            if (success) {
+              messageId = 'wpp_server_' + Date.now(); // Gerar um ID fictício pois o WPPConnect Server não retorna ID
+            }
+          } else if (type === 'document' && mediaUrl) {
+            const success = await wppConnectServerService.sendFile(sessionName, to, mediaUrl, filename || 'documento.pdf');
+            if (success) {
+              messageId = 'wpp_server_' + Date.now();
+            }
+          } else {
+            // Padrão é mensagem de texto
+            const success = await wppConnectServerService.sendMessage(sessionName, to, content);
+            if (success) {
+              messageId = 'wpp_server_' + Date.now();
+            }
+          }
+        }
+      } catch (error) {
+        wppConnectServerError = error;
+        console.error('Erro ao tentar enviar via WPPConnect Server:', error);
+        // Não lançamos a exceção aqui para tentar o outro método como fallback
+      }
+      
+      // Se não conseguimos usar o WPPConnect Server, tentamos o serviço padrão
+      if (!useWppConnectServer || !messageId) {
+        // Verificar se é uma conexão válida no serviço padrão
+        const connection = whatsappService.getConnection(connectionId);
+        if (!connection) {
+          if (wppConnectServerError) {
+            return res.status(500).json({ 
+              message: "Falha ao enviar mensagem. WPPConnect Server não está disponível e a conexão padrão não está iniciada.",
+              wppConnectServerError: String(wppConnectServerError)
+            });
+          }
+          return res.status(404).json({ message: "Conexão não encontrada ou não iniciada" });
+        }
+        
+        // Enviar mensagem com base no tipo
+        if (type === 'image' && mediaUrl) {
+          messageId = await whatsappService.sendImageMessage(connectionId, to, mediaUrl, caption || content);
+        } else if (type === 'document' && mediaUrl) {
+          messageId = await whatsappService.sendDocumentMessage(connectionId, to, mediaUrl, filename || 'documento.pdf');
+        } else {
+          // Padrão é mensagem de texto
+          messageId = await whatsappService.sendTextMessage(connectionId, to, content);
+        }
       }
       
       if (!messageId) {
@@ -2141,7 +2239,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({ 
         message: "Mensagem enviada com sucesso",
-        messageId
+        messageId,
+        via: useWppConnectServer ? 'wppconnect-server' : 'whatsapp-service'
       });
     } catch (error) {
       console.error("Erro ao enviar mensagem:", error);
