@@ -1,0 +1,96 @@
+🔧 Objetivo
+Conectar realmente ao WhatsApp Web usando WPPConnect (ou alternativa local), com backend Node.js ativo, QR Code funcional e sessão persistente por número.
+
+✅ Etapas do Backend (Node.js)
+1. Instale o WPPConnect (server oficial):
+
+bash
+Copiar
+Editar
+git clone https://github.com/wppconnect-team/wppconnect-server.git
+cd wppconnect-server
+npm install
+2. Configure o .env:
+
+env
+Copiar
+Editar
+PORT=21465
+SECRET_KEY=aprove_key
+3. Inicie o servidor:
+
+bash
+Copiar
+Editar
+npm run start
+📡 Endpoints importantes do WPPConnect (já prontos no servidor):
+
+Rota	Função
+POST /start	Inicia uma nova sessão
+GET /qrCode	Retorna o QR code da sessão
+GET /status-session	Retorna o status da sessão
+POST /send-message	Envia mensagem para número
+POST /send-file	Envia mídia
+🧠 Etapas do Frontend (React):
+4. Ao adicionar uma conexão nova:
+
+Salve o número, nome e limite diário no banco local.
+
+Envie POST /start com { session: numeroTelefone }
+
+5. Exiba o QR Code:
+
+Chame GET /qrCode?session=numero
+
+Renderize o QR na interface até que o status da sessão seja CONNECTED.
+
+6. Verifique o status constantemente:
+
+GET /status-session?session=numero
+
+Mostre “Conectado” apenas se status: 'CONNECTED'
+
+📦 Persistência da Sessão
+7. Configure o WPPConnect para usar file-based session ou banco de dados MongoDB.
+
+Isso evita precisar escanear QR Code toda vez.
+
+Exemplo no .env:
+
+env
+Copiar
+Editar
+SESSION_STORAGE_TYPE=file
+🚀 Envio de Mensagem
+8. Para disparar mensagem:
+
+POST /send-message
+
+json
+Copiar
+Editar
+{
+  "session": "5548999663865",
+  "phone": "5548999999999",
+  "message": "Olá, tudo bem? Aqui é da Aproveh!"
+}
+🔁 Verificações para Diagnóstico
+Se aparece “Conexão iniciada” mas nada conecta de verdade, verifique:
+
+
+Verificação	O que fazer
+Backend rodando	A porta do WPPConnect está ativa? (ex: http://localhost:21465/)
+QR gerado?	Está pegando o QR correto? Use Postman ou browser direto
+O WhatsApp Web abre no navegador do backend?	Pode precisar abrir o Chrome headless ou configurar puppeteer
+Você está usando o mesmo número em outro lugar?	WhatsApp Web só permite um login por vez. Desconecte dos outros dispositivos
+💡 Bônus: Para ambiente de produção
+Use PM2 para manter o WPPConnect sempre rodando:
+
+bash
+Copiar
+Editar
+pm2 start npm --name "wppconnect" -- run start
+Liberar porta no servidor (VPS ou cloud)
+
+Adicionar CORS no backend para permitir chamadas do painel frontend
+

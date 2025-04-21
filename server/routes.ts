@@ -31,6 +31,7 @@ import { db } from "./db";
 import { z } from "zod";
 import { asaasService, AsaasPaymentRequest, AsaasCustomerRequest, AsaasPaymentResponse, AsaasPaymentMethod, AsaasPaymentStatus } from "./services/asaas";
 import { whatsappService } from "./services/whatsapp";
+import { wppConnectServerService } from "./services/wppconnect-server";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up auth routes
