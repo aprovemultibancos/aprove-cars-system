@@ -111,30 +111,35 @@ export class AsaasService {
   public currentCompanyId: number | null;
   
   constructor() {
-    // Inicializar com valores padrão
-    this.apiKey = ASAAS_API_KEY || 'demo-key';
-    this.inDemoMode = !ASAAS_API_KEY;
-    this.baseUrl = ASAAS_API_KEY?.startsWith('$aact_') || ASAAS_API_KEY?.includes('prod_') 
-      ? ASAAS_PRODUCTION_URL 
-      : ASAAS_SANDBOX_URL;
-    this.currentCompanyId = null;
+    // Verificar se temos uma API KEY válida no ambiente
+    const hasValidApiKey = ASAAS_API_KEY && ASAAS_API_KEY.trim() !== '';
     
-    if (!ASAAS_API_KEY) {
-      console.warn('ATENÇÃO: ASAAS_API_KEY não está configurada. O sistema funcionará em modo de demonstração com dados simulados.');
-    } else {
+    if (hasValidApiKey) {
+      // Usar a chave de API definida no ambiente
+      this.apiKey = ASAAS_API_KEY!;
+      this.inDemoMode = false; // Nunca usar modo de demonstração quando temos chave válida
+      
+      // Definir a URL base com base no tipo de chave
       if (this.apiKey.startsWith('$aact_') || this.apiKey.includes('prod_')) {
+        this.baseUrl = ASAAS_PRODUCTION_URL;
         console.log('📊 Utilizando ambiente de PRODUÇÃO do Asaas');
       } else {
+        this.baseUrl = ASAAS_SANDBOX_URL;
         console.log('📋 Utilizando ambiente de SANDBOX do Asaas');
       }
+    } else {
+      // Sem chave de API no ambiente, começar sem configuração
+      console.warn('ATENÇÃO: ASAAS_API_KEY não está configurada. O sistema buscará a configuração no banco de dados.');
+      this.apiKey = 'not-configured';
+      this.baseUrl = ASAAS_SANDBOX_URL;
+      this.inDemoMode = true; // Começar em modo de demonstração até configurarmos
     }
     
-    // Iniciar teste de conexão em background
-    setTimeout(() => this.testConnection(), 1000);
+    this.currentCompanyId = null;
     
-    // Desativar o modo de demonstração se houver chave de API
-    if (ASAAS_API_KEY) {
-      this.inDemoMode = false;
+    // Iniciar teste de conexão em background se tivermos chave
+    if (hasValidApiKey) {
+      setTimeout(() => this.testConnection(), 1000);
     }
   }
   
@@ -243,20 +248,33 @@ export class AsaasService {
             console.error('Erro ao migrar configuração:', migrationError);
           }
         } else {
-          // Se não encontrar configuração, usar a chave padrão do ambiente
-          this.apiKey = ASAAS_API_KEY || 'demo-key';
-          this.inDemoMode = !ASAAS_API_KEY;
-          this.currentCompanyId = null;
-          
-          // Definir URL base com base na chave padrão
-          if (this.apiKey?.startsWith('$aact_') || this.apiKey?.includes('prod_')) {
-            this.baseUrl = ASAAS_PRODUCTION_URL;
+          // Se não encontrar configuração e tivermos uma chave válida no ambiente
+          if (ASAAS_API_KEY && ASAAS_API_KEY.trim() !== '') {
+            this.apiKey = ASAAS_API_KEY;
+            this.inDemoMode = false; // Nunca usar modo de demonstração com chave válida
+            this.currentCompanyId = companyId; // Considerar selecionada mesmo sem configuração salva
+            
+            // Definir URL base com base na chave do ambiente
+            if (this.apiKey.startsWith('$aact_') || this.apiKey.includes('prod_')) {
+              this.baseUrl = ASAAS_PRODUCTION_URL;
+              console.log(`📊 Usando ambiente de PRODUÇÃO do Asaas para empresa ${companyId} (chave do ambiente)`);
+            } else {
+              this.baseUrl = ASAAS_SANDBOX_URL;
+              console.log(`📋 Usando ambiente de SANDBOX do Asaas para empresa ${companyId} (chave do ambiente)`);
+            }
+            
+            console.log(`Empresa ${companyId} não possui configuração Asaas salva, mas usando chave válida do ambiente.`);
+            return true;
           } else {
+            // Sem configuração e sem chave válida no ambiente
+            this.apiKey = 'not-configured';
+            this.inDemoMode = true;
+            this.currentCompanyId = null;
             this.baseUrl = ASAAS_SANDBOX_URL;
+            
+            console.warn(`Empresa ${companyId} não possui configuração Asaas e não há chave válida no ambiente.`);
+            return false;
           }
-          
-          console.warn(`Empresa ${companyId} não possui configuração Asaas. Usando chave padrão.`);
-          return false;
         }
       }
       
@@ -957,29 +975,10 @@ export class AsaasService {
       
       // Verificar estado da conexão com Asaas
       if (this.inDemoMode || !this.apiKey || this.apiKey === 'demo-key') {
-        console.warn('Serviço Asaas em modo demo. Impossível buscar clientes reais.');
-        // Retornar dados de demonstração no modo de demonstração
-        return {
-          id: 'cus_000000000001',
-          name: 'Cliente de Demonstração',
-          cpfCnpj: cpfCnpj,
-          email: 'cliente@exemplo.com',
-          phone: '11999999999',
-          mobilePhone: '11999999999',
-          address: 'Rua Exemplo',
-          addressNumber: '123',
-          complement: '',
-          province: 'Centro',
-          postalCode: '01234567',
-          deleted: false,
-          additionalEmails: '',
-          municipalInscription: '',
-          stateInscription: '',
-          observations: '',
-          externalReference: '',
-          notificationDisabled: false,
-          createdAt: new Date().toISOString()
-        };
+        console.warn('Serviço Asaas em modo demo ou API key não configurada.');
+        console.warn('Retornando NULL para forçar cadastro manual do cliente.');
+        // Não retornamos mais cliente de demonstração, forçando o usuário a cadastrar o cliente
+        return null;
       }
       
       // Remover caracteres não numéricos do CPF/CNPJ

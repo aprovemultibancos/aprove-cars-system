@@ -1066,42 +1066,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description,
         externalReference,
         creditCardData,
-        addressInfo
+        addressInfo,
+        customerId // ID direto do cliente, se já existente
       } = req.body;
       
-      // 1. Verificar se o cliente já existe ou criar um novo
-      let customerId;
+      // Verificar se temos um ID de cliente válido
+      let finalCustomerId = customerId;
       
-      // Buscar cliente pelo CPF/CNPJ
-      const existingCustomer = await asaasService.findCustomerByCpfCnpj(customerCpfCnpj);
-      
-      if (existingCustomer) {
-        console.log("Cliente encontrado no Asaas:", existingCustomer.id);
-        customerId = existingCustomer.id;
-      } else {
-        // Cliente não existe, criar um novo
-        const customerData: AsaasCustomerRequest = {
-          name: customerName,
-          cpfCnpj: customerCpfCnpj,
-          email: customerEmail,
-          phone: customerPhone,
-          mobilePhone: customerPhone,
-          postalCode: addressInfo?.postalCode,
-          address: addressInfo?.address,
-          addressNumber: addressInfo?.addressNumber,
-          complement: addressInfo?.complement,
-          province: addressInfo?.province  // Bairro
-        };
+      // Se não temos um ID direto, buscar pelo CPF/CNPJ
+      if (!finalCustomerId && customerCpfCnpj) {
+        // Buscar cliente pelo CPF/CNPJ
+        console.log(`Buscando cliente com CPF/CNPJ: ${customerCpfCnpj}`);
+        const existingCustomer = await asaasService.findCustomerByCpfCnpj(customerCpfCnpj);
         
-        console.log("Criando novo cliente no Asaas:", customerData);
-        const newCustomer = await asaasService.createCustomer(customerData);
-        customerId = newCustomer.id;
-        console.log("Novo cliente criado:", newCustomer.id);
+        if (existingCustomer) {
+          console.log(`Cliente encontrado no Asaas: ${existingCustomer.name} (ID: ${existingCustomer.id})`);
+          finalCustomerId = existingCustomer.id;
+        } else {
+          // Cliente não existe no Asaas, retornar erro pois não estamos criando clientes automaticamente
+          console.error("Cliente não encontrado no Asaas");
+          return res.status(400).json({ 
+            message: "Cliente não encontrado no Asaas. Por favor, cadastre o cliente na página de Clientes antes de criar uma cobrança."
+          });
+        }
       }
       
-      // 2. Criar o pagamento com as taxas customizadas
+      // Verificar se temos um ID de cliente válido após as buscas
+      if (!finalCustomerId) {
+        return res.status(400).json({ 
+          message: "ID do cliente é obrigatório para criar uma cobrança. Por favor, selecione um cliente."
+        });
+      }
+      
+      // Criar o pagamento com as taxas customizadas
       const paymentData: AsaasPaymentRequest = {
-        customer: customerId,
+        customer: finalCustomerId,
         billingType: billingType,
         value: parseFloat(value),
         dueDate: dueDate,
