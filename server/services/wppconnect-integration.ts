@@ -43,28 +43,16 @@ export class WPPConnectIntegration extends EventEmitter {
     }
     
     this.status = 'connecting';
-    console.log(`Iniciando conexão WhatsApp para ${this.connectionInfo.name} no modo: ${this.mode}`);
+    console.log(`Iniciando conexão WhatsApp para ${this.connectionInfo.name} usando método direto`);
     
-    if (this.mode === 'direct') {
+    // Forçar sempre o modo direto para garantir melhor conectividade
+    try {
       await this.connectDirect();
-    } else if (this.mode === 'server') {
-      await this.connectServer();
-    } else {
-      // Modo automático: tenta primeiro o servidor, depois a conexão direta
-      try {
-        await this.connectServer();
-        this.lastMode = 'server';
-      } catch (error) {
-        console.log(`Erro na conexão via servidor, tentando conexão direta: ${error}`);
-        try {
-          await this.connectDirect();
-          this.lastMode = 'direct';
-        } catch (directError) {
-          console.error(`Erro em ambos os métodos de conexão: ${directError}`);
-          this.status = 'disconnected';
-          throw directError;
-        }
-      }
+      this.lastMode = 'direct';
+    } catch (directError) {
+      console.error(`Erro na conexão direta: ${directError}`);
+      this.status = 'disconnected';
+      throw directError;
     }
   }
   

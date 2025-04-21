@@ -42,8 +42,8 @@ export class WhatsappSessionHandler {
   private _emitter = new EventEmitter();
 
   constructor(connectionInfo: WhatsappConnection) {
-    // Usar o modo 'auto' que tenta primeiro o servidor e depois a conexão direta
-    this.integration = WPPConnectIntegrationFactory.getInstance(connectionInfo, 'auto');
+    // Forçar modo direto (sempre conectar diretamente, não via servidor)
+    this.integration = WPPConnectIntegrationFactory.getInstance(connectionInfo, 'direct');
     
     // Encaminhar eventos da implementação WPPConnect
     this.integration.on('qrCode', (qrCode) => {
