@@ -94,7 +94,7 @@ export interface AsaasBalanceResponse {
 export class AsaasService {
   private apiKey: string;
   private baseUrl: string;
-  private inDemoMode: boolean;
+  public inDemoMode: boolean;
   
   constructor() {
     if (!ASAAS_API_KEY) {

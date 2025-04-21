@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAsaas } from "@/hooks/use-asaas";
+import { useAsaas, CreateCustomerParams } from "@/hooks/use-asaas";
 import { useToast } from "@/hooks/use-toast";
 import { useParams } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,11 +23,13 @@ import {
   XCircle, 
   Plus,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  UserPlus
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ApiConfigForm } from "@/components/settings/api-config-form";
+import { NewCustomerForm } from "@/components/customers/new-customer-form";
 import { AsaasCustomersList } from "@/components/customers/asaas-customers-list";
 
 export default function PaymentsPage() {

@@ -5,7 +5,7 @@ import { setupAuth, hashPassword } from "./auth";
 import { insertVehicleSchema, insertCustomerSchema, insertSaleSchema, insertFinancingSchema, insertExpenseSchema, updateExpenseStatusSchema, insertPersonnelSchema, insertUserSchema, users as usersTable } from "@shared/schema";
 import { db } from "./db";
 import { z } from "zod";
-import { asaasService, AsaasPaymentRequest, AsaasCustomerRequest } from "./services/asaas";
+import { asaasService, AsaasPaymentRequest, AsaasCustomerRequest, AsaasPaymentResponse, AsaasPaymentMethod, AsaasPaymentStatus } from "./services/asaas";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up auth routes
