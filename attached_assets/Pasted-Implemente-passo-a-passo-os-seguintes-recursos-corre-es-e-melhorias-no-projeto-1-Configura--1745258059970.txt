@@ -1,0 +1,165 @@
+Implemente passo a passo os seguintes recursos, correções e melhorias no projeto:
+
+🔐 1. Configuração e persistência da chave da API do Asaas
+Objetivo: Garantir que o sistema mantenha a chave salva, reconheça o modo produção e a utilize corretamente em todas as chamadas.
+
+Passos:
+
+Criar tabela asaas_config com empresa_id, api_key, modo (sandbox ou producao)
+
+Criar endpoints:
+
+POST /api/asaas/config → salva chave
+
+GET /api/asaas/config → retorna chave e modo
+
+Quando usuário salvar a chave, detectar se é chave sandbox ou produção
+
+Carregar automaticamente a chave ao abrir a aba “Configuração”
+
+Usar essa chave em todas as requisições da classe AsaasAPI
+
+🧠 2. Cadastro de clientes com CEP automático
+Objetivo: Facilitar o preenchimento de endereço no cadastro de cliente.
+
+Passos:
+
+Ao digitar 8 números no campo CEP, chamar API:
+https://viacep.com.br/ws/{cep}/json/
+
+Preencher campos:
+
+logradouro, bairro, cidade, estado
+
+Permitir que o usuário edite os campos manualmente após preenchimento automático
+
+👥 3. Sincronizar e listar clientes reais do Asaas
+Objetivo: Mostrar clientes existentes no Asaas e facilitar seleção em cobranças e vendas.
+
+Passos:
+
+Ao carregar a aba Clientes, chamar:
+GET /api/v3/customers
+
+Popular a listagem com os clientes reais
+
+Criar botão "Sincronizar Clientes" que salva todos os retornos no banco local
+
+Usar esses dados em:
+
+Nova cobrança
+
+Registrar venda
+
+💳 4. Criar cobrança real no Asaas
+Passos:
+
+Selecionar cliente existente ou criar novo
+
+Preencher os dados obrigatórios: valor, data, descrição
+
+Enviar para o endpoint /v3/payments
+
+Se for PIX ou Cartão, permitir geração do link
+
+Armazenar ID da cobrança no sistema local
+
+💰 5. Exibir taxas reais + comissão da plataforma
+Passos:
+
+Mostrar valores reais do Asaas:
+
+Cartão: 1.5%
+
+Boleto: R$ 1,99
+
+Pix: 0.99%
+
+Adicionar comissão do sistema: 1% sobre o valor
+
+Exibir total da taxa final:
+
+Cartão: 2.5%
+
+Boleto: R$1.99 + 1%
+
+Pix: 0.99% + 1%
+
+🧾 6. Registrar Venda com cliente do Asaas
+Passos:
+
+Campo "Cliente Registrado":
+
+Buscar os clientes sincronizados do Asaas
+
+Permitir campo manual como fallback
+
+Campo "ID do pagamento Asaas":
+
+Preenchido automaticamente se a venda gerar uma cobrança
+
+🔄 7. Split de Pagamento (comissão do master)
+Passos:
+
+Criar configuração de carteira master no backend (masterWalletId)
+
+Ao criar link ou cobrança, incluir:
+
+ts
+Copiar
+Editar
+split: [
+  {
+    walletId: "WALLET_ID_DO_MASTER",
+    percentualValue: 1
+  }
+]
+Registrar no banco a comissão recebida para relatórios
+
+📲 8. Integração WhatsApp Marketing com Conexão Web (NÃO Telein)
+Problema atual: Tela exibe erro: "Invalid hook call". Além disso, a conexão com o WhatsApp Web não está estabelecendo.
+
+✅ Passos para resolver e integrar corretamente com o WhatsApp (usando WPPConnect):
+A. Corrigir estrutura React
+O erro "Invalid hook call" ocorre porque está chamando useState, useEffect ou outro hook fora de componente.
+
+Corrigir isso movendo a chamada do hook para dentro de um componente funcional válido.
+
+B. Backend de conexão WhatsApp
+Substituir Telein por WPPConnect (ou Baileys, Venom ou WhatsApp Cloud API, se preferir)
+
+Criar serviço local (Node.js com Express):
+
+/connect: retorna QR Code
+
+/status: verifica se está conectado
+
+/send-message: envia texto
+
+/send-media: envia mídia
+
+Usar Docker ou PM2 para manter conexão viva
+
+Exibir QR Code no frontend para conectar o número
+
+Ao conectar, salvar session local
+
+C. Frontend de envio
+Aba WhatsApp:
+
+Conexões: cadastrar nome, número e limite
+
+Contatos: CRUD completo
+
+Templates: modelo de mensagem
+
+Campanhas: enviar mensagens em massa por grupo, CSV ou seleção
+
+D. Envio com segurança
+Adicionar:
+
+Limite de mensagens por conexão/dia
+
+Intervalo entre envios (configurável)
+
+Logs com falha ou sucesso por número

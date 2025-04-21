@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -23,7 +23,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle, Search } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 // Schema para validação do formulário de cliente
 const customerFormSchema = z.object({
@@ -47,6 +48,8 @@ type CustomerFormValues = z.infer<typeof customerFormSchema>;
 export function NewCustomerForm({ onSuccess }: { onSuccess?: () => void }) {
   const { createCustomerMutation } = useAsaas();
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [loadingCep, setLoadingCep] = useState(false);
+  const { toast } = useToast();
   
   const form = useForm<CustomerFormValues>({
     resolver: zodResolver(customerFormSchema),
@@ -63,6 +66,64 @@ export function NewCustomerForm({ onSuccess }: { onSuccess?: () => void }) {
       province: ""
     }
   });
+  
+  // Função para buscar e preencher endereço pelo CEP
+  const fetchAddressByCep = async (cep: string) => {
+    // Remover qualquer caractere não-numérico do CEP
+    const cleanCep = cep.replace(/\D/g, '');
+    
+    // Verificar se o CEP tem 8 dígitos
+    if (cleanCep.length !== 8) return;
+    
+    try {
+      setLoadingCep(true);
+      const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+      const data = await response.json();
+      
+      if (data.erro) {
+        toast({
+          title: "CEP não encontrado",
+          description: "Verifique o CEP informado e tente novamente.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Preencher os campos do formulário com os dados retornados
+      form.setValue('address', data.logradouro || '');
+      form.setValue('province', data.bairro || '');
+      form.setValue('complement', data.complemento || '');
+      
+      toast({
+        title: "Endereço encontrado",
+        description: "Os campos de endereço foram preenchidos automaticamente.",
+        variant: "default"
+      });
+    } catch (error) {
+      console.error('Erro ao buscar CEP:', error);
+      toast({
+        title: "Erro ao buscar CEP",
+        description: "Não foi possível consultar o CEP. Tente novamente mais tarde.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingCep(false);
+    }
+  };
+  
+  // Monitorar alterações no campo CEP
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'postalCode') {
+        const postalCode = value.postalCode as string;
+        if (postalCode && postalCode.replace(/\D/g, '').length === 8) {
+          fetchAddressByCep(postalCode);
+        }
+      }
+    });
+    
+    return () => subscription.unsubscribe();
+  }, [form.watch]);
   
   const onSubmit = async (data: CustomerFormValues) => {
     const customerData: CreateCustomerParams = {
@@ -175,9 +236,32 @@ export function NewCustomerForm({ onSuccess }: { onSuccess?: () => void }) {
                   <FormItem>
                     <FormLabel>CEP</FormLabel>
                     <FormControl>
-                      <Input placeholder="00000-000" {...field} />
+                      <div className="flex items-center space-x-2">
+                        <div className="relative w-full">
+                          <Input placeholder="00000-000" {...field} />
+                          {loadingCep && (
+                            <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            </div>
+                          )}
+                        </div>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="icon"
+                          disabled={loadingCep || !field.value || field.value.replace(/\D/g, '').length !== 8}
+                          onClick={() => fetchAddressByCep(field.value)}
+                        >
+                          <Search className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </FormControl>
                     <FormMessage />
+                    {!loadingCep && field.value && field.value.replace(/\D/g, '').length === 8 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Clique na lupa para buscar o endereço
+                      </p>
+                    )}
                   </FormItem>
                 )}
               />
