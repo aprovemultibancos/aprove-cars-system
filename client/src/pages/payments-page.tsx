@@ -28,7 +28,6 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ApiConfigForm } from "@/components/settings/api-config-form";
 import { NewCustomerForm } from "@/components/customers/new-customer-form";
 import { AsaasCustomersList } from "@/components/customers/asaas-customers-list";
 
