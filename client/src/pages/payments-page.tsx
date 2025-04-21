@@ -46,7 +46,6 @@ export default function PaymentsPage() {
           <TabsTrigger value="payments">Cobranças</TabsTrigger>
           <TabsTrigger value="customers">Clientes</TabsTrigger>
           <TabsTrigger value="create">Nova Cobrança</TabsTrigger>
-          <TabsTrigger value="settings">Configuração</TabsTrigger>
         </TabsList>
         
         <TabsContent value="overview" className="space-y-4">
@@ -65,9 +64,7 @@ export default function PaymentsPage() {
           <PaymentForm />
         </TabsContent>
         
-        <TabsContent value="settings" className="space-y-4">
-          <ApiConfigForm />
-        </TabsContent>
+
       </Tabs>
     </div>
   );
@@ -125,34 +122,21 @@ function BalanceOverview() {
       
       <Card className="col-span-1 md:col-span-2">
         <CardHeader>
-          <CardTitle>Informações de Taxas</CardTitle>
-          <CardDescription>Taxas aplicadas em cada método de pagamento</CardDescription>
+          <CardTitle>Visão geral do sistema</CardTitle>
+          <CardDescription>Acompanhe suas cobranças diretamente dentro do sistema</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            <div className="flex items-center p-2 rounded-lg border">
-              <CreditCard className="h-8 w-8 text-blue-500 mr-4" />
-              <div>
-                <div className="font-medium">Cartão de Crédito</div>
-                <div className="text-sm text-gray-500">Taxa adicional de 1,50% sobre o valor da cobrança</div>
-              </div>
-            </div>
+            <p className="text-base text-gray-700">
+              O sistema de pagamentos está diretamente integrado com o Asaas, permitindo que você:
+            </p>
             
-            <div className="flex items-center p-2 rounded-lg border">
-              <Banknote className="h-8 w-8 text-green-500 mr-4" />
-              <div>
-                <div className="font-medium">Boleto</div>
-                <div className="text-sm text-gray-500">Taxa fixa de R$ 1,99 por boleto pago</div>
-              </div>
-            </div>
-            
-            <div className="flex items-center p-2 rounded-lg border">
-              <QrCode className="h-8 w-8 text-purple-500 mr-4" />
-              <div>
-                <div className="font-medium">PIX</div>
-                <div className="text-sm text-gray-500">Taxa de 0,99% sobre o valor da cobrança</div>
-              </div>
-            </div>
+            <ul className="list-disc list-inside space-y-1 text-gray-600 pl-2">
+              <li>Veja seu saldo e transações em tempo real</li>
+              <li>Gere cobranças por boleto ou PIX</li>
+              <li>Envie links de pagamento para clientes</li>
+              <li>Receba notificações de pagamentos</li>
+            </ul>
           </div>
         </CardContent>
       </Card>
