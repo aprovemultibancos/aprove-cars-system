@@ -16,6 +16,7 @@ import PersonnelPage from "@/pages/personnel-page";
 import ReportsPage from "@/pages/reports-page";
 import UserManagementPage from "@/pages/user-management-page";
 import PaymentsPage from "@/pages/payments-page";
+import WhatsappPage from "@/pages/whatsapp-page";
 
 function Router() {
   return (
@@ -44,6 +45,7 @@ function Router() {
 
       <ProtectedRoute path="/reports" component={() => <Layout><ReportsPage /></Layout>} />
       <ProtectedRoute path="/users" component={() => <Layout><UserManagementPage /></Layout>} />
+      <ProtectedRoute path="/whatsapp" component={() => <Layout><WhatsappPage /></Layout>} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>

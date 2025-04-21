@@ -1,0 +1,117 @@
+Objetivo: Validar se a estrutura atual do nosso sistema está adequada para suportar a operação multiempresa com split de pagamentos, integração real com a API Asaas, e envio em massa de mensagens via WhatsApp. Também avaliar se a arquitetura está preparada para escalar e incorporar novas funcionalidades descritas.
+
+📌 1. Estrutura Multiempresa e Split de Pagamentos
+Nosso sistema será vendido como um CRM para outras lojas de veículos.
+
+Cada loja terá sua própria subconta, e precisamos lucrar por transação além da mensalidade.
+
+O split de pagamento está configurado para garantir 1% automático para a conta master (masterWalletId).
+
+A Classe AsaasAPI deve suportar múltiplas chaves (uma por loja), e identificar a conta mãe no momento do split.
+
+✅ Validar:
+
+A estrutura da AsaasAPI permite múltiplas instâncias simultâneas com diferentes tokens?
+
+A sincronização de dados (clientes/pagamentos) está isolada por loja?
+
+A implementação do split está funcionando corretamente para pagamentos gerados pelas subcontas?
+
+📩 2. Envio em Massa via WhatsApp (Telein)
+Queremos uma funcionalidade integrada ao painel CRM que permita:
+
+Conexão com API WhatsApp (Telein)
+
+Cadastro e gestão de contatos (manualmente ou via CSV)
+
+Criação de modelos de envio com textos, imagens, vídeos, PDF, áudio
+
+Regras de envio com segurança (intervalo, limite por chip, horário)
+
+Campanhas com progresso, logs e exportação de relatórios
+
+✅ Validar:
+
+Já existe endpoint pronto ou precisa de integração manual com a API da Telein?
+
+Existe mapeamento para armazenar os contatos, modelos e logs no banco?
+
+O sistema identifica se o WhatsApp está conectado para iniciar os envios?
+
+🔄 3. Sincronização Cliente (Vendas e Pagamentos)
+O cliente selecionado em "Vendas" deve ser o mesmo que está em "Pagamentos".
+
+O cliente vem diretamente do Asaas, e é registrado automaticamente no banco local.
+
+A criação de venda deve puxar esse cliente da base local sincronizada com o Asaas.
+
+✅ Validar:
+
+Existe algum cache ou sincronização automatizada entre os clientes Asaas e o sistema local?
+
+A tela de venda está conectada ao banco de dados de clientes sincronizados?
+
+Existe validação para não duplicar cliente no banco caso ele já exista no Asaas?
+
+💳 4. Módulos financeiros adicionais do Asaas
+Queremos incluir no nosso sistema, além de cobranças:
+
+Visualização de extrato
+
+Transferência entre contas
+
+Pagamento de contas
+
+Registro e simulação de antecipações
+
+Antecipação automática
+
+Negativação de inadimplentes (via Asaas ou parceiros)
+
+✅ Validar:
+
+Os endpoints da Asaas necessários para isso já estão mapeados na AsaasAPI?
+
+A estrutura do banco permite armazenar extrato, transferências e simulações?
+
+A conta Asaas contratada suporta os recursos de negativação e antecipação?
+
+🔐 5. Revisão da arquitetura AsaasAPI atual
+Conforme já implementado:
+
+Classe AsaasAPI com abstração de todas operações
+
+Autenticação via access_token
+
+Detecção de ambiente (prod/sandbox)
+
+Suporte a:
+
+Criação de clientes
+
+Pagamentos
+
+Assinaturas
+
+Cartões (tokenização)
+
+Links de pagamento
+
+Split com 1% automático
+
+Modo sandbox para testes
+
+Controladores organizados por recurso
+
+Sincronização local após cada operação
+
+Validações robustas no front e backend
+
+✅ Validar:
+
+Toda a comunicação com a API está utilizando try/catch com logs apropriados?
+
+O backend permite expansão fácil para novos endpoints como transfers, anticipations?
+
+As estruturas de dados locais refletem fielmente o que vem da API Asaas (IDs, status, walletId etc.)?
+

@@ -12,6 +12,7 @@ import {
   Users,
   CircleDollarSign,
   Receipt,
+  MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -103,6 +104,17 @@ export function Sidebar() {
                   </SidebarLink>
                   <SidebarLink href="/payments" icon={Receipt} currentPath={location}>
                     Pagamentos
+                  </SidebarLink>
+                </div>
+              </div>
+              
+              <div className="mt-6">
+                <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Marketing
+                </h3>
+                <div className="mt-2 space-y-1">
+                  <SidebarLink href="/whatsapp" icon={MessageSquare} currentPath={location}>
+                    WhatsApp
                   </SidebarLink>
                 </div>
               </div>

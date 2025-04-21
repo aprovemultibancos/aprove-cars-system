@@ -200,10 +200,6 @@ export default function WhatsappPage() {
           return (
             <WhatsappCampaignForm
               editingCampaign={editingItem}
-              templates={templates || []}
-              connections={connections || []}
-              groups={groups || []}
-              contacts={contacts || []}
               onSave={handleSave}
               onCancel={handleCancel}
             />
