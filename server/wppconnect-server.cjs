@@ -1,112 +1,133 @@
 /**
- * Servidor WPPConnect para gerenciar conexões WhatsApp
+ * Script para iniciar o servidor WPPConnect (versão CommonJS)
  */
+
+const { create } = require('@wppconnect-team/wppconnect');
 const express = require('express');
 const cors = require('cors');
-const wppconnect = require('@wppconnect-team/wppconnect');
 const fs = require('fs');
 const path = require('path');
 
-// Configuração do servidor
-const app = express();
-const PORT = 21465;
-const API_KEY = 'aprove_key'; // Chave de API para autenticação
-const SESSIONS_DIR = path.join(__dirname, '..', 'whatsapp-sessions');
+// Configurações
+const PORT = process.env.WPPCONNECT_PORT || 21465;
+const API_KEY = process.env.WPPCONNECT_KEY || 'seu-token';
+const SESSIONS_DIR = path.resolve(process.cwd(), 'whatsapp-sessions');
 
-// Certificar que a pasta de sessões existe
+// Garantir que o diretório de sessões existe
 if (!fs.existsSync(SESSIONS_DIR)) {
   fs.mkdirSync(SESSIONS_DIR, { recursive: true });
 }
 
-// Middlewares
-app.use(cors());
-app.use(express.json());
-
-// Autenticação de API simples
-app.use((req, res, next) => {
-  const apiKey = req.path.split('/')[2]; // Formato: /api/{chave}/...
-  if (apiKey !== API_KEY) {
-    return res.status(403).json({ status: false, message: 'API Key inválida' });
-  }
-  next();
-});
-
 // Armazenar clientes ativos
 const clients = {};
 
-// Opções do WPPConnect
-const wppOptions = {
-  folderNameToken: SESSIONS_DIR, // Pasta onde serão guardadas as sessões
-  puppeteerOptions: {
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
-      '--no-first-run',
-      '--no-zygote',
-      '--single-process',
-      '--disable-gpu'
-    ],
-    headless: 'new'
-  },
-  createPathFileToken: true, // Cria arquivos de token para sessão
-  tokenStore: 'file', // Armazena tokens em arquivo
-  catchQR: (base64Qr, asciiQR, sessionName) => {
-    // Armazenar QR code para ser recuperado mais tarde
-    if (!clients[sessionName]) {
-      clients[sessionName] = {};
-    }
-    clients[sessionName].qrCode = base64Qr;
-  },
+// Configurar Express
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// Middleware de autenticação
+const authMiddleware = (req, res, next) => {
+  const token = req.query.token || req.headers['x-api-key'];
+  
+  if (!token || token !== API_KEY) {
+    return res.status(401).json({
+      status: false,
+      message: 'Token de API inválido'
+    });
+  }
+  
+  next();
 };
 
+// Rota raiz
+app.get('/', (req, res) => {
+  res.send('Servidor WPPConnect ativo!');
+});
+
 // Iniciar uma sessão
-app.post('/api/:key/start-session', async (req, res) => {
+app.post('/api/:token/start-session', async (req, res) => {
+  const token = req.params.token;
+  if (token !== API_KEY) {
+    return res.status(401).json({
+      status: false,
+      message: 'Token de API inválido'
+    });
+  }
+  
+  const { session } = req.body;
+  if (!session) {
+    return res.status(400).json({
+      status: false,
+      message: 'Nome da sessão não fornecido'
+    });
+  }
+  
+  // Verificar se a sessão já existe
+  if (clients[session]) {
+    return res.status(200).json({
+      status: true,
+      message: 'Sessão já está ativa'
+    });
+  }
+  
   try {
-    const { session } = req.body;
-    
-    if (!session) {
-      return res.status(400).json({
-        status: false,
-        message: 'Nome da sessão é obrigatório'
-      });
-    }
-    
-    if (clients[session]?.client) {
-      return res.status(200).json({
-        status: true,
-        message: 'Sessão já está inicializada'
-      });
-    }
-    
-    // Iniciar cliente
-    const client = await wppconnect.create({
+    // Inicializar cliente WPPConnect
+    const client = await create({
       session,
-      ...wppOptions,
+      catchQR: (base64Qr, asciiQR, attempts, urlCode) => {
+        // Armazenar QR code para esta sessão
+        clients[session] = {
+          ...clients[session],
+          qrCode: base64Qr,
+          status: 'QRCODE'
+        };
+      },
       statusFind: (statusSession, session) => {
-        console.log(`Status da sessão [${session}]: ${statusSession}`);
-        if (!clients[session]) {
-          clients[session] = {};
-        }
-        clients[session].status = statusSession;
+        clients[session] = {
+          ...clients[session],
+          status: statusSession
+        };
+      },
+      folderNameToken: SESSIONS_DIR,
+      headless: true,
+      useChrome: false,
+      debug: false,
+      logQR: false,
+      browserWS: '',
+      autoClose: 60000,
+      puppeteerOptions: {
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--disable-gpu'
+        ]
       }
     });
     
-    if (!clients[session]) {
-      clients[session] = {};
-    }
+    clients[session] = {
+      ...clients[session],
+      client,
+      status: 'STARTING'
+    };
     
-    clients[session].client = client;
-    clients[session].status = 'CONNECTED';
+    client.onStateChange((state) => {
+      clients[session].status = state;
+    });
     
-    res.status(200).json({
+    await client.isConnected();
+    
+    return res.status(200).json({
       status: true,
       message: 'Sessão iniciada com sucesso'
     });
   } catch (error) {
     console.error('Erro ao iniciar sessão:', error);
-    res.status(500).json({
+    return res.status(500).json({
       status: false,
       message: 'Erro ao iniciar sessão',
       error: error.message
@@ -114,222 +135,99 @@ app.post('/api/:key/start-session', async (req, res) => {
   }
 });
 
-// Fechar uma sessão
-app.post('/api/:key/close-session', async (req, res) => {
-  try {
-    const { session } = req.body;
-    
-    if (!session) {
-      return res.status(400).json({
-        status: false,
-        message: 'Nome da sessão é obrigatório'
-      });
-    }
-    
-    if (!clients[session]?.client) {
-      return res.status(404).json({
-        status: false,
-        message: 'Sessão não encontrada ou não inicializada'
-      });
-    }
-    
-    // Fechar a sessão
-    await clients[session].client.close();
-    delete clients[session];
-    
-    res.status(200).json({
-      status: true,
-      message: 'Sessão encerrada com sucesso'
-    });
-  } catch (error) {
-    console.error('Erro ao fechar sessão:', error);
-    res.status(500).json({
+// Obter QR Code
+app.get('/api/:token/qrcode', authMiddleware, (req, res) => {
+  const { session } = req.query;
+  
+  if (!session) {
+    return res.status(400).json({
       status: false,
-      message: 'Erro ao fechar sessão',
-      error: error.message
+      message: 'Nome da sessão não fornecido'
     });
   }
-});
-
-// Obter QR Code da sessão
-app.get('/api/:key/qrcode', async (req, res) => {
-  try {
-    const session = req.query.session;
-    
-    if (!session) {
-      return res.status(400).json({
-        status: false,
-        message: 'Nome da sessão é obrigatório'
-      });
-    }
-    
-    // Se a sessão não existir, tentar inicializá-la automaticamente
-    if (!clients[session]) {
-      console.log(`Sessão ${session} não encontrada, criando automaticamente...`);
-      try {
-        // Iniciar cliente
-        const client = await wppconnect.create({
-          session,
-          ...wppOptions,
-          statusFind: (statusSession, sessionName) => {
-            console.log(`Status da sessão [${sessionName}]: ${statusSession}`);
-            if (!clients[sessionName]) {
-              clients[sessionName] = {};
-            }
-            clients[sessionName].status = statusSession;
-          }
-        });
-        
-        if (!clients[session]) {
-          clients[session] = {};
-        }
-        
-        clients[session].client = client;
-        console.log(`Sessão ${session} criada com sucesso, aguardando QR Code...`);
-      } catch (initError) {
-        console.error(`Erro ao inicializar sessão ${session}:`, initError);
-        return res.status(500).json({
-          status: false,
-          message: 'Erro ao inicializar a sessão',
-          error: initError.message
-        });
-      }
-    }
-    
-    if (!clients[session]) {
-      return res.status(404).json({
-        status: false,
-        message: 'Sessão não encontrada. Inicie a sessão primeiro.'
-      });
-    }
-    
-    // Aguardar um pouco para garantir que o QR code seja gerado
-    if (!clients[session].qrCode) {
-      // Aguardar até 10 segundos pelo QR code
-      for (let i = 0; i < 10; i++) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        if (clients[session].qrCode) break;
-      }
-    }
-    
-    if (!clients[session].qrCode) {
-      return res.status(404).json({
-        status: false,
-        message: 'QR Code não disponível. Verifique se a sessão já não está conectada.'
-      });
-    }
-    
-    res.status(200).json({
-      status: true,
-      qrcode: clients[session].qrCode
-    });
-  } catch (error) {
-    console.error('Erro ao obter QR Code:', error);
-    res.status(500).json({
+  
+  const clientInfo = clients[session];
+  if (!clientInfo) {
+    return res.status(404).json({
       status: false,
-      message: 'Erro ao obter QR Code',
-      error: error.message
+      message: 'Sessão não encontrada'
     });
   }
+  
+  return res.status(200).json({
+    status: true,
+    qrcode: clientInfo.qrCode
+  });
 });
 
 // Verificar status da sessão
-app.get('/api/:key/session-status', async (req, res) => {
-  try {
-    const session = req.query.session;
-    
-    if (!session) {
-      return res.status(400).json({
-        status: false,
-        message: 'Nome da sessão é obrigatório'
-      });
-    }
-    
-    let result = 'DISCONNECTED';
-    
-    if (clients[session]) {
-      if (clients[session].status === 'inChat' || clients[session].status === 'isLogged') {
-        result = 'CONNECTED';
-      } else if (clients[session].status === 'qrReadSuccess') {
-        result = 'CONNECTED';
-      } else if (clients[session].status === 'qrReadFail') {
-        result = 'DISCONNECTED';
-      } else if (clients[session].status === 'autocloseCalled') {
-        result = 'DISCONNECTED';
-      } else if (clients[session].status === 'desconnectedMobile') {
-        result = 'DISCONNECTED';
-      } else if (clients[session].status === 'notLogged' || clients[session].status === 'deviceNotConnected') {
-        result = 'DISCONNECTED';
-      } else if (clients[session].status === 'DISCONNECTED') {
-        result = 'DISCONNECTED';
-      } else if (clients[session].status === 'CONNECTED') {
-        result = 'CONNECTED';
-      } else if (clients[session].qrCode) {
-        result = 'QRCODE';
-      } else {
-        result = 'STARTING';
-      }
-    }
-    
-    res.status(200).json({
-      status: true,
-      session,
-      result,
-      statusMessage: clients[session]?.status || 'Não iniciado'
-    });
-  } catch (error) {
-    console.error('Erro ao verificar status da sessão:', error);
-    res.status(500).json({
+app.get('/api/:token/session-status', authMiddleware, (req, res) => {
+  const { session } = req.query;
+  
+  if (!session) {
+    return res.status(400).json({
       status: false,
-      message: 'Erro ao verificar status da sessão',
-      error: error.message
+      message: 'Nome da sessão não fornecido'
     });
   }
+  
+  const clientInfo = clients[session];
+  if (!clientInfo) {
+    return res.status(404).json({
+      status: false,
+      message: 'Sessão não encontrada'
+    });
+  }
+  
+  return res.status(200).json({
+    status: true,
+    result: clientInfo.status
+  });
 });
 
 // Enviar mensagem de texto
-app.post('/api/:key/send-message', async (req, res) => {
+app.post('/api/:token/send-message', authMiddleware, async (req, res) => {
+  const { session, phone, message } = req.body;
+  
+  if (!session || !phone || !message) {
+    return res.status(400).json({
+      status: false,
+      message: 'Parâmetros incompletos (session, phone, message)'
+    });
+  }
+  
+  const clientInfo = clients[session];
+  if (!clientInfo || !clientInfo.client) {
+    return res.status(404).json({
+      status: false,
+      message: 'Sessão não encontrada ou desconectada'
+    });
+  }
+  
   try {
-    const { session, phone, message } = req.body;
-    
-    if (!session || !phone || !message) {
-      return res.status(400).json({
-        status: false,
-        message: 'Sessão, telefone e mensagem são obrigatórios'
-      });
-    }
-    
-    if (!clients[session]?.client) {
-      return res.status(404).json({
-        status: false,
-        message: 'Sessão não encontrada ou não inicializada'
-      });
-    }
-    
-    // Limpar o número de telefone (remover caracteres não numéricos)
-    const cleanPhone = phone.replace(/\D/g, '');
+    // Formatar número se necessário
+    const formattedPhone = formatPhone(phone);
     
     // Verificar se o número existe no WhatsApp
-    const isRegistered = await clients[session].client.checkNumberStatus(`${cleanPhone}@c.us`);
+    const isRegistered = await clientInfo.client.checkNumberStatus(formattedPhone);
     
-    if (!isRegistered.numberExists) {
-      return res.status(404).json({
+    if (!isRegistered.canReceiveMessage) {
+      return res.status(400).json({
         status: false,
-        message: 'Número não encontrado no WhatsApp'
+        message: 'Número não registrado no WhatsApp'
       });
     }
     
     // Enviar mensagem
-    const result = await clients[session].client.sendText(`${cleanPhone}@c.us`, message);
+    const result = await clientInfo.client.sendText(formattedPhone, message);
     
-    res.status(200).json({
+    return res.status(200).json({
       status: true,
-      message: 'Mensagem enviada com sucesso',
       result
     });
   } catch (error) {
     console.error('Erro ao enviar mensagem:', error);
-    res.status(500).json({
+    return res.status(500).json({
       status: false,
       message: 'Erro ao enviar mensagem',
       error: error.message
@@ -338,53 +236,53 @@ app.post('/api/:key/send-message', async (req, res) => {
 });
 
 // Enviar arquivo
-app.post('/api/:key/send-file', async (req, res) => {
+app.post('/api/:token/send-file', authMiddleware, async (req, res) => {
+  const { session, phone, path, filename, caption } = req.body;
+  
+  if (!session || !phone || !path) {
+    return res.status(400).json({
+      status: false,
+      message: 'Parâmetros incompletos (session, phone, path)'
+    });
+  }
+  
+  const clientInfo = clients[session];
+  if (!clientInfo || !clientInfo.client) {
+    return res.status(404).json({
+      status: false,
+      message: 'Sessão não encontrada ou desconectada'
+    });
+  }
+  
   try {
-    const { session, phone, path, filename, caption } = req.body;
-    
-    if (!session || !phone || !path) {
-      return res.status(400).json({
-        status: false,
-        message: 'Sessão, telefone e caminho do arquivo são obrigatórios'
-      });
-    }
-    
-    if (!clients[session]?.client) {
-      return res.status(404).json({
-        status: false,
-        message: 'Sessão não encontrada ou não inicializada'
-      });
-    }
-    
-    // Limpar o número de telefone (remover caracteres não numéricos)
-    const cleanPhone = phone.replace(/\D/g, '');
+    // Formatar número se necessário
+    const formattedPhone = formatPhone(phone);
     
     // Verificar se o número existe no WhatsApp
-    const isRegistered = await clients[session].client.checkNumberStatus(`${cleanPhone}@c.us`);
+    const isRegistered = await clientInfo.client.checkNumberStatus(formattedPhone);
     
-    if (!isRegistered.numberExists) {
-      return res.status(404).json({
+    if (!isRegistered.canReceiveMessage) {
+      return res.status(400).json({
         status: false,
-        message: 'Número não encontrado no WhatsApp'
+        message: 'Número não registrado no WhatsApp'
       });
     }
     
     // Enviar arquivo
-    const result = await clients[session].client.sendFile(
-      `${cleanPhone}@c.us`,
+    const result = await clientInfo.client.sendFile(
+      formattedPhone,
       path,
-      filename || 'arquivo',
+      filename || 'file',
       caption || ''
     );
     
-    res.status(200).json({
+    return res.status(200).json({
       status: true,
-      message: 'Arquivo enviado com sucesso',
       result
     });
   } catch (error) {
     console.error('Erro ao enviar arquivo:', error);
-    res.status(500).json({
+    return res.status(500).json({
       status: false,
       message: 'Erro ao enviar arquivo',
       error: error.message
@@ -392,35 +290,78 @@ app.post('/api/:key/send-file', async (req, res) => {
   }
 });
 
-// Obter todos os contatos
-app.get('/api/:key/all-contacts', async (req, res) => {
+// Verificar número
+app.get('/api/:token/check-number-status', authMiddleware, async (req, res) => {
+  const { session, phone } = req.query;
+  
+  if (!session || !phone) {
+    return res.status(400).json({
+      status: false,
+      message: 'Parâmetros incompletos (session, phone)'
+    });
+  }
+  
+  const clientInfo = clients[session];
+  if (!clientInfo || !clientInfo.client) {
+    return res.status(404).json({
+      status: false,
+      message: 'Sessão não encontrada ou desconectada'
+    });
+  }
+  
   try {
-    const session = req.query.session;
+    // Formatar número se necessário
+    const formattedPhone = formatPhone(phone);
     
-    if (!session) {
-      return res.status(400).json({
-        status: false,
-        message: 'Nome da sessão é obrigatório'
-      });
-    }
+    // Verificar se o número existe no WhatsApp
+    const result = await clientInfo.client.checkNumberStatus(formattedPhone);
     
-    if (!clients[session]?.client) {
-      return res.status(404).json({
-        status: false,
-        message: 'Sessão não encontrada ou não inicializada'
-      });
-    }
+    return res.status(200).json({
+      status: true,
+      response: {
+        numberExists: result.canReceiveMessage
+      }
+    });
+  } catch (error) {
+    console.error('Erro ao verificar número:', error);
+    return res.status(500).json({
+      status: false,
+      message: 'Erro ao verificar número',
+      error: error.message
+    });
+  }
+});
+
+// Obter todos os contatos
+app.get('/api/:token/all-contacts', authMiddleware, async (req, res) => {
+  const { session } = req.query;
+  
+  if (!session) {
+    return res.status(400).json({
+      status: false,
+      message: 'Nome da sessão não fornecido'
+    });
+  }
+  
+  const clientInfo = clients[session];
+  if (!clientInfo || !clientInfo.client) {
+    return res.status(404).json({
+      status: false,
+      message: 'Sessão não encontrada ou desconectada'
+    });
+  }
+  
+  try {
+    // Obter todos os contatos
+    const contacts = await clientInfo.client.getAllContacts();
     
-    // Obter contatos
-    const contacts = await clients[session].client.getAllContacts();
-    
-    res.status(200).json({
+    return res.status(200).json({
       status: true,
       response: contacts
     });
   } catch (error) {
     console.error('Erro ao obter contatos:', error);
-    res.status(500).json({
+    return res.status(500).json({
       status: false,
       message: 'Erro ao obter contatos',
       error: error.message
@@ -428,50 +369,85 @@ app.get('/api/:key/all-contacts', async (req, res) => {
   }
 });
 
-// Verificar status de um número
-app.get('/api/:key/check-number-status', async (req, res) => {
+// Desconectar sessão
+app.post('/api/:token/logout-session', authMiddleware, async (req, res) => {
+  const { session } = req.body;
+  
+  if (!session) {
+    return res.status(400).json({
+      status: false,
+      message: 'Nome da sessão não fornecido'
+    });
+  }
+  
+  const clientInfo = clients[session];
+  if (!clientInfo || !clientInfo.client) {
+    return res.status(404).json({
+      status: false,
+      message: 'Sessão não encontrada ou já desconectada'
+    });
+  }
+  
   try {
-    const session = req.query.session;
-    const phone = req.query.phone;
+    // Desconectar cliente
+    await clientInfo.client.logout();
+    delete clients[session];
     
-    if (!session || !phone) {
-      return res.status(400).json({
-        status: false,
-        message: 'Sessão e telefone são obrigatórios'
-      });
-    }
-    
-    if (!clients[session]?.client) {
-      return res.status(404).json({
-        status: false,
-        message: 'Sessão não encontrada ou não inicializada'
-      });
-    }
-    
-    // Limpar o número de telefone (remover caracteres não numéricos)
-    const cleanPhone = phone.replace(/\D/g, '');
-    
-    // Verificar status do número
-    const result = await clients[session].client.checkNumberStatus(`${cleanPhone}@c.us`);
-    
-    res.status(200).json({
+    return res.status(200).json({
       status: true,
-      response: {
-        numberExists: result.numberExists || false,
-        phone: cleanPhone
-      }
+      message: 'Sessão desconectada com sucesso'
     });
   } catch (error) {
-    console.error('Erro ao verificar status do número:', error);
-    res.status(500).json({
+    console.error('Erro ao desconectar sessão:', error);
+    return res.status(500).json({
       status: false,
-      message: 'Erro ao verificar status do número',
+      message: 'Erro ao desconectar sessão',
       error: error.message
     });
   }
 });
 
+// Função para formatar números de telefone
+function formatPhone(phone) {
+  // Remover caracteres não numéricos
+  let formattedPhone = phone.replace(/\D/g, '');
+  
+  // Verificar se já tem código do país
+  if (!formattedPhone.startsWith('55')) {
+    formattedPhone = '55' + formattedPhone;
+  }
+  
+  // Adicionar @ no final para formato correto do WPPConnect
+  formattedPhone = formattedPhone + '@c.us';
+  
+  return formattedPhone;
+}
+
 // Iniciar servidor
-app.listen(PORT, () => {
-  console.log(`Servidor WPPConnect iniciado na porta ${PORT}`);
+const server = app.listen(PORT, () => {
+  console.log(`Servidor WPPConnect rodando na porta ${PORT}`);
+  console.log(`Token de API: ${API_KEY}`);
 });
+
+// Tratar desligamento do processo
+process.on('SIGINT', async () => {
+  console.log('Desligando servidor WPPConnect...');
+  
+  // Desconectar todas as sessões
+  for (const session in clients) {
+    if (clients[session] && clients[session].client) {
+      try {
+        await clients[session].client.close();
+      } catch (error) {
+        console.error(`Erro ao fechar sessão ${session}:`, error);
+      }
+    }
+  }
+  
+  server.close(() => {
+    console.log('Servidor WPPConnect encerrado.');
+    process.exit(0);
+  });
+});
+
+module.exports = server;
