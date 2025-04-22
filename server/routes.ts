@@ -1001,29 +1001,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao criar cliente:", error);
       
-      // Se estiver no modo de demonstração, criar um cliente demo
-      if (asaasService.inDemoMode) {
-        const demoId = `demo_customer_${Math.floor(Math.random() * 1000)}`;
-        const demoCustomer = {
-          id: demoId,
-          name: req.body.name,
-          cpfCnpj: req.body.cpfCnpj,
-          email: req.body.email,
-          phone: req.body.phone,
-          mobilePhone: req.body.mobilePhone,
-          address: req.body.address,
-          addressNumber: req.body.addressNumber,
-          complement: req.body.complement,
-          province: req.body.province,
-          postalCode: req.body.postalCode,
-          deleted: false,
-          createdAt: new Date().toISOString()
-        };
-        
-        res.status(201).json(demoCustomer);
-      } else {
-        res.status(500).json({ message: "Erro ao criar cliente no Asaas", error: String(error) });
-      }
+      // Não usar mais modo de demonstração, sempre tentar com a API real
+      // Se não conseguir, retornar erro para o cliente
+      res.status(500).json({ error: 'Falha ao criar cliente. Verifique a conexão com o Asaas.' });
     }
   });
 

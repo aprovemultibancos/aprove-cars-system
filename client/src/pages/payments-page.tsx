@@ -75,10 +75,8 @@ function BalanceOverview() {
   const [isDemoMode, setIsDemoMode] = useState(false);
   
   useEffect(() => {
-    if (data) {
-      // Se o saldo for exatamente 1550.75, é provavelmente o valor de demonstração
-      setIsDemoMode(data.balance === 1550.75);
-    }
+    // Não usamos mais o modo de demonstração, a API real é sempre usada
+    setIsDemoMode(false);
   }, [data]);
   
   return (
@@ -154,11 +152,8 @@ function PaymentsList() {
   const { toast } = useToast();
   
   useEffect(() => {
-    if (data && data.data.length > 0) {
-      // Verificar se algum dos pagamentos tem ID começando com "demo"
-      const hasDemo = data.data.some(payment => payment.id.startsWith('demo'));
-      setIsDemoMode(hasDemo);
-    }
+    // Não usamos mais o modo de demonstração, a API real é sempre usada
+    setIsDemoMode(false);
   }, [data]);
   
   const handleCancel = (paymentId: string) => {
@@ -396,7 +391,7 @@ interface PaymentFormData {
 function PaymentForm() {
   const { createPaymentMutation, calculateFeeAmount, formatCurrency, createCustomerMutation } = useAsaas();
   const { toast } = useToast();
-  const [isDemoMode, setIsDemoMode] = useState(true); // Começamos assumindo modo de demonstração
+  const [isDemoMode, setIsDemoMode] = useState(false); // Usamos sempre o modo real
   const [showNewCustomerDialog, setShowNewCustomerDialog] = useState(false);
   const [formData, setFormData] = useState<PaymentFormData>({
     customerName: '',
