@@ -375,7 +375,7 @@ export class AsaasService {
         throw new Error(`Status: ${response.status}`);
       }
     } catch (error) {
-      console.warn('⚠️ Não foi possível conectar à API Asaas. O sistema funcionará com dados de demonstração.');
+      console.error('❌ Não foi possível conectar à API Asaas. Verifique se a chave API está configurada corretamente.');
       console.error('Detalhes do erro:', error);
     }
   }
@@ -440,33 +440,8 @@ export class AsaasService {
     try {
       return await this.request<AsaasCustomerResponse>('/customers', 'POST', customerData);
     } catch (error) {
-      console.error('Erro ao criar cliente real. Retornando resposta simulada.', error);
-      
-      // Gerar um ID único para o cliente simulado
-      const demoId = `demo-cust-${Date.now()}`;
-      
-      // Retornar um objeto simulado com os dados da requisição
-      return {
-        id: demoId,
-        name: customerData.name,
-        cpfCnpj: customerData.cpfCnpj,
-        email: customerData.email || '',
-        phone: customerData.phone || '',
-        mobilePhone: customerData.mobilePhone || '',
-        address: customerData.address || '',
-        addressNumber: customerData.addressNumber || '',
-        complement: customerData.complement || '',
-        province: customerData.province || '',
-        postalCode: customerData.postalCode || '',
-        deleted: false,
-        additionalEmails: '',
-        municipalInscription: '',
-        stateInscription: '',
-        observations: '',
-        externalReference: '',
-        notificationDisabled: false,
-        createdAt: new Date().toISOString()
-      };
+      console.error('❌ Erro ao criar cliente no Asaas:', error);
+      throw error; // Propagar o erro para que a interface possa tratá-lo adequadamente
     }
   }
   
@@ -483,9 +458,9 @@ export class AsaasService {
         endpoint += `&name=${encodeURIComponent(name)}`;
       }
       
-      console.log(`Buscando clientes reais no Asaas: ${this.baseUrl}${endpoint}`);
+      console.log(`Buscando clientes no Asaas: ${this.baseUrl}${endpoint}`);
       const result = await this.request<{data: AsaasCustomerResponse[], totalCount: number}>(endpoint);
-      console.log(`Encontrados ${result.data.length} clientes reais no Asaas`);
+      console.log(`Encontrados ${result.data.length} clientes no Asaas`);
       
       // Garante que exibimos dados reais, mesmo que a lista esteja vazia
       return result;
@@ -514,7 +489,6 @@ export class AsaasService {
       console.log('Estado atual do serviço:');
       console.log(`- API Key: ${this.apiKey ? this.apiKey.substring(0, 5) + '...' : 'não definida'}`);
       console.log(`- URL base: ${this.baseUrl}`);
-      console.log(`- Modo de demonstração: ${this.inDemoMode ? 'Sim' : 'Não'}`);
       console.log(`- Empresa atual: ${this.currentCompanyId || 'não definida'}`);
       
       // Validar os dados básicos do pagamento
@@ -556,32 +530,9 @@ export class AsaasService {
       }
       
       // Verificar se API key está configurada
-      if (this.inDemoMode || this.apiKey === 'demo-key' || !this.apiKey) {
-        console.warn('⚠️ Sistema em modo de demonstração. Impossível criar pagamento real.');
-        console.warn('⚠️ É necessário configurar a chave API do Asaas.');
-        
-        // Gerar um ID único para a cobrança simulada
-        const demoId = `demo-${Date.now()}`;
-        console.warn('Gerando pagamento de demonstração:', demoId);
-        
-        // Retornar um objeto simulado com os dados da requisição
-        return {
-          id: demoId,
-          dateCreated: new Date().toISOString(),
-          customer: paymentData.customer,
-          value: paymentData.value,
-          netValue: paymentData.value * 0.97, // Simular um desconto de 3%
-          billingType: paymentData.billingType,
-          status: 'PENDING',
-          dueDate: paymentData.dueDate,
-          description: paymentData.description || 'Pagamento (simulado)',
-          invoiceUrl: "",
-          bankSlipUrl: paymentData.billingType === 'BOLETO' ? "https://example.com/boleto" : "",
-          invoiceNumber: demoId.substring(0, 6),
-          externalReference: paymentData.externalReference || "",
-          deleted: false,
-          pixQrCodeImage: paymentData.billingType === 'PIX' ? "https://example.com/pix" : undefined
-        };
+      if (!this.apiKey) {
+        console.error('❌ Erro: API key do Asaas não configurada');
+        throw new Error('API key do Asaas não configurada, impossível criar pagamento');
       }
       
       // Verificar se precisa adicionar split para empresa master
@@ -669,30 +620,7 @@ export class AsaasService {
         if (error.stack) console.error('Stack:', error.stack);
       }
       
-      // Se for um erro com a API e estiver em produção, retornar dados de demonstração
-      if (this.apiKey === 'demo-key' || this.inDemoMode || !this.apiKey) {
-        console.warn('Criando pagamento de demonstração como fallback...');
-        const demoId = `demo-${Date.now()}`;
-        
-        return {
-          id: demoId,
-          dateCreated: new Date().toISOString(),
-          customer: paymentData.customer,
-          value: paymentData.value,
-          netValue: paymentData.value * 0.97,
-          billingType: paymentData.billingType,
-          status: 'PENDING',
-          dueDate: paymentData.dueDate,
-          description: paymentData.description || 'Pagamento (simulado)',
-          invoiceUrl: "",
-          bankSlipUrl: "",
-          invoiceNumber: demoId.substring(0, 6),
-          externalReference: paymentData.externalReference || "",
-          deleted: false
-        };
-      }
-      
-      // Se temos API key válida mas ocorreu erro, propagar o erro
+      // Sempre propagar o erro para que a interface possa exibi-lo adequadamente
       throw error;
     }
   }
@@ -702,29 +630,8 @@ export class AsaasService {
     try {
       return await this.request<AsaasPaymentResponse>(`/payments/${paymentId}`);
     } catch (error) {
-      console.error(`Erro ao buscar pagamento ${paymentId}. Usando dados de demonstração.`, error);
-      
-      // Se for um ID de demonstração, retornar informações consistentes
-      if (paymentId.startsWith('demo')) {
-        return {
-          id: paymentId,
-          dateCreated: new Date().toISOString(),
-          customer: "demo-customer",
-          value: 150.00, 
-          netValue: 147.50,
-          billingType: "BOLETO",
-          status: "PENDING",
-          dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          description: "Pagamento de demonstração",
-          invoiceUrl: "",
-          bankSlipUrl: "",
-          invoiceNumber: paymentId.substring(0, 6),
-          externalReference: "",
-          deleted: false
-        };
-      }
-      
-      throw error; // Se não for um ID de demonstração, propagar o erro
+      console.error(`Erro ao buscar pagamento ${paymentId}`, error);
+      throw error; // Sempre propagar o erro
     }
   }
   
@@ -752,9 +659,9 @@ export class AsaasService {
         endpoint += `&status=${status}`;
       }
       
-      console.log(`Buscando pagamentos reais no Asaas: ${this.baseUrl}${endpoint}`);
+      console.log(`Buscando pagamentos no Asaas: ${this.baseUrl}${endpoint}`);
       const result = await this.request<{data: AsaasPaymentResponse[], totalCount: number}>(endpoint);
-      console.log(`Encontrados ${result.data.length} pagamentos reais no Asaas`);
+      console.log(`Encontrados ${result.data.length} pagamentos no Asaas`);
       
       // Garantir que sempre retornamos os dados reais, mesmo que seja uma lista vazia
       return result;
@@ -790,8 +697,8 @@ export class AsaasService {
       }
       
       // Verificar se temos uma API key válida
-      if (!this.apiKey || this.apiKey === 'demo-key') {
-        console.warn('API key do Asaas não configurada.');
+      if (!this.apiKey) {
+        console.error('❌ Erro: API key do Asaas não configurada');
         console.warn('Retornando NULL para forçar cadastro manual do cliente.');
         return null;
       }
