@@ -64,3 +64,11 @@ app.get("/", (_req: Request, res: Response) => {
     log(`🚀 Servidor rodando na porta ${port}`);
   });
 })();
+
+// 🔁 Keep-alive automático para Railway
+setInterval(() => {
+  const port = parseInt(process.env.PORT || "5000", 10);
+  fetch(`http://localhost:${port}/`)
+    .then(res => console.log(`[Keep-Alive] Ping respondido com status ${res.status}`))
+    .catch(err => console.error("[Keep-Alive] Erro ao pingar servidor:", err));
+}, 5 * 60 * 1000); // a cada 5 minutos
