@@ -1038,9 +1038,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(payments);
     } catch (error) {
       console.error("Erro ao listar pagamentos:", error);
-      // Criar dados de demonstração
-      const demoPayments = createDemoPayments(parseInt(req.query.limit as string) || 10);
-      res.json({ data: demoPayments, totalCount: 25 });
+      // Retornar lista vazia em vez de dados de demonstração
+      res.json({ data: [], totalCount: 0 });
     }
   });
   
@@ -1057,8 +1056,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Erro ao buscar pagamento:", error);
       
-      // Para pagamentos que não iniciam com "demo", retornamos um erro
-      // Se fosse um pagamento demo, já teria sido tratado pelo serviço
+      // Retornamos um erro quando o pagamento não é encontrado
       res.status(404).json({
         message: "Pagamento não encontrado ou serviço indisponível",
         error: String(error)

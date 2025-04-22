@@ -796,9 +796,9 @@ export class AsaasService {
     try {
       return await this.request<AsaasBalanceResponse>('/finance/balance');
     } catch (error) {
-      console.error('Erro ao obter saldo real. Usando valor de demonstração.', error);
-      // Retornar um valor de demonstração para a interface
-      return { balance: 1550.75 };
+      console.error('Erro ao obter saldo da conta Asaas:', error);
+      // Retornar saldo zero quando há erro na API
+      return { balance: 0 };
     }
   }
   
@@ -822,67 +822,13 @@ export class AsaasService {
       // Garantir que sempre retornamos os dados reais, mesmo que seja uma lista vazia
       return result;
     } catch (error) {
-      console.error('Erro ao obter pagamentos reais. Verificando modo de demonstração...', error);
+      console.error('Erro ao obter pagamentos do Asaas:', error);
       
-      // Somente usar demonstração se estiver explicitamente no modo de demonstração
-      if (this.inDemoMode) {
-        console.log('Usando dados de demonstração para pagamentos');
-        // Dados de demonstração para a interface
-        const demoPayments: AsaasPaymentResponse[] = [
-          {
-            id: "demo1",
-            dateCreated: new Date().toISOString(),
-            customer: "demo-customer",
-            value: 150.00,
-            netValue: 147.52,
-            billingType: "BOLETO",
-            status: "PENDING",
-            dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            description: "Pagamento de serviços (demonstração)",
-            invoiceUrl: "",
-            bankSlipUrl: "",
-            invoiceNumber: "001",
-            externalReference: "",
-            deleted: false
-          },
-          {
-            id: "demo2",
-            dateCreated: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-            customer: "demo-customer",
-            value: 299.99,
-            netValue: 297.00,
-            billingType: "PIX",
-            status: "RECEIVED",
-            dueDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            description: "Pagamento de produtos (demonstração)",
-            invoiceUrl: "",
-            bankSlipUrl: "",
-            invoiceNumber: "002",
-            externalReference: "",
-            deleted: false,
-            pixQrCodeImage: ""
-          }
-        ];
-        
-        // Filtrar por status se necessário
-        let filteredPayments = demoPayments;
-        if (status) {
-          filteredPayments = demoPayments.filter(p => p.status === status);
-        }
-        
-        return {
-          data: filteredPayments,
-          totalCount: filteredPayments.length
-        };
-      } else {
-        console.log('API Asaas indisponível, mas não estamos em modo de demonstração. Retornando lista vazia.');
-        // Se não estiver no modo de demonstração e ocorrer um erro, retornar uma lista vazia
-        // mas mantendo a estrutura adequada para a interface
-        return {
-          data: [],
-          totalCount: 0
-        };
-      }
+      // Retornar uma lista vazia com a estrutura correta para a interface
+      return {
+        data: [],
+        totalCount: 0
+      };
     }
   }
   
@@ -891,9 +837,9 @@ export class AsaasService {
     try {
       return await this.request<{deleted: boolean}>(`/payments/${paymentId}`, 'DELETE');
     } catch (error) {
-      console.error('Erro ao cancelar pagamento. Retornando resposta simulada.', error);
-      // Simular sucesso na operação de cancelamento
-      return { deleted: true };
+      console.error('Erro ao cancelar pagamento:', error);
+      // Não simular sucesso, reportar o erro corretamente
+      throw error;
     }
   }
   
@@ -906,11 +852,10 @@ export class AsaasService {
         return null;
       }
       
-      // Verificar estado da conexão com Asaas
-      if (this.inDemoMode || !this.apiKey || this.apiKey === 'demo-key') {
-        console.warn('Serviço Asaas em modo demo ou API key não configurada.');
+      // Verificar se temos uma API key válida
+      if (!this.apiKey || this.apiKey === 'demo-key') {
+        console.warn('API key do Asaas não configurada.');
         console.warn('Retornando NULL para forçar cadastro manual do cliente.');
-        // Não retornamos mais cliente de demonstração, forçando o usuário a cadastrar o cliente
         return null;
       }
       
