@@ -107,7 +107,6 @@ import { eq, and } from "drizzle-orm";
 export class AsaasService {
   private apiKey: string;
   private baseUrl: string;
-  public inDemoMode: boolean;
   public currentCompanyId: number | null;
   
   constructor() {
@@ -117,7 +116,6 @@ export class AsaasService {
     if (hasValidApiKey) {
       // Usar a chave de API definida no ambiente
       this.apiKey = ASAAS_API_KEY!;
-      this.inDemoMode = false; // Nunca usar modo de demonstração quando temos chave válida
       
       // Definir a URL base com base no tipo de chave
       if (this.apiKey.startsWith('$aact_') || this.apiKey.includes('prod_')) {
@@ -128,11 +126,10 @@ export class AsaasService {
         console.log('📋 Utilizando ambiente de SANDBOX do Asaas');
       }
     } else {
-      // Sem chave de API no ambiente, usar valor de demonstração 
-      console.warn('ATENÇÃO: ASAAS_API_KEY não está configurada. O sistema funcionará em modo de demonstração.');
-      this.apiKey = 'demo-key';
+      // Erro crítico: API key não configurada
+      console.error('ERRO CRÍTICO: ASAAS_API_KEY não está configurada. O sistema não conseguirá processar pagamentos.');
+      this.apiKey = '';
       this.baseUrl = ASAAS_SANDBOX_URL;
-      this.inDemoMode = true; // Usar modo de demonstração
     }
     
     // Sempre definir empresa 1 como padrão
@@ -152,7 +149,6 @@ export class AsaasService {
       // Sempre usar a chave de API do ambiente
       if (ASAAS_API_KEY && ASAAS_API_KEY.trim() !== '') {
         this.apiKey = ASAAS_API_KEY;
-        this.inDemoMode = false;
         this.currentCompanyId = companyId;
         
         // Definir URL base com base na chave do ambiente
@@ -179,7 +175,6 @@ export class AsaasService {
             console.log('✅ Conexão com a API Asaas estabelecida com sucesso!');
           } else {
             console.warn(`⚠️ Conexão com API falhou: ${response.status}`);
-            this.inDemoMode = true;
           }
         } catch (connError) {
           console.warn('⚠️ Não foi possível testar a conexão, mas continuando com a empresa selecionada');
@@ -188,10 +183,9 @@ export class AsaasService {
         return true;
       } else {
         // Sem chave de API válida no ambiente
-        console.warn('ATENÇÃO: ASAAS_API_KEY não está configurada. O sistema funcionará em modo de demonstração.');
-        this.apiKey = 'demo-key';
+        console.error('ERRO CRÍTICO: ASAAS_API_KEY não está configurada. O sistema não conseguirá processar pagamentos.');
+        this.apiKey = '';
         this.baseUrl = ASAAS_SANDBOX_URL;
-        this.inDemoMode = true;
         this.currentCompanyId = companyId;
         
         return false;
@@ -202,7 +196,6 @@ export class AsaasService {
         console.error('Detalhes do erro:', error.message);
         if (error.stack) console.error('Stack:', error.stack);
       }
-      this.inDemoMode = true;
       return false;
     }
   }
@@ -248,7 +241,6 @@ export class AsaasService {
         
         // A chave é válida, vamos atualizá-la na memória
         this.apiKey = cleanApiKey;
-        this.inDemoMode = false;
         
         // Atualizar também a URL base
         this.baseUrl = mode === 'sandbox' ? ASAAS_SANDBOX_URL : ASAAS_PRODUCTION_URL;
@@ -498,68 +490,13 @@ export class AsaasService {
       // Garante que exibimos dados reais, mesmo que a lista esteja vazia
       return result;
     } catch (error) {
-      console.error('Erro ao obter clientes reais. Usando dados de demonstração.', error);
+      console.error('Erro ao obter clientes do Asaas:', error);
       
-      // Somente usar demonstração se estiver explicitamente no modo de demonstração
-      if (this.inDemoMode) {
-        // Dados de demonstração para a interface
-        const demoCustomers: AsaasCustomerResponse[] = [
-          {
-            id: "demo-cust-1",
-            name: "João da Silva",
-            cpfCnpj: "12345678909",
-            email: "joao@example.com",
-            phone: "11999999999",
-            mobilePhone: "11999999999",
-            address: "Rua das Flores",
-            addressNumber: "123",
-            complement: "Apto 101",
-            province: "Centro",
-            postalCode: "01234567",
-            deleted: false,
-            additionalEmails: "",
-            municipalInscription: "",
-            stateInscription: "",
-            observations: "",
-            externalReference: "",
-            notificationDisabled: false,
-            createdAt: new Date().toISOString()
-          },
-          {
-            id: "demo-cust-2",
-            name: "Maria Souza",
-            cpfCnpj: "98765432100",
-            email: "maria@example.com",
-            phone: "11988888888",
-            mobilePhone: "11988888888",
-            address: "Av. Paulista",
-            addressNumber: "1000",
-            complement: "",
-            province: "Bela Vista",
-            postalCode: "01310100",
-            deleted: false,
-            additionalEmails: "",
-            municipalInscription: "",
-            stateInscription: "",
-            observations: "",
-            externalReference: "",
-            notificationDisabled: false,
-            createdAt: new Date().toISOString()
-          }
-        ];
-        
-        return {
-          data: demoCustomers,
-          totalCount: demoCustomers.length
-        };
-      } else {
-        // Se não estiver no modo de demonstração e ocorrer um erro, retornar uma lista vazia
-        // mas mantendo a estrutura adequada para a interface
-        return {
-          data: [],
-          totalCount: 0
-        };
-      }
+      // Retornar lista vazia mantendo a estrutura adequada para a interface
+      return {
+        data: [],
+        totalCount: 0
+      };
     }
   }
   
