@@ -38,6 +38,10 @@ app.use((req, res, next) => {
 
 (async () => {
   const server = await registerRoutes(app);
+// Rota básica para manter o container Railway ativo
+app.get("/", (_req: Request, res: Response) => {
+  res.send("✅ Sistema Aprove Cars está rodando!");
+});
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
