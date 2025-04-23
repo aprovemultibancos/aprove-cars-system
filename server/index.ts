@@ -60,9 +60,9 @@ app.get("/", (_req: Request, res: Response) => {
   }
 
   const port = parseInt(process.env.PORT || "5000", 10);
-  server.listen(port, () => {
-    log(`🚀 Servidor rodando na porta ${port}`);
-  });
+  server.listen(port, '0.0.0.0', () => {
+  log(`🚀 Servidor rodando na porta ${port}`);
+});
 })();
 
 // 🔁 Keep-alive automático para Railway
