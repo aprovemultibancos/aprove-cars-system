@@ -38,7 +38,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Rota básica de "keep-alive"
+// Rota básica de saúde
 app.get("/", (_req: Request, res: Response) => {
   res.send("✅ Sistema Aprove Cars está rodando!");
 });
@@ -46,6 +46,7 @@ app.get("/", (_req: Request, res: Response) => {
 (async () => {
   const server = await registerRoutes(app);
 
+  // Middleware de erro
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
@@ -53,6 +54,7 @@ app.get("/", (_req: Request, res: Response) => {
     throw err;
   });
 
+  // Ambiente de produção ou desenvolvimento
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
@@ -60,15 +62,16 @@ app.get("/", (_req: Request, res: Response) => {
   }
 
   const port = parseInt(process.env.PORT || "5000", 10);
+
+  // Escuta em 0.0.0.0 para o Railway funcionar
   server.listen(port, '0.0.0.0', () => {
-  log(`🚀 Servidor rodando na porta ${port}`);
-});
+    log(`🚀 Servidor rodando na porta ${port}`);
+  });
 })();
 
-// 🔁 Keep-alive automático para Railway
+// Keep-alive para o Railway
 setInterval(() => {
-  const port = parseInt(process.env.PORT || "5000", 10);
-  fetch(`http://localhost:${port}/`)
+  fetch("https://aprove-cars-system-production.up.railway.app/")
     .then(res => console.log(`[Keep-Alive] Ping respondido com status ${res.status}`))
     .catch(err => console.error("[Keep-Alive] Erro ao pingar servidor:", err));
-}, 5 * 60 * 1000); // a cada 5 minutos
+}, 5 * 60 * 1000);
